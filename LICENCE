@@ -1,11 +1,15 @@
+────────────────────────────────────────────────────────────────────
+
 STARMONT LICENSE
+
 ────────────────────────────────────────────────────────────────────
 
 Copyright (C) 2025 Eisvogel Studio  
-Author: Felix Koppe (fkoppe@web.de)  
 Contact: eisvogelstudio@protonmail.com  
-Project: Starmont 0.1.0  
+Project: Starmont 0.1.0-dev  
 Repository: https://github.com/eisvogelstudio/starmont  
+
+Author: Felix Koppe (fkoppe@web.de)  
 
 ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +23,7 @@ this software or its components without explicit prior
 written permission is strictly prohibited.  
 
 ────────────────────────────────────────────────────────────────────
+
 LICENSE TERMS  
 
 1. PUBLIC SOURCE & FORKING  
@@ -49,4 +54,7 @@ LICENSE TERMS
      resulting from the use or misuse of this software.  
 
 ────────────────────────────────────────────────────────────────────  
+
 Starmont License - Version 1.0 - Last Updated: 2025  
+
+────────────────────────────────────────────────────────────────────
