@@ -17,36 +17,10 @@
 const std = @import("std");
 const testing = std.testing;
 
-const core = @import("core");
-const util = @import("util");
+pub const name = "starmont";
+pub const version = "0.1.0-dev";
 
-const rl = @import("raylib");
+pub const model = @import("model.zig");
 
-pub const View = @import("view.zig").View;
-
-const Model = core.Model;
-
-pub const name = "client";
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-
-    var allocator = gpa.allocator();
-
-    var model = Model.init(&allocator);
-    defer model.deinit();
-
-    var view = View.init(&allocator);
-    defer view.deinit();
-
-    std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
-    std.log.info("All your starbase are belong to us.", .{});
-
-    while (!view.shouldStop()) {
-        model.update();
-        view.update(&model);
-    }
-
-    util.helloutil();
-}
+pub const Model = model.Model;
+pub const ShipData = model.ShipData;

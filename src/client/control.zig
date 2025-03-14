@@ -17,6 +17,22 @@
 const std = @import("std");
 const testing = std.testing;
 
-pub export fn hellomodel() void {
-    std.debug.print("Hello from model\n", .{});
-}
+pub const Control = struct {
+    allocator: *std.mem.Allocator,
+
+    pub fn init(allocator: *std.mem.Allocator) Control {
+        const view = Control{
+            .allocator = allocator,
+        };
+
+        return view;
+    }
+
+    pub fn deinit(self: *Control) void {
+        _ = self;
+    }
+
+    pub fn update(self: *Control) void {
+        _ = self;
+    }
+};

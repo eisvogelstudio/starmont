@@ -1,14 +1,20 @@
 .{
-    .name = "starmont",
-
+    .name = .starmont,
     .version = "0.1.0-dev",
+    .fingerprint = 0x39b182bdc0b9cbde,
 
-    // This field is optional.
-    // This is currently advisory only; Zig does not yet do anything
-    // with this value.
-    //.minimum_zig_version = "0.11.0",
+    .minimum_zig_version = "0.14.0",
 
-    .dependencies = .{},
+    .dependencies = .{
+        .zflecs = .{
+            .url = "git+https://github.com/eisvogelstudio/zflecs.git#ee2cd434fa2ec2454008988a1cc1201b242f030e",
+            .hash = "zflecs-0.2.0-dev-1PN3yl9HNQAISm_tEMQYO7ifHXUI2q180ZXSaS1WtkSq",
+        },
+        .raylib_zig = .{
+            .url = "git+https://github.com/eisvogelstudio/raylib-zig.git#17a1754271ab440395256002cd7ae7a7d0a6f1cc",
+            .hash = "raylib_zig-5.6.0-dev-KE8REFguBQDFc0VjPFDWO3CbuH2toCGrPhxDSPkQ1wNc",
+        },
+    },
 
     .paths = .{
         "build.zig",

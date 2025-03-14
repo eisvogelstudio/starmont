@@ -17,12 +17,15 @@
 const std = @import("std");
 const testing = std.testing;
 
-const model = @import("model");
+const core = @import("core");
 const util = @import("util");
 
-pub fn main() !void {
-    std.debug.print("All your server-{s} are belong to us.\n", .{"codebase"});
+pub const name = "server";
 
-    model.hellomodel();
+pub fn main() !void {
+    std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
+    std.log.info("All your starbase are belong to us.", .{});
+
+    //core.hellomodel();
     util.helloutil();
 }

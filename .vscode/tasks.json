@@ -5,7 +5,9 @@
             "label": "Run Client",
             "type": "shell",
             "command": "zig build run-client",
-            "problemMatcher": ["$zig"],
+            "problemMatcher": [
+                "$zig"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -15,7 +17,9 @@
             "label": "Run Server",
             "type": "shell",
             "command": "zig build run-server",
-            "problemMatcher": ["$zig"],
+            "problemMatcher": [
+                "$zig"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": false
