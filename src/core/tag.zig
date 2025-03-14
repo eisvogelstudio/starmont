@@ -17,11 +17,11 @@
 const std = @import("std");
 const testing = std.testing;
 
-pub const name = "starmont";
-pub const version = "0.1.0-dev";
+pub const Ship = struct {};
 
-pub const model = @import("model.zig");
+pub const Small = struct {};
+pub const Medium = struct {};
+pub const Large = struct {};
+pub const Capital = struct {};
 
-pub const component = @import("component.zig");
-
-pub const tag = @import("tag.zig");
+pub const Visible = struct {};

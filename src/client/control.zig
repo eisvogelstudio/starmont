@@ -17,22 +17,46 @@
 const std = @import("std");
 const testing = std.testing;
 
+const core = @import("core");
+const Model = core.model.Model;
+
+pub const View = @import("view.zig").View;
+
+pub const name = "client";
+
 pub const Control = struct {
     allocator: *std.mem.Allocator,
+    model: Model,
+    view: View,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
-        const view = Control{
+        const control = Control{
             .allocator = allocator,
+            .model = Model.init(allocator),
+            .view = View.init(allocator),
         };
 
-        return view;
+        std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
+        std.log.info("All your starbase are belong to us.", .{});
+
+        return control;
     }
 
     pub fn deinit(self: *Control) void {
-        _ = self;
+        self.model.deinit();
+        self.view.deinit();
+
+        std.log.info("stopped sucessfully", .{});
     }
 
     pub fn update(self: *Control) void {
-        _ = self;
+        self.model.update();
+        self.view.update(&self.model);
     }
+
+    pub fn shouldStop(self: *Control) bool {
+        return self.view.shouldStop();
+    }
+
+    fn getNetworkState() void {}
 };

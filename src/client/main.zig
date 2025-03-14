@@ -17,16 +17,7 @@
 const std = @import("std");
 const testing = std.testing;
 
-const core = @import("core");
-const util = @import("util");
-
-const rl = @import("raylib");
-
-pub const View = @import("view.zig").View;
-
-const Model = core.Model;
-
-pub const name = "client";
+const Control = @import("control.zig").Control;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -34,19 +25,11 @@ pub fn main() !void {
 
     var allocator = gpa.allocator();
 
-    var model = Model.init(&allocator);
-    defer model.deinit();
+    var control = Control.init(&allocator);
 
-    var view = View.init(&allocator);
-    defer view.deinit();
-
-    std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
-    std.log.info("All your starbase are belong to us.", .{});
-
-    while (!view.shouldStop()) {
-        model.update();
-        view.update(&model);
+    while (!control.shouldStop()) {
+        control.update();
     }
 
-    util.helloutil();
+    control.deinit();
 }

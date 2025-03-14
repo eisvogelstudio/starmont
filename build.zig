@@ -44,6 +44,7 @@ pub fn build(b: *std.Build) void {
     client_mod.addImport("util", util_mod);
     client_mod.addImport("raylib", raylib.module("raylib"));
     client_mod.addImport("raygui", raylib.module("raygui"));
+    client_mod.addImport("zflecs", zflecs.module("root"));
 
     // server module
     const server_mod = b.createModule(.{
@@ -82,6 +83,7 @@ pub fn build(b: *std.Build) void {
     client_exe.linkLibrary(core_lib);
     client_exe.linkLibrary(util_lib);
     client_exe.linkLibrary(raylib.artifact("raylib"));
+    client_exe.linkLibrary(zflecs.artifact("flecs"));
 
     b.installArtifact(client_exe);
 
