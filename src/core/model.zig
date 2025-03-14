@@ -23,7 +23,7 @@ const Position = struct { x: f32, y: f32 };
 const Velocity = struct { x: f32, y: f32 };
 const Acceleration = struct { x: f32, y: f32 };
 
-pub const SizeClass = enum {
+pub const ShipSize = enum {
     Small,
     Medium,
     Large,
@@ -42,6 +42,7 @@ pub const Visible = struct {};
 pub const ShipData = struct {
     x: f32,
     y: f32,
+    size: ShipSize,
 };
 
 fn move_system_with_it(it: *ecs.iter_t, positions: []Position, velocities: []Velocity, accelerations: []const Acceleration) void {
@@ -66,24 +67,33 @@ fn move_system_with_it(it: *ecs.iter_t, positions: []Position, velocities: []Vel
 pub const Model = struct {
     allocator: *std.mem.Allocator,
     world: *ecs.world_t,
+    prng: std.Random.DefaultPrng,
 
     pub fn init(allocator: *std.mem.Allocator) Model {
         var model = Model{
             .allocator = allocator,
             .world = ecs.init(),
+            .prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp())),
         };
 
         model.registerComponents();
         model.registerTags();
         model.registerSystems();
 
-        const shuttle = ecs.new_entity(model.world, "Shuttle");
-        _ = ecs.set(model.world, shuttle, Position, .{ .x = 0, .y = 0 });
-        _ = ecs.set(model.world, shuttle, Velocity, .{ .x = 0, .y = 0 });
-        _ = ecs.set(model.world, shuttle, Acceleration, .{ .x = 2, .y = 4 });
-        ecs.add(model.world, shuttle, Ship);
-        ecs.add(model.world, shuttle, Small);
-        ecs.add(model.world, shuttle, Visible);
+        //const shuttle = ecs.new_entity(model.world, "Shuttle");
+        // = ecs.set(model.world, shuttle, Position, .{ .x = 0, .y = 0 });
+        //_ = ecs.set(model.world, shuttle, Velocity, .{ .x = 0, .y = 0 });
+        //_ = ecs.set(model.world, shuttle, Acceleration, .{ .x = 2, .y = 4 });
+        //_ = ecs.set(model.world, shuttle, ShipSize, .Small);
+        //ecs.add(model.world, shuttle, Ship);
+        //ecs.add(model.world, shuttle, Small);
+        //ecs.add(model.world, shuttle, Visible);
+
+        _ = createShip(&model, "Shuttle_0", .Small);
+        _ = createShip(&model, "Cargo-Shuttle", .Small);
+        _ = createShip(&model, "Frigatte", .Medium);
+        _ = createShip(&model, "Destroyer", .Large);
+        _ = createShip(&model, "Battleship", .Capital);
 
         return model;
     }
@@ -100,6 +110,7 @@ pub const Model = struct {
         ecs.COMPONENT(self.world, Position);
         ecs.COMPONENT(self.world, Velocity);
         ecs.COMPONENT(self.world, Acceleration);
+        ecs.COMPONENT(self.world, ShipSize);
     }
 
     pub fn registerTags(self: *Model) void {
@@ -126,12 +137,13 @@ pub const Model = struct {
 
         const terms: [32]ecs.term_t = [_]ecs.term_t{
             ecs.term_t{ .id = ecs.id(Position) },
+            ecs.term_t{ .id = ecs.id(ShipSize) },
             ecs.term_t{ .id = ecs.id(Ship) },
             ecs.term_t{ .id = ecs.id(Visible) },
-        } ++ [_]ecs.term_t{ecs.term_t{}} ** 29; // ✅ Fully initialize the rest
+        } ++ [_]ecs.term_t{ecs.term_t{}} ** 28;
 
         var query_desc = ecs.query_desc_t{
-            .terms = terms, // ✅ Assign the full array
+            .terms = terms,
             .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
         };
 
@@ -141,15 +153,53 @@ pub const Model = struct {
         var it = ecs.query_iter(self.world, query);
 
         var ships_list = std.ArrayList(ShipData).init(self.allocator.*);
-        defer ships_list.deinit(); // Cleanup on error
+        defer ships_list.deinit();
 
         while (ecs.query_next(&it)) {
             const ships: []const Position = ecs.field(&it, Position, 0).?;
-            for (ships) |s| {
-                ships_list.append(ShipData{ .x = s.x, .y = s.y }) catch unreachable;
+            const sizes: []const ShipSize = ecs.field(&it, ShipSize, 1).?;
+
+            for (0..ships.len) |i| {
+                //const entity = it.entities()[i];
+                //std.log.info("{s}", .{ecs.get_name(self.world, entity)});
+
+                ships_list.append(ShipData{
+                    .x = ships[i].x,
+                    .y = ships[i].y,
+                    .size = sizes[i],
+                }) catch unreachable;
             }
         }
 
         return ships_list.toOwnedSlice();
+    }
+
+    pub fn createShip(self: *Model, name: [:0]const u8, size: ShipSize) ecs.entity_t {
+        const ship = ecs.new_entity(self.world, name);
+
+        const rng = self.prng.random();
+
+        const x = rng.float(f32) * 1000;
+        const y = rng.float(f32) * 200;
+
+        const ax = rng.float(f32) * 10;
+        const ay = rng.float(f32) * 10;
+
+        _ = ecs.set(self.world, ship, Position, .{ .x = x, .y = y });
+        _ = ecs.set(self.world, ship, Velocity, .{ .x = 0, .y = 0 });
+        _ = ecs.set(self.world, ship, Acceleration, .{ .x = ax, .y = ay });
+
+        _ = ecs.set(self.world, ship, ShipSize, size);
+        ecs.add(self.world, ship, Ship);
+        ecs.add(self.world, ship, Visible);
+
+        switch (size) {
+            .Small => ecs.add(self.world, ship, Small),
+            .Medium => ecs.add(self.world, ship, Medium),
+            .Large => ecs.add(self.world, ship, Large),
+            .Capital => ecs.add(self.world, ship, Capital),
+        }
+
+        return ship;
     }
 };

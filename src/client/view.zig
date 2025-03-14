@@ -48,8 +48,8 @@ pub const View = struct {
     }
 
     pub fn update(self: *View, model: *core.Model) void {
-        _ = self;
         const ships = model.getVisibleShips() catch unreachable;
+        defer self.allocator.free(ships);
         View.renderShips(ships);
 
         rl.beginDrawing();
@@ -76,7 +76,15 @@ pub const View = struct {
 
     pub fn renderShips(ships: []const core.ShipData) void {
         for (ships) |s| {
-            rl.drawCircle(@intFromFloat(@mod(s.x, screenWidth)), @intFromFloat(@mod(s.y, screenHeight)), 10, rl.Color.sky_blue);
+            var size: f32 = 0;
+            switch (s.size) {
+                .Small => size = 1,
+                .Medium => size = 1.5,
+                .Large => size = 2,
+                .Capital => size = 4,
+            }
+
+            rl.drawCircle(@intFromFloat(@mod(s.x, screenWidth)), @intFromFloat(@mod(s.y, screenHeight)), 5 * size, rl.Color.sky_blue);
         }
     }
 };
