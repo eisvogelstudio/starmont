@@ -6,6 +6,10 @@
     .minimum_zig_version = "0.14.0",
 
     .dependencies = .{
+        .network = .{
+            .url = "git+https://github.com/eisvogelstudio/zig-network.git#c76240d2240711a3dcbf1c0fb461d5d1f18be79a",
+            .hash = "network-0.1.0-AAAAAOwlAQAQ6zKPUrsibdpGisxld9ftUKGdMvcCSpaj",
+        },
         .zflecs = .{
             .url = "git+https://github.com/eisvogelstudio/zflecs.git#ee2cd434fa2ec2454008988a1cc1201b242f030e",
             .hash = "zflecs-0.2.0-dev-1PN3yl9HNQAISm_tEMQYO7ifHXUI2q180ZXSaS1WtkSq",

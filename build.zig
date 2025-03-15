@@ -6,6 +6,10 @@ pub fn build(b: *std.Build) void {
 
     // ########## dependencies ##########
 
+    const network = b.dependency("network", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const raylib = b.dependency("raylib_zig", .{
         .target = target,
         .optimize = optimize,
@@ -23,7 +27,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    //core_mod.addImport("network", network.module("network"));
     core_mod.addImport("zflecs", zflecs.module("root"));
     //core_mod.addImport("zphysics", zphysics.module("root"));
 
@@ -33,6 +36,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    util_mod.addImport("network", network.module("network"));
 
     // client module
     const client_mod = b.createModule(.{

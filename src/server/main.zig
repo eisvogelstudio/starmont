@@ -23,9 +23,17 @@ const util = @import("util");
 const name = "server";
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var allocator = gpa.allocator();
+
+    var server = try util.network.Server.init(&allocator, 11111);
+
     std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
     std.log.info("All your starbase are belong to us.", .{});
 
-    //core.hellomodel();
-    util.helloutil();
+    server.run() catch unreachable;
+
+    defer server.deinit();
 }

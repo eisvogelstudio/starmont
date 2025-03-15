@@ -22,6 +22,9 @@ const component = core.component;
 const tag = core.tag;
 const Model = core.model.Model;
 
+const util = @import("util");
+const Client = util.network.Client;
+
 pub const View = @import("view.zig").View;
 
 const ecs = @import("zflecs");
@@ -39,12 +42,14 @@ pub const Control = struct {
     allocator: *std.mem.Allocator,
     model: Model,
     view: View,
+    client: Client,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
             .allocator = allocator,
             .model = Model.init(allocator),
             .view = View.init(allocator),
+            .client = Client.init(allocator, "127.0.0.1", 11111),
         };
 
         std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
@@ -54,6 +59,7 @@ pub const Control = struct {
     }
 
     pub fn deinit(self: *Control) void {
+        self.client.deinit();
         self.model.deinit();
         self.view.deinit();
 
@@ -63,6 +69,19 @@ pub const Control = struct {
     pub fn update(self: *Control) void {
         self.model.update();
         self.view.update(&self.model);
+
+        if (!self.client.connected) {
+            self.client.connect() catch {
+                std.log.info("failed to connect", .{});
+            };
+        } else {
+            var buffer: [1024]u8 = undefined;
+            const bytesRead = self.client.receive(buffer[0..]) catch {
+                //std.log.info("failed to connect", .{});
+                return;
+            };
+            std.debug.print("Received {} bytes: {s}\n", .{ bytesRead, buffer[0..bytesRead] });
+        }
     }
 
     pub fn shouldStop(self: *Control) bool {

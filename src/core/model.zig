@@ -22,6 +22,11 @@ const ecs = @import("zflecs");
 const component = @import("component.zig");
 const tag = @import("tag.zig");
 
+const velocity_max: component.Velocity = .{
+    .x = 400,
+    .y = 400,
+};
+
 fn move_system_with_it(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity, accelerations: []const component.Acceleration) void {
     //const type_str = ecs.table_str(it.world, it.table).?;
     //std.debug.print("Move entities with [{s}]\n", .{type_str});
@@ -35,6 +40,8 @@ fn move_system_with_it(it: *ecs.iter_t, positions: []component.Position, velocit
 
         v.x += a.x * dt;
         v.y += a.y * dt;
+        v.x = @min(velocity_max.x, v.x);
+        v.y = @min(velocity_max.y, v.y);
 
         p.x += 0.5 * v.x * dt;
         p.y += 0.5 * v.y * dt;

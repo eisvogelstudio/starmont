@@ -17,6 +17,4 @@
 const std = @import("std");
 const testing = std.testing;
 
-pub export fn helloutil() void {
-    std.debug.print("Hello from util\n", .{});
-}
+pub const network = @import("network.zig");
