@@ -17,6 +17,8 @@
 const std = @import("std");
 const testing = std.testing;
 
+const ecs = @import("zflecs");
+
 pub const Position = struct {
     x: f32,
     y: f32,

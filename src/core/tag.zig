@@ -17,6 +17,8 @@
 const std = @import("std");
 const testing = std.testing;
 
+pub const Player = struct {};
+
 pub const Ship = struct {};
 
 pub const Small = struct {};

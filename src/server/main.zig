@@ -20,7 +20,7 @@ const testing = std.testing;
 const core = @import("core");
 const util = @import("util");
 
-pub const name = "server";
+const name = "server";
 
 pub fn main() !void {
     std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });

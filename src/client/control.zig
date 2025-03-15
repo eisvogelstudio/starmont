@@ -18,11 +18,22 @@ const std = @import("std");
 const testing = std.testing;
 
 const core = @import("core");
+const component = core.component;
+const tag = core.tag;
 const Model = core.model.Model;
 
 pub const View = @import("view.zig").View;
 
-pub const name = "client";
+const ecs = @import("zflecs");
+
+const name = "client";
+
+const NetworkState = struct {
+    entities: []ecs.entity_t,
+    positions: []const component.Position,
+    velocities: []const component.Velocity,
+    accelerations: []const component.Acceleration,
+};
 
 pub const Control = struct {
     allocator: *std.mem.Allocator,
@@ -58,5 +69,51 @@ pub const Control = struct {
         return self.view.shouldStop();
     }
 
-    fn getNetworkState() void {}
+    fn getNetworkState(self: *Control) void {
+        const terms: [32]ecs.term_t = [_]ecs.term_t{
+            ecs.term_t{ .id = ecs.id(component.Position) },
+            ecs.term_t{ .id = ecs.id(component.ShipSize) },
+            ecs.term_t{ .id = ecs.id(tag.Ship) },
+            ecs.term_t{ .id = ecs.id(tag.Visible) },
+        } ++ [_]ecs.term_t{ecs.term_t{}} ** 28;
+
+        var query_desc = ecs.query_desc_t{
+            .terms = terms,
+            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
+        };
+
+        const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
+        defer ecs.query_fini(query);
+
+        var it = ecs.query_iter(self.model.world, query);
+
+        while (ecs.query_next(&it)) {
+            const position: []const component.Position = ecs.field(&it, component.Position, 0).?;
+            const velocities: []const component.ShipSize = ecs.field(&it, component.Velocity, 1).?;
+            const accelerations: []const component.ShipSize = ecs.field(&it, component.Acceleration, 1).?;
+
+            for (0..it.count()) |i| {
+                const entity = it.entities()[i];
+
+                _ = entity;
+            }
+
+            _ = position;
+            _ = velocities;
+            _ = accelerations;
+        }
+    }
+
+    fn setNetworkState(self: *Control, state: *const NetworkState) void {
+        const count = state.entities.len;
+        for (0..count) |i| {
+            const entity = state.entities[i];
+
+            if (ecs.is_alive(self.world, entity)) {
+                _ = ecs.set(self.world, entity, component.Position, state.positions[i]);
+                _ = ecs.set(self.world, entity, component.Velocity, state.velocities[i]);
+                _ = ecs.set(self.world, entity, component.Acceleration, state.accelerations[i]);
+            }
+        }
+    }
 };

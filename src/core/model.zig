@@ -82,6 +82,8 @@ pub const Model = struct {
     }
 
     fn registerTags(self: *Model) void {
+        ecs.TAG(self.world, tag.Player);
+
         ecs.TAG(self.world, tag.Ship);
 
         ecs.TAG(self.world, tag.Small);
@@ -122,5 +124,17 @@ pub const Model = struct {
         }
 
         return ship;
+    }
+
+    pub fn createPlayer(self: *Model) ecs.entity_t {
+        const player = ecs.new_id(self.world);
+
+        _ = ecs.set(self.world, player, component.Position, .{ .x = 0, .y = 0 });
+        _ = ecs.set(self.world, player, component.Velocity, .{ .x = 0, .y = 0 });
+        _ = ecs.set(self.world, player, component.Acceleration, .{ .x = 0, .y = 0 });
+        ecs.add(self.world, player, tag.Player);
+        ecs.add(self.world, player, tag.Visible);
+
+        return player;
     }
 };
