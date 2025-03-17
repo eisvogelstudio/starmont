@@ -41,7 +41,6 @@ pub const View = struct {
         };
 
         rl.setTraceLogLevel(rl.TraceLogLevel.warning);
-
         rl.initWindow(screenWidth, screenHeight, core.name ++ " v" ++ core.version);
 
         rl.setTargetFPS(60);
@@ -55,10 +54,9 @@ pub const View = struct {
     }
 
     pub fn update(self: *View, model: *Model) void {
+        rl.beginDrawing();
         self.renderShips(model);
         self.renderPlayers(model);
-
-        rl.beginDrawing();
         defer rl.endDrawing();
 
         rl.clearBackground(rl.Color.white);
@@ -213,14 +211,13 @@ pub const View = struct {
 
             for (0..it.count()) |i| {
                 const entity = it.entities()[i];
-                //std.log.info("{?s}", .{ecs.get_name(model.world, entity)});bb
                 var color: rl.Color = rl.Color.green;
 
                 if (entity == self.player) {
                     color = rl.Color.red;
                 }
 
-                rl.drawCircle(@intFromFloat(@mod(positions[i].x, screenWidth * 1.1)), @intFromFloat(@mod(positions[i].y, screenHeight * 1.1)), 5 * 2, color);
+                rl.drawCircle(@intFromFloat(@mod(positions[i].x, screenWidth)), @intFromFloat(@mod(positions[i].y, screenHeight)), 10, color);
             }
         }
     }

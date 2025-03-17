@@ -19,6 +19,12 @@ const testing = std.testing;
 
 const core = @import("core");
 const util = @import("util");
+const message = util.message;
+const Message = message.Message;
+const ChatMessage = message.ChatMessage;
+const PositionMessage = message.PositionMessage;
+const VelocityMessage = message.VelocityMessage;
+const AccelerationMessage = message.AccelerationMessage;
 
 const name = "server";
 
@@ -28,12 +34,72 @@ pub fn main() !void {
 
     var allocator = gpa.allocator();
 
-    var server = try util.network.Server.init(&allocator, 11111);
+    var server = try util.network.Server.init(&allocator);
+    server.open(11111) catch @panic("failed to open server");
 
     std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
     std.log.info("All your starbase are belong to us.", .{});
 
-    server.run() catch unreachable;
+    while (true) {
+        server.accept() catch {};
+        const msgs = server.process(&allocator) catch unreachable;
+
+        defer {
+            // Free each message's allocated fields.
+            for (msgs) |msg| {
+                // Use @tag() in Zig 0.14 to distinguish variants.
+                switch (msg) {
+                    util.message.Message.Chat => |chat| {
+                        // Free the allocated text for a ChatMessage.
+                        //self.allocator.free(chat.text);
+                        chat.deinit(&allocator);
+                    },
+                    util.message.Message.Position => {
+                        // No dynamic allocation in PositionMessage in this example.
+                    },
+                    util.message.Message.Velocity => {
+                        // No dynamic allocation in VelocityMessage in this example.
+                    },
+                    util.message.Message.Acceleration => {
+                        // No dynamic allocation in AccelerationMessage in this example.
+                    },
+                }
+            }
+            // Free the slice of messages returned by receive2.
+            allocator.free(msgs);
+        }
+
+        // Process messages.
+        for (msgs) |msg| {
+            switch (msg) {
+                util.message.Message.Chat => |chat| {
+                    std.debug.print("Chat: {s}\n", .{chat.text});
+                },
+                util.message.Message.Position => |pos| {
+                    std.debug.print("Position: ({}, {})\n", .{ pos.x, pos.y });
+                },
+                util.message.Message.Velocity => |vel| {
+                    std.debug.print("Velocity: ({}, {})\n", .{ vel.x, vel.y });
+                },
+                util.message.Message.Acceleration => |acc| {
+                    std.debug.print("Acceleration: ({}, {})\n", .{ acc.x, acc.y });
+                },
+            }
+        }
+
+        if (server.clients.items.len > 0) {
+
+            // Create a ChatMessage with a literal message.
+            const chatMsg = ChatMessage{
+                .text = "Hello, Zig!",
+            };
+
+            // Wrap the ChatMessage in the Message union.
+            const msg = Message{ .Chat = chatMsg };
+
+            server.send2(0, msg) catch unreachable;
+        }
+    }
 
     defer server.deinit();
 }

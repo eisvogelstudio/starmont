@@ -17,206 +17,293 @@
 const std = @import("std");
 const testing = std.testing;
 
+const Message = @import("message.zig").Message;
+
 const znet = @import("network");
 
-const MyError = error{
+pub const Error = error{
+    EndOfBuffer,
+    ClosedConnection,
     NotConnected,
 };
 
 pub const Client = struct {
-    /// Optionally holds an active socket; nil means not connected.
-    sock: ?znet.Socket,
     allocator: *std.mem.Allocator,
-    serverAddress: []const u8,
-    port: u16,
+    socket: znet.Socket = undefined,
     connected: bool = false,
 
-    /// Create a new client instance. Does not connect yet.
-    pub fn init(allocator: *std.mem.Allocator, serverAddress: []const u8, port: u16) Client {
-        return Client{
-            .sock = null,
+    pub fn init(allocator: *std.mem.Allocator) Client {
+        const client = Client{
             .allocator = allocator,
-            .serverAddress = serverAddress,
-            .port = port,
         };
+
+        return client;
     }
 
-    /// Clean up resources. Closes any open connection.
     pub fn deinit(self: *Client) void {
         self.disconnect();
     }
 
-    /// Connects to the remote server. Enables port reuse after connection.
-    pub fn connect(self: *Client) !void {
-        self.sock = znet.connectToHost(self.allocator.*, self.serverAddress, self.port, .tcp) catch |err| {
-            std.debug.print("Client connection failed: {s}\n", .{@errorName(err)});
-            return err;
+    pub fn connect(self: *Client, address: []const u8, port: u16) void {
+        self.socket = znet.connectToHost(self.allocator.*, address, port, .tcp) catch {
+            //std.log.warn("Connection failed: {s}\n", .{@errorName(err)});
+            return;
         };
-        try self.sock.?.enablePortReuse(true);
-        try self.sock.?.setReadTimeout(10);
-        std.debug.print("Client connected to {s}:{d}\n", .{ self.serverAddress, self.port });
+
+        self.socket.enablePortReuse(true) catch @panic("failed to configure socket");
+        self.socket.setReadTimeout(10) catch @panic("failed to configure socket");
+
+        std.log.info("Connected to {s}:{d}\n", .{ address, port });
+
         self.connected = true;
     }
 
-    /// Disconnects from the server if connected.
     pub fn disconnect(self: *Client) void {
-        if (self.sock) |s| {
-            s.close();
-            self.sock = null;
-            std.debug.print("Client disconnected\n", .{});
+        if (self.connected) {
+            self.socket.close();
+
+            std.debug.print("Disconnected\n", .{});
+
             self.connected = false;
         }
     }
 
-    /// Sends data to the server.
-    pub fn send(self: *Client, data: []const u8) !void {
-        if (self.sock) |s| {
-            try s.writer().writeAll(data);
+    pub fn receive(self: *Client, buffer: []u8) !usize {
+        if (self.connected) {
+            const available = try self.socket.peek(buffer);
+
+            if (available == 0) {
+                const n = try self.socket.reader().read(buffer);
+                if (n == 0) {
+                    std.debug.print("Socket closed by server.\n", .{});
+                    self.disconnect();
+                    return Error.ClosedConnection;
+                }
+                return n;
+            }
+
+            const n = try self.socket.reader().read(buffer[0..available]);
+            if (n == 0) {
+                std.debug.print("Socket closed by server.\n", .{});
+                self.disconnect();
+                return Error.ClosedConnection;
+            }
+            return n;
         } else {
-            return MyError.NotConnected;
+            return Error.NotConnected;
         }
     }
 
-    /// Receives data into the provided buffer.
-    /// First checks if data is available using peek(), then performs a non-blocking read.
-    pub fn receive(self: *Client, buffer: []u8) !usize {
-        if (self.sock) |s| {
-            // Use peek to check for available data.
-            const available = s.peek(buffer) catch |err| {
-                std.debug.print("err1: {}\n", .{err});
-                return err;
-            };
+    pub fn receive2(self: *Client) ![]Message {
+        var buffer: [1024]u8 = undefined;
+        if (self.connected) {
+            const available = try self.socket.peek(&buffer);
 
             if (available == 0) {
-                // No data is immediately available.
-                // Do an actual read to check if the socket is closed.
-                const n = s.reader().read(buffer) catch |err| {
-                    std.debug.print("read error: {}\n", .{err});
-                    return err;
-                };
+                const n = try self.socket.reader().read(&buffer);
                 if (n == 0) {
                     std.debug.print("Socket closed by server.\n", .{});
                     self.disconnect();
                     return error.ClosedConnection;
                 }
-                return n;
+                return receiveMessages(&self.socket, self.allocator);
             }
 
-            // If peek indicated data is available, read exactly that many bytes.
-            const n = s.reader().read(buffer[0..available]) catch |err| {
-                return err;
-            };
+            const n = try self.socket.reader().read(buffer[0..available]);
             if (n == 0) {
                 std.debug.print("Socket closed by server.\n", .{});
                 self.disconnect();
                 return error.ClosedConnection;
             }
-            return n;
+            return receiveMessages(&self.socket, self.allocator);
         } else {
-            self.disconnect();
-            return MyError.NotConnected;
+            return error.NotConnected;
+        }
+    }
+
+    pub fn send(self: *Client, msg: Message) !void {
+        var buffer: [1024]u8 = undefined;
+        var stream = std.io.fixedBufferStream(&buffer);
+        const writer = stream.writer();
+        try msg.serialize(writer);
+        const data = buffer[0..stream.pos];
+
+        var total: usize = 0;
+        while (total < data.len) {
+            // Try writing the remaining bytes.
+            const bytesWritten = try self.socket.writer().write(data[total..]);
+            if (bytesWritten == 0) {
+                // If no bytes are written, the client likely closed the connection.
+                return error.ClosedConnection;
+            }
+            total += bytesWritten;
         }
     }
 };
 
 pub const Server = struct {
-    sock: znet.Socket,
-    port: u16,
     allocator: *std.mem.Allocator,
+    socket: znet.Socket = undefined,
+    opened: bool = false,
     clients: std.ArrayList(znet.Socket),
 
-    /// Initializes the server: creates a TCP socket, enables port reuse, binds, listens,
-    /// and sets the socket to non-blocking mode.
-    pub fn init(allocator: *std.mem.Allocator, port: u16) !Server {
-        var s = try znet.Socket.create(.ipv4, .tcp);
-        try s.enablePortReuse(true);
-        try s.bindToPort(port);
-        try s.listen();
-        try s.setReadTimeout(10);
-        // Set the server socket to non-blocking so that accept() returns immediately.
-        //try s.setBlocking(false);
-        std.debug.print("Server listening on port {}\n", .{port});
-        return Server{
-            .sock = s,
-            .port = port,
+    pub fn init(allocator: *std.mem.Allocator) !Server {
+        const server = Server{
             .allocator = allocator,
             .clients = std.ArrayList(znet.Socket).init(allocator.*),
         };
+
+        return server;
     }
 
-    /// Closes the server and all client sockets.
-    pub fn close(self: *Server) void {
-        self.sock.close();
-        // Close each client socket.
-        for (self.clients.items) |client| {
-            client.close();
-        }
-        self.clients.deinit();
-    }
-
-    /// Clean up resources.
     pub fn deinit(self: *Server) void {
         self.close();
     }
 
-    pub fn run(self: *Server) !void {
-        while (true) {
-            // Try to accept a new connection.
-            // If no connection is pending, accept() may return an error like EAGAIN.
-            const newClientResult = self.sock.accept();
-            if (newClientResult) |newClient| {
-                // Optionally set the client socket to non-blocking mode.
-                // try newClient.setBlocking(false);
-                try self.clients.append(newClient);
-                std.debug.print("Accepted new client. Total clients: {d}\n", .{self.clients.items.len});
-            } else |err| {
-                // Only log unexpected errors; if it's EAGAIN (or similar), no connection is waiting.
-                if (err != error.EAGAIN) {
-                    std.debug.print("Accept error: {any}\n", .{err});
+    pub fn open(self: *Server, port: u16) !void {
+        self.socket = try znet.Socket.create(.ipv4, .tcp);
+        try self.socket.enablePortReuse(true);
+        try self.socket.bindToPort(port);
+        try self.socket.setReadTimeout(10);
+        try self.socket.listen();
+
+        std.debug.print("Server listening on port {}\n", .{port});
+
+        self.opened = true;
+    }
+
+    pub fn close(self: *Server) void {
+        self.socket.close();
+
+        for (self.clients.items) |client| {
+            client.close();
+        }
+
+        self.clients.deinit();
+
+        self.opened = false;
+    }
+
+    pub fn accept(self: *Server) !void {
+        const client = self.socket.accept() catch |err| {
+            if (err == error.WouldBlock) {
+                return;
+            } else {
+                return err;
+            }
+        };
+        self.clients.append(client) catch unreachable;
+        std.debug.print("Client connected\n", .{});
+    }
+
+    pub fn process(self: *Server, allocator: *std.mem.Allocator) ![]Message {
+        var messages = std.ArrayList(Message).init(allocator.*);
+        var i: usize = 0;
+        while (i < self.clients.items.len) {
+            const client = self.clients.items[i];
+            var buffer: [1024]u8 = undefined;
+            const readResult = client.reader().read(buffer[0..]);
+            if (readResult) |n| {
+                if (n == 0) {
+                    std.debug.print("Client disconnected\n", .{});
+                    client.close();
+                    _ = self.clients.swapRemove(i);
+                    continue;
+                } else {
+                    std.debug.print("Received {d} bytes from client: {s}\n", .{ n, buffer[0..n] });
+                    // Create a reader over the received data.
+                    var stream = std.io.fixedBufferStream(buffer[0..n]);
+                    const reader = stream.reader();
+                    // Loop to deserialize as many complete messages as possible.
+                    while (true) {
+                        // Try to deserialize one message.
+                        const msg = Message.deserialize(reader, allocator) catch {
+                            // If deserialization fails (likely due to incomplete data), break out.
+                            break;
+                        };
+                        try messages.append(msg);
+                    }
+                }
+            } else |readErr| {
+                if (readErr == error.WouldBlock) {
+                    i += 1;
+                    continue;
+                } else {
+                    std.debug.print("Client read error: {any}, removing client.\n", .{readErr});
+                    client.close();
+                    _ = self.clients.swapRemove(i);
                     continue;
                 }
             }
+            i += 1;
+        }
+        return messages.toOwnedSlice();
+    }
 
-            // Process each connected client.
-            var i: usize = 0;
-            while (i < self.clients.items.len) {
-                const client = self.clients.items[i];
-                var buffer: [1024]u8 = undefined;
-                const readResult = client.reader().read(&buffer);
-                if (readResult) |n| {
-                    if (n == 0) {
-                        std.debug.print("Client disconnected, removing client.\n", .{});
-                        // Close the client socket and remove it from the list.
-                        client.close();
-                        //self.clients.items.swapRemove(i);
-                        _ = self.clients.swapRemove(i);
-                        // Don't increment i because the last client has been swapped in.
-                        continue;
-                    } else {
-                        std.debug.print("Received {d} bytes from client: {s}\n", .{ n, buffer[0..n] });
-                    }
-                } else |readErr| {
-                    // For non-blocking sockets, EAGAIN (or equivalent) means no data available right now.
-                    if (readErr == error.WouldBlock) {
-                        continue;
-                    }
+    /// Sends a single message to one client.
+    pub fn send(self: *Server, client: usize, msg: Message) !void {
+        var buffer: [1024]u8 = undefined;
+        var stream = std.io.fixedBufferStream(&buffer);
+        const writer = stream.writer();
+        try msg.serialize(writer);
+        const data = buffer[0..stream.pos];
 
-                    if (readErr == error.EAGAIN) {
-                        // No data; simply move on to the next client.
-                        i += 1;
-                        continue;
-                    } else {
-                        std.debug.print("Client read error: {any}, removing client.\n", .{readErr});
-                        client.close();
-                        //self.clients.items.swapRemove(i);
-                        continue;
-                    }
-                }
-                i += 1;
+        var total: usize = 0;
+        while (total < data.len) {
+            // Try writing the remaining bytes.
+            const bytesWritten = try self.clients[client].write(data[total..]);
+            if (bytesWritten == 0) {
+                // If no bytes are written, the client likely closed the connection.
+                return error.ClosedConnection;
             }
-
-            // Sleep or yield to avoid busy looping.
-            //std.time.sleep(100 * std.time.millisecond);
+            total += bytesWritten;
         }
     }
+
+    pub fn send2(self: *Server, client: usize, msg: Message) !void {
+        try sendMessage(&self.clients.items[client], msg);
+    }
 };
+
+/// Sends a Message over the given socket.
+/// It serializes the message into a fixed buffer, then writes all bytes to the socket.
+fn sendMessage(socket: *znet.Socket, msg: Message) !void {
+    var buffer: [1024]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buffer);
+    const writer = stream.writer();
+    try msg.serialize(writer);
+    const data = buffer[0..stream.pos];
+
+    var total: usize = 0;
+    while (total < data.len) {
+        const bytes_written = try socket.writer().write(data[total..]);
+        if (bytes_written == 0) {
+            return Error.ClosedConnection;
+        }
+        total += bytes_written;
+    }
+}
+
+pub fn receiveMessages(socket: *znet.Socket, allocator: *std.mem.Allocator) ![]Message {
+    var buffer: [1024]u8 = undefined;
+    const bytes_read = try socket.reader().read(buffer[0..]);
+    if (bytes_read == 0) {
+        std.debug.print("Socket closed by peer.\n", .{});
+        return Error.ClosedConnection;
+    }
+    // Create a fixed-buffer stream backed by the received data.
+    var stream = std.io.fixedBufferStream(buffer[0..bytes_read]);
+    const reader = stream.reader();
+
+    var messages = std.ArrayList(Message).init(allocator.*);
+    while (true) {
+        // Attempt to deserialize a message.
+        // If there is not enough data for a complete message, the deserialize function should error.
+        const msg = Message.deserialize(reader, allocator) catch {
+            // On any error (typically due to insufficient data), break out of the loop.
+            break;
+        };
+        try messages.append(msg);
+    }
+    return messages.toOwnedSlice();
+}

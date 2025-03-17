@@ -64,11 +64,11 @@ pub const Model = struct {
         model.registerTags();
         model.registerSystems();
 
-        _ = createShip(&model, "Shuttle_0", .Small);
-        _ = createShip(&model, "Cargo-Shuttle", .Small);
-        _ = createShip(&model, "Frigatte", .Medium);
-        _ = createShip(&model, "Destroyer", .Large);
-        _ = createShip(&model, "Battleship", .Capital);
+        //_ = createShip(&model, "Shuttle_0", .Small);
+        //_ = createShip(&model, "Cargo-Shuttle", .Small);
+        //_ = createShip(&model, "Frigatte", .Medium);
+        //_ = createShip(&model, "Destroyer", .Large);
+        //_ = createShip(&model, "Battleship", .Capital);
 
         return model;
     }
@@ -79,6 +79,7 @@ pub const Model = struct {
 
     pub fn update(self: *Model) void {
         _ = ecs.progress(self.world, 0);
+        //std.debug.print("Entity count: {}\n", .{ecs.count_id(self.world, ecs.id(component.Position))});
     }
 
     fn registerComponents(self: *Model) void {

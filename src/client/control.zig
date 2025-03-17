@@ -49,11 +49,11 @@ pub const Control = struct {
             .allocator = allocator,
             .model = Model.init(allocator),
             .view = View.init(allocator),
-            .client = Client.init(allocator, "127.0.0.1", 11111),
+            .client = Client.init(allocator),
         };
 
         std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
-        std.log.info("All your starbase are belong to us.", .{});
+        std.log.info("All your starbase are belong to us", .{});
 
         return control;
     }
@@ -71,16 +71,68 @@ pub const Control = struct {
         self.view.update(&self.model);
 
         if (!self.client.connected) {
-            self.client.connect() catch {
-                std.log.info("failed to connect", .{});
-            };
+            self.client.connect("127.0.0.1", 11111);
         } else {
-            var buffer: [1024]u8 = undefined;
-            const bytesRead = self.client.receive(buffer[0..]) catch {
-                //std.log.info("failed to connect", .{});
-                return;
+            //var buffer: [1024]u8 = undefined;
+            //const bytesRead = self.client.receive(buffer[0..]) catch {
+            //std.log.info("failed to connect", .{});
+            //    return;
+            //};
+            //std.debug.print("Received {} bytes: {s}\n", .{ bytesRead, buffer[0..bytesRead] });
+
+            const msgs = self.client.receive2() catch return;
+            defer {
+                // Free each message's allocated fields.
+                for (msgs) |msg| {
+                    // Use @tag() in Zig 0.14 to distinguish variants.
+                    switch (msg) {
+                        util.message.Message.Chat => |chat| {
+                            // Free the allocated text for a ChatMessage.
+                            //self.allocator.free(chat.text);
+                            chat.deinit(self.allocator);
+                        },
+                        util.message.Message.Position => {
+                            // No dynamic allocation in PositionMessage in this example.
+                        },
+                        util.message.Message.Velocity => {
+                            // No dynamic allocation in VelocityMessage in this example.
+                        },
+                        util.message.Message.Acceleration => {
+                            // No dynamic allocation in AccelerationMessage in this example.
+                        },
+                    }
+                }
+                // Free the slice of messages returned by receive2.
+                self.allocator.free(msgs);
+            }
+
+            // Process messages.
+            for (msgs) |msg| {
+                switch (msg) {
+                    util.message.Message.Chat => |chat| {
+                        std.debug.print("Chat: {s}\n", .{chat.text});
+                    },
+                    util.message.Message.Position => |pos| {
+                        std.debug.print("Position: ({}, {})\n", .{ pos.x, pos.y });
+                    },
+                    util.message.Message.Velocity => |vel| {
+                        std.debug.print("Velocity: ({}, {})\n", .{ vel.x, vel.y });
+                    },
+                    util.message.Message.Acceleration => |acc| {
+                        std.debug.print("Acceleration: ({}, {})\n", .{ acc.x, acc.y });
+                    },
+                }
+            }
+
+            // Create a ChatMessage with a literal message.
+            const chatMsg = util.message.ChatMessage{
+                .text = "Hello you!",
             };
-            std.debug.print("Received {} bytes: {s}\n", .{ bytesRead, buffer[0..bytesRead] });
+
+            // Wrap the ChatMessage in the Message union.
+            const msg = util.message.Message{ .Chat = chatMsg };
+
+            self.client.send(msg) catch unreachable;
         }
     }
 
