@@ -14,8 +14,10 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
 const std = @import("std");
 const testing = std.testing;
+// -------------------------
 
 pub const Player = struct {};
 

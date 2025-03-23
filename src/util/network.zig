@@ -14,12 +14,14 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
 const std = @import("std");
 const testing = std.testing;
+// -------------------------
 
 const Message = @import("message.zig").Message;
 
-const znet = @import("network");
+const net = @import("network");
 
 pub const Error = error{
     EndOfBuffer,
@@ -29,7 +31,7 @@ pub const Error = error{
 
 pub const Client = struct {
     allocator: *std.mem.Allocator,
-    socket: znet.Socket = undefined,
+    socket: net.Socket = undefined,
     connected: bool = false,
 
     pub fn init(allocator: *std.mem.Allocator) Client {
@@ -45,7 +47,7 @@ pub const Client = struct {
     }
 
     pub fn connect(self: *Client, address: []const u8, port: u16) void {
-        self.socket = znet.connectToHost(self.allocator.*, address, port, .tcp) catch {
+        self.socket = net.connectToHost(self.allocator.*, address, port, .tcp) catch {
             //std.log.warn("Connection failed: {s}\n", .{@errorName(err)});
             return;
         };
@@ -68,33 +70,7 @@ pub const Client = struct {
         }
     }
 
-    pub fn receive(self: *Client, buffer: []u8) !usize {
-        if (self.connected) {
-            const available = try self.socket.peek(buffer);
-
-            if (available == 0) {
-                const n = try self.socket.reader().read(buffer);
-                if (n == 0) {
-                    std.debug.print("Socket closed by server.\n", .{});
-                    self.disconnect();
-                    return Error.ClosedConnection;
-                }
-                return n;
-            }
-
-            const n = try self.socket.reader().read(buffer[0..available]);
-            if (n == 0) {
-                std.debug.print("Socket closed by server.\n", .{});
-                self.disconnect();
-                return Error.ClosedConnection;
-            }
-            return n;
-        } else {
-            return Error.NotConnected;
-        }
-    }
-
-    pub fn receive2(self: *Client) ![]Message {
+    pub fn receive(self: *Client) ![]Message {
         var buffer: [1024]u8 = undefined;
         if (self.connected) {
             const available = try self.socket.peek(&buffer);
@@ -122,35 +98,20 @@ pub const Client = struct {
     }
 
     pub fn send(self: *Client, msg: Message) !void {
-        var buffer: [1024]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&buffer);
-        const writer = stream.writer();
-        try msg.serialize(writer);
-        const data = buffer[0..stream.pos];
-
-        var total: usize = 0;
-        while (total < data.len) {
-            // Try writing the remaining bytes.
-            const bytesWritten = try self.socket.writer().write(data[total..]);
-            if (bytesWritten == 0) {
-                // If no bytes are written, the client likely closed the connection.
-                return error.ClosedConnection;
-            }
-            total += bytesWritten;
-        }
+        try sendMessage(&self.socket, msg);
     }
 };
 
 pub const Server = struct {
     allocator: *std.mem.Allocator,
-    socket: znet.Socket = undefined,
+    socket: net.Socket = undefined,
     opened: bool = false,
-    clients: std.ArrayList(znet.Socket),
+    clients: std.ArrayList(net.Socket),
 
     pub fn init(allocator: *std.mem.Allocator) !Server {
         const server = Server{
             .allocator = allocator,
-            .clients = std.ArrayList(znet.Socket).init(allocator.*),
+            .clients = std.ArrayList(net.Socket).init(allocator.*),
         };
 
         return server;
@@ -161,13 +122,13 @@ pub const Server = struct {
     }
 
     pub fn open(self: *Server, port: u16) !void {
-        self.socket = try znet.Socket.create(.ipv4, .tcp);
+        self.socket = try net.Socket.create(.ipv4, .tcp);
         try self.socket.enablePortReuse(true);
         try self.socket.bindToPort(port);
         try self.socket.setReadTimeout(10);
         try self.socket.listen();
 
-        std.debug.print("Server listening on port {}\n", .{port});
+        std.log.info("Server listening on port {}\n", .{port});
 
         self.opened = true;
     }
@@ -193,10 +154,10 @@ pub const Server = struct {
             }
         };
         self.clients.append(client) catch unreachable;
-        std.debug.print("Client connected\n", .{});
+        std.log.info("Client connected\n", .{});
     }
 
-    pub fn process(self: *Server, allocator: *std.mem.Allocator) ![]Message {
+    pub fn receive(self: *Server, allocator: *std.mem.Allocator) ![]Message {
         var messages = std.ArrayList(Message).init(allocator.*);
         var i: usize = 0;
         while (i < self.clients.items.len) {
@@ -210,15 +171,12 @@ pub const Server = struct {
                     _ = self.clients.swapRemove(i);
                     continue;
                 } else {
-                    std.debug.print("Received {d} bytes from client: {s}\n", .{ n, buffer[0..n] });
-                    // Create a reader over the received data.
+                    std.debug.print("Received {d} bytes from client\n", .{n});
                     var stream = std.io.fixedBufferStream(buffer[0..n]);
                     const reader = stream.reader();
-                    // Loop to deserialize as many complete messages as possible.
+
                     while (true) {
-                        // Try to deserialize one message.
                         const msg = Message.deserialize(reader, allocator) catch {
-                            // If deserialization fails (likely due to incomplete data), break out.
                             break;
                         };
                         try messages.append(msg);
@@ -240,34 +198,12 @@ pub const Server = struct {
         return messages.toOwnedSlice();
     }
 
-    /// Sends a single message to one client.
     pub fn send(self: *Server, client: usize, msg: Message) !void {
-        var buffer: [1024]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&buffer);
-        const writer = stream.writer();
-        try msg.serialize(writer);
-        const data = buffer[0..stream.pos];
-
-        var total: usize = 0;
-        while (total < data.len) {
-            // Try writing the remaining bytes.
-            const bytesWritten = try self.clients[client].write(data[total..]);
-            if (bytesWritten == 0) {
-                // If no bytes are written, the client likely closed the connection.
-                return error.ClosedConnection;
-            }
-            total += bytesWritten;
-        }
-    }
-
-    pub fn send2(self: *Server, client: usize, msg: Message) !void {
         try sendMessage(&self.clients.items[client], msg);
     }
 };
 
-/// Sends a Message over the given socket.
-/// It serializes the message into a fixed buffer, then writes all bytes to the socket.
-fn sendMessage(socket: *znet.Socket, msg: Message) !void {
+fn sendMessage(socket: *net.Socket, msg: Message) !void {
     var buffer: [1024]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buffer);
     const writer = stream.writer();
@@ -284,26 +220,22 @@ fn sendMessage(socket: *znet.Socket, msg: Message) !void {
     }
 }
 
-pub fn receiveMessages(socket: *znet.Socket, allocator: *std.mem.Allocator) ![]Message {
+pub fn receiveMessages(socket: *net.Socket, allocator: *std.mem.Allocator) ![]Message {
     var buffer: [1024]u8 = undefined;
     const bytes_read = try socket.reader().read(buffer[0..]);
     if (bytes_read == 0) {
-        std.debug.print("Socket closed by peer.\n", .{});
         return Error.ClosedConnection;
     }
-    // Create a fixed-buffer stream backed by the received data.
     var stream = std.io.fixedBufferStream(buffer[0..bytes_read]);
     const reader = stream.reader();
 
     var messages = std.ArrayList(Message).init(allocator.*);
     while (true) {
-        // Attempt to deserialize a message.
-        // If there is not enough data for a complete message, the deserialize function should error.
         const msg = Message.deserialize(reader, allocator) catch {
-            // On any error (typically due to insufficient data), break out of the loop.
             break;
         };
         try messages.append(msg);
     }
+
     return messages.toOwnedSlice();
 }

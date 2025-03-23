@@ -19,19 +19,11 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-const Control = @import("control.zig").Control;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-
-    var allocator = gpa.allocator();
-
-    var control = Control.init(&allocator);
-
-    while (!control.shouldStop()) {
-        control.update();
-    }
-
-    control.deinit();
-}
+pub const Action = enum {
+    SpawnPlayer,
+    MoveLeft,
+    MoveRight,
+    MoveForward,
+    MoveBackward,
+    Fire,
+};

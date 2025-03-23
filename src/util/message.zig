@@ -14,8 +14,15 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
 const std = @import("std");
 const testing = std.testing;
+// -------------------------
+
+const core = @import("core");
+
+const decode = @import("decode.zig");
+const encode = @import("encode.zig");
 
 pub const ChatMessage = struct {
     text: []const u8,
@@ -31,14 +38,14 @@ pub const ChatMessage = struct {
         allocator.free(self.text);
     }
 
-    fn serialize(self: ChatMessage, writer: anytype) !void {
+    pub fn serialize(self: ChatMessage, writer: anytype) !void {
         const len: u16 = @intCast(self.text.len);
         const buf: [2]u8 = @bitCast(len);
         try writer.writeAll(&buf);
         try writer.writeAll(self.text);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) !ChatMessage {
+    pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) !ChatMessage {
         var len_buf: [2]u8 = undefined;
         _ = try reader.readAll(&len_buf);
         const len: u16 = @bitCast(len_buf);
@@ -48,84 +55,161 @@ pub const ChatMessage = struct {
     }
 };
 
-pub const PositionMessage = struct {
-    x: f32,
-    y: f32,
+pub const StaticMessage = struct {
+    position: core.Position,
 
-    fn serialize(self: PositionMessage, writer: anytype) !void {
-        var buf: [4]u8 = undefined;
-        buf = @bitCast(self.x);
-        try writer.writeAll(&buf);
-        buf = @bitCast(self.y);
-        try writer.writeAll(&buf);
+    pub fn init(position: core.Position) StaticMessage {
+        return StaticMessage{
+            .position = position,
+        };
     }
 
-    fn deserialize(reader: anytype) !PositionMessage {
-        var buf: [4]u8 = undefined;
-        _ = try reader.readAll(&buf);
-        const x: f32 = @bitCast(buf);
-        _ = try reader.readAll(&buf);
-        const y: f32 = @bitCast(buf);
-        return PositionMessage{ .x = x, .y = y };
-    }
-};
-
-pub const VelocityMessage = struct {
-    x: f32,
-    y: f32,
-
-    fn serialize(self: VelocityMessage, writer: anytype) !void {
-        var buf: [4]u8 = undefined;
-        buf = @bitCast(self.x);
-        try writer.writeAll(&buf);
-        buf = @bitCast(self.y);
-        try writer.writeAll(&buf);
+    pub fn deinit(self: StaticMessage) void {
+        _ = self;
     }
 
-    fn deserialize(reader: anytype) !VelocityMessage {
-        var buf: [4]u8 = undefined;
-        _ = try reader.readAll(&buf);
-        const x: f32 = @bitCast(buf);
-        _ = try reader.readAll(&buf);
-        const y: f32 = @bitCast(buf);
-        return VelocityMessage{ .x = x, .y = y };
+    pub fn serialize(self: StaticMessage, writer: anytype) !void {
+        try encode.serializePosition(writer, self.position);
+    }
+
+    pub fn deserialize(reader: anytype) !StaticMessage {
+        const pos = try decode.deserializePosition(reader);
+        return init(pos);
     }
 };
 
-pub const AccelerationMessage = struct {
-    x: f32,
-    y: f32,
+pub const LinearMessage = struct {
+    position: core.Position,
+    velocity: core.Velocity,
 
-    fn serialize(self: AccelerationMessage, writer: anytype) !void {
-        var buf: [4]u8 = undefined;
-        buf = @bitCast(self.x);
-        try writer.writeAll(&buf);
-        buf = @bitCast(self.y);
-        try writer.writeAll(&buf);
+    pub fn init(position: core.Position, velocity: core.Velocity) LinearMessage {
+        return LinearMessage{
+            .position = position,
+            .velocity = velocity,
+        };
     }
 
-    fn deserialize(reader: anytype) !AccelerationMessage {
-        var buf: [4]u8 = undefined;
-        _ = try reader.readAll(&buf);
-        const x: f32 = @bitCast(buf);
-        _ = try reader.readAll(&buf);
-        const y: f32 = @bitCast(buf);
-        return AccelerationMessage{ .x = x, .y = y };
+    pub fn deinit(self: LinearMessage) void {
+        _ = self;
+    }
+
+    pub fn serialize(self: LinearMessage, writer: anytype) !void {
+        try encode.serializePosition(writer, self.position);
+        try encode.serializeVelocity(writer, self.velocity);
+    }
+
+    pub fn deserialize(reader: anytype) !LinearMessage {
+        const pos = try decode.deserializePosition(reader);
+        const vel = try decode.deserializeVelocity(reader);
+        return init(pos, vel);
+    }
+};
+
+pub const AcceleratedMessage = struct {
+    position: core.Position,
+    velocity: core.Velocity,
+    acceleration: core.Acceleration,
+
+    pub fn init(position: core.Position, velocity: core.Velocity, acceleration: core.Acceleration) AcceleratedMessage {
+        return AcceleratedMessage{
+            .position = position,
+            .velocity = velocity,
+            .acceleration = acceleration,
+        };
+    }
+
+    pub fn deinit(self: AcceleratedMessage) void {
+        _ = self;
+    }
+
+    pub fn serialize(self: AcceleratedMessage, writer: anytype) !void {
+        try encode.serializePosition(writer, self.position);
+        try encode.serializeVelocity(writer, self.velocity);
+        try encode.serializeAcceleration(writer, self.acceleration);
+    }
+
+    pub fn deserialize(reader: anytype) !AcceleratedMessage {
+        const pos = try decode.deserializePosition(reader);
+        const vel = try decode.deserializeVelocity(reader);
+        const acc = try decode.deserializeAcceleration(reader);
+        return init(pos, vel, acc);
+    }
+};
+
+pub const DynamicMessage = struct {
+    position: core.Position,
+    velocity: core.Velocity,
+    acceleration: core.Acceleration,
+    jerk: core.Jerk,
+
+    pub fn init(position: core.Position, velocity: core.Velocity, acceleration: core.Acceleration, jerk: core.Jerk) DynamicMessage {
+        return DynamicMessage{
+            .position = position,
+            .velocity = velocity,
+            .acceleration = acceleration,
+            .jerk = jerk,
+        };
+    }
+
+    pub fn deinit(self: DynamicMessage) void {
+        _ = self;
+    }
+
+    pub fn serialize(self: DynamicMessage, writer: anytype) !void {
+        try encode.serializePosition(writer, self.position);
+        try encode.serializeVelocity(writer, self.velocity);
+        try encode.serializeAcceleration(writer, self.acceleration);
+        try encode.serializeJerk(writer, self.jerk);
+    }
+
+    pub fn deserialize(reader: anytype) !DynamicMessage {
+        const pos = try decode.deserializePosition(reader);
+        const vel = try decode.deserializeVelocity(reader);
+        const acc = try decode.deserializeAcceleration(reader);
+        const jerk = try decode.deserializeJerk(reader);
+        return init(pos, vel, acc, jerk);
+    }
+};
+
+pub const ActionMessage = struct {
+    action: core.Action,
+
+    pub fn init(action: core.Action) ActionMessage {
+        return ActionMessage{
+            .action = action,
+        };
+    }
+
+    pub fn deinit(self: ActionMessage) void {
+        _ = self;
+    }
+
+    pub fn serialize(self: ActionMessage, writer: anytype) !void {
+        try writer.writeByte(@intFromEnum(self.action));
+    }
+
+    pub fn deserialize(reader: anytype) !ActionMessage {
+        const action_byte = try reader.readByte();
+        return init(@enumFromInt(action_byte));
     }
 };
 
 pub const MessageType = enum(u8) {
     Chat,
-    Position,
-    Velocity,
-    Acceleration,
+    Static,
+    Linear,
+    Accelerated,
+    Dynamic,
+    Action,
 };
 
 pub const Message = union(MessageType) {
     Chat: ChatMessage,
-    Position: PositionMessage,
-    Velocity: VelocityMessage,
-    Acceleration: AccelerationMessage,
+    Static: StaticMessage,
+    Linear: LinearMessage,
+    Accelerated: AcceleratedMessage,
+    Dynamic: DynamicMessage,
+    Action: ActionMessage,
 
     pub fn serialize(self: Message, writer: anytype) !void {
         try writer.writeByte(@intFromEnum(self));
@@ -133,14 +217,20 @@ pub const Message = union(MessageType) {
             .Chat => |chat| {
                 try chat.serialize(writer);
             },
-            .Position => |pos| {
-                try pos.serialize(writer);
+            .Static => |static| {
+                try static.serialize(writer);
             },
-            .Velocity => |vel| {
-                try vel.serialize(writer);
+            .Linear => |linear| {
+                try linear.serialize(writer);
             },
-            .Acceleration => |acc| {
-                try acc.serialize(writer);
+            .Accelerated => |accelerated| {
+                try accelerated.serialize(writer);
+            },
+            .Dynamic => |dynamic| {
+                try dynamic.serialize(writer);
+            },
+            .Action => |action| {
+                try action.serialize(writer);
             },
         }
     }
@@ -153,17 +243,25 @@ pub const Message = union(MessageType) {
                 const chat = try ChatMessage.deserialize(reader, allocator);
                 return Message{ .Chat = chat };
             },
-            .Position => {
-                const pos = try PositionMessage.deserialize(reader);
-                return Message{ .Position = pos };
+            .Static => {
+                const pos = try StaticMessage.deserialize(reader);
+                return Message{ .Static = pos };
             },
-            .Velocity => {
-                const vel = try VelocityMessage.deserialize(reader);
-                return Message{ .Velocity = vel };
+            .Linear => {
+                const vel = try LinearMessage.deserialize(reader);
+                return Message{ .Linear = vel };
             },
-            .Acceleration => {
-                const acc = try AccelerationMessage.deserialize(reader);
-                return Message{ .Acceleration = acc };
+            .Accelerated => {
+                const acc = try AcceleratedMessage.deserialize(reader);
+                return Message{ .Accelerated = acc };
+            },
+            .Dynamic => {
+                const dyn = try DynamicMessage.deserialize(reader);
+                return Message{ .Dynamic = dyn };
+            },
+            .Action => {
+                const act = try ActionMessage.deserialize(reader);
+                return Message{ .Action = act };
             },
         }
     }

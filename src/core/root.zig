@@ -14,14 +14,15 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
 const std = @import("std");
 const testing = std.testing;
+// -------------------------
 
 pub const name = "starmont";
 pub const version = "0.1.0-dev";
 
-pub const model = @import("model.zig");
-
-pub const component = @import("component.zig");
-
-pub const tag = @import("tag.zig");
+pub usingnamespace @import("model.zig");
+pub usingnamespace @import("action.zig");
+pub usingnamespace @import("component.zig");
+pub usingnamespace @import("tag.zig");

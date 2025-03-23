@@ -14,8 +14,11 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
 const std = @import("std");
+const math = std.math;
 const testing = std.testing;
+// -------------------------
 
 const ecs = @import("zflecs");
 
@@ -23,28 +26,66 @@ const component = @import("component.zig");
 const tag = @import("tag.zig");
 
 const velocity_max: component.Velocity = .{
-    .x = 400,
-    .y = 400,
+    .x = 200,
+    .y = 200,
 };
 
-fn move_system_with_it(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity, accelerations: []const component.Acceleration) void {
-    //const type_str = ecs.table_str(it.world, it.table).?;
-    //std.debug.print("Move entities with [{s}]\n", .{type_str});
-    //defer ecs.os.free(type_str);
+fn applyJerk(it: *ecs.iter_t, accelerations: []component.Acceleration, jerks: []component.Jerk) void {
+    const delta: f32 = it.delta_time;
 
-    const dt: f32 = it.delta_time;
+    for (accelerations, jerks) |*acc, *jerk| {
+        acc.x += jerk.x * delta;
+        acc.y += jerk.y * delta;
+    }
+}
 
-    for (positions, velocities, accelerations) |*p, *v, a| {
-        p.x += 0.5 * v.x * dt;
-        p.y += 0.5 * v.y * dt;
+fn applyAccelerationAccelerated(it: *ecs.iter_t, velocities: []component.Velocity, accelerations: []component.Acceleration) void {
+    const delta: f32 = it.delta_time;
 
-        v.x += a.x * dt;
-        v.y += a.y * dt;
-        v.x = @min(velocity_max.x, v.x);
-        v.y = @min(velocity_max.y, v.y);
+    for (velocities, accelerations) |*vel, *acc| {
+        vel.x += acc.x * delta;
+        vel.y += acc.y * delta;
+    }
+}
 
-        p.x += 0.5 * v.x * dt;
-        p.y += 0.5 * v.y * dt;
+fn applyAccelerationDynamic(it: *ecs.iter_t, velocities: []component.Velocity, accelerations: []component.Acceleration, jerks: []component.Jerk) void {
+    const delta: f32 = it.delta_time;
+    const delta2: f32 = math.pow(f32, delta, 2);
+
+    for (velocities, accelerations, jerks) |*vel, *acc, *jerk| {
+        vel.x += (acc.x * delta) + (0.5 * jerk.x * delta2);
+        vel.y += (acc.y * delta) + (0.5 * jerk.y * delta2);
+    }
+}
+
+fn applyVelocityLinear(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity) void {
+    const delta: f32 = it.delta_time;
+
+    for (positions, velocities) |*pos, *vel| {
+        pos.x += vel.x * delta;
+        pos.y += vel.y * delta;
+    }
+}
+
+fn applyVelocityAccelerated(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity, accelerations: []component.Acceleration) void {
+    const delta: f32 = it.delta_time;
+    const delta2: f32 = math.pow(f32, delta, 2);
+
+    for (positions, velocities, accelerations) |*pos, *vel, *acc| {
+        pos.x += (vel.x * delta) + (0.5 * acc.x * delta2);
+        pos.y += (vel.y * delta) + (0.5 * acc.y * delta2);
+    }
+}
+
+fn applyVelocityDynamic(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity, accelerations: []component.Acceleration, jerks: []component.Jerk) void {
+    const delta: f32 = it.delta_time;
+    const delta2: f32 = math.pow(f32, delta, 2);
+    const delta3: f32 = math.pow(f32, delta, 3);
+    const sixth = 1.0 / 6.0;
+
+    for (positions, velocities, accelerations, jerks) |*pos, *vel, *acc, *jerk| {
+        pos.x += (vel.x * delta) + (0.5 * acc.x * delta2) + (sixth * jerk.x * delta3);
+        pos.y += (vel.y * delta) + (0.5 * acc.y * delta2) + (sixth * jerk.y * delta3);
     }
 }
 
@@ -79,13 +120,14 @@ pub const Model = struct {
 
     pub fn update(self: *Model) void {
         _ = ecs.progress(self.world, 0);
-        //std.debug.print("Entity count: {}\n", .{ecs.count_id(self.world, ecs.id(component.Position))});
     }
 
     fn registerComponents(self: *Model) void {
+        ecs.COMPONENT(self.world, component.Identifier);
         ecs.COMPONENT(self.world, component.Position);
         ecs.COMPONENT(self.world, component.Velocity);
         ecs.COMPONENT(self.world, component.Acceleration);
+        ecs.COMPONENT(self.world, component.Jerk);
         ecs.COMPONENT(self.world, component.ShipSize);
     }
 
@@ -103,7 +145,23 @@ pub const Model = struct {
     }
 
     fn registerSystems(self: *Model) void {
-        _ = ecs.ADD_SYSTEM(self.world, "move system", ecs.OnUpdate, move_system_with_it);
+        const jerk_id = ecs.ADD_SYSTEM(self.world, "apply_jerk", ecs.OnUpdate, applyJerk);
+
+        const accel_accelerated_id = ecs.ADD_SYSTEM(self.world, "apply_acceleration_accelerated", ecs.OnUpdate, applyAccelerationAccelerated);
+        const accel_dynamic_id = ecs.ADD_SYSTEM(self.world, "apply_acceleration_dynamic", ecs.OnUpdate, applyAccelerationDynamic);
+
+        const velocity_linear_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_linear", ecs.OnUpdate, applyVelocityLinear);
+        const velocity_accelerated_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_accelerated", ecs.OnUpdate, applyVelocityAccelerated);
+        const velocity_dynamic_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_dynamic", ecs.OnUpdate, applyVelocityDynamic);
+
+        _ = jerk_id;
+
+        _ = accel_accelerated_id;
+        _ = accel_dynamic_id;
+
+        _ = velocity_linear_id;
+        _ = velocity_accelerated_id;
+        _ = velocity_dynamic_id;
     }
 
     fn createShip(self: *Model, name: [:0]const u8, size: component.ShipSize) ecs.entity_t {
@@ -140,9 +198,16 @@ pub const Model = struct {
         _ = ecs.set(self.world, player, component.Position, .{ .x = 0, .y = 0 });
         _ = ecs.set(self.world, player, component.Velocity, .{ .x = 0, .y = 0 });
         _ = ecs.set(self.world, player, component.Acceleration, .{ .x = 0, .y = 0 });
+        _ = ecs.set(self.world, player, component.Jerk, .{ .x = 1, .y = 1 });
         ecs.add(self.world, player, tag.Player);
         ecs.add(self.world, player, tag.Visible);
 
         return player;
+    }
+
+    pub fn moveEntity(self: *Model, entity: ecs.entity_t, acc: component.Position) void {
+        //const player = ecs.new_id(self.world);
+
+        _ = ecs.set(self.world, entity, component.Position, acc);
     }
 };

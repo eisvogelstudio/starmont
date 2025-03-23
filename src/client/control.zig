@@ -14,42 +14,45 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
 const std = @import("std");
 const testing = std.testing;
+// -------------------------
 
+// ---------- starmont ----------
 const core = @import("core");
-const component = core.component;
-const tag = core.tag;
-const Model = core.model.Model;
-
 const util = @import("util");
-const Client = util.network.Client;
 
 pub const View = @import("view.zig").View;
+// ------------------------------
 
+// ---------- external ----------
 const ecs = @import("zflecs");
+
+const rl = @import("raylib");
+// ------------------------------
 
 const name = "client";
 
 const NetworkState = struct {
     entities: []ecs.entity_t,
-    positions: []const component.Position,
-    velocities: []const component.Velocity,
-    accelerations: []const component.Acceleration,
+    positions: []const core.Position,
+    velocities: []const core.Velocity,
+    accelerations: []const core.Acceleration,
 };
 
 pub const Control = struct {
     allocator: *std.mem.Allocator,
-    model: Model,
+    model: core.Model,
     view: View,
-    client: Client,
+    client: util.Client,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
             .allocator = allocator,
-            .model = Model.init(allocator),
+            .model = core.Model.init(allocator),
             .view = View.init(allocator),
-            .client = Client.init(allocator),
+            .client = util.Client.init(allocator),
         };
 
         std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
@@ -67,72 +70,71 @@ pub const Control = struct {
     }
 
     pub fn update(self: *Control) void {
+        const actions = captureInput(self.allocator);
+        self.sendInput(actions);
+        actions.deinit();
+
         self.model.update();
         self.view.update(&self.model);
 
         if (!self.client.connected) {
             self.client.connect("127.0.0.1", 11111);
         } else {
-            //var buffer: [1024]u8 = undefined;
-            //const bytesRead = self.client.receive(buffer[0..]) catch {
-            //std.log.info("failed to connect", .{});
-            //    return;
-            //};
-            //std.debug.print("Received {} bytes: {s}\n", .{ bytesRead, buffer[0..bytesRead] });
-
-            const msgs = self.client.receive2() catch return;
+            const msgs = self.client.receive() catch return;
             defer {
-                // Free each message's allocated fields.
                 for (msgs) |msg| {
-                    // Use @tag() in Zig 0.14 to distinguish variants.
                     switch (msg) {
-                        util.message.Message.Chat => |chat| {
-                            // Free the allocated text for a ChatMessage.
-                            //self.allocator.free(chat.text);
+                        util.Message.Chat => |chat| {
                             chat.deinit(self.allocator);
                         },
-                        util.message.Message.Position => {
-                            // No dynamic allocation in PositionMessage in this example.
+                        util.Message.Static => |static| {
+                            static.deinit();
                         },
-                        util.message.Message.Velocity => {
-                            // No dynamic allocation in VelocityMessage in this example.
+                        util.Message.Linear => |linear| {
+                            linear.deinit();
                         },
-                        util.message.Message.Acceleration => {
-                            // No dynamic allocation in AccelerationMessage in this example.
+                        util.Message.Accelerated => |accelerated| {
+                            accelerated.deinit();
+                        },
+                        util.Message.Dynamic => |dynamic| {
+                            dynamic.deinit();
+                        },
+                        util.Message.Action => |action| {
+                            action.deinit();
                         },
                     }
                 }
-                // Free the slice of messages returned by receive2.
                 self.allocator.free(msgs);
             }
 
-            // Process messages.
             for (msgs) |msg| {
                 switch (msg) {
-                    util.message.Message.Chat => |chat| {
+                    util.Message.Chat => |chat| {
                         std.debug.print("Chat: {s}\n", .{chat.text});
                     },
-                    util.message.Message.Position => |pos| {
-                        std.debug.print("Position: ({}, {})\n", .{ pos.x, pos.y });
+                    util.Message.Static => |pos| {
+                        std.debug.print("Position: ({}, {})\n", .{ pos.position.x, pos.position.y });
                     },
-                    util.message.Message.Velocity => |vel| {
-                        std.debug.print("Velocity: ({}, {})\n", .{ vel.x, vel.y });
+                    util.Message.Linear => |vel| {
+                        std.debug.print("Velocity: ({}, {})\n", .{ vel.velocity.x, vel.velocity.y });
                     },
-                    util.message.Message.Acceleration => |acc| {
-                        std.debug.print("Acceleration: ({}, {})\n", .{ acc.x, acc.y });
+                    util.Message.Accelerated => |acc| {
+                        std.debug.print("Acceleration: ({}, {})\n", .{ acc.acceleration.x, acc.acceleration.y });
+                    },
+                    util.Message.Dynamic => |acc| {
+                        std.debug.print("Dynamic: ({}, {})\n", .{ acc.jerk.x, acc.jerk.y });
+                    },
+                    util.Message.Action => |act| {
+                        std.debug.print("Action: ({s})\n", .{@tagName(act.action)});
                     },
                 }
             }
 
-            // Create a ChatMessage with a literal message.
-            const chatMsg = util.message.ChatMessage{
-                .text = "Hello you!",
-            };
+            //const msg = util.Message{ .Chat = .{ .text = "Hello there" } };
+            //const msg2 = util.Message{ .Position = util.PositionMessage.init(.{ .x = 1, .y = 0 }) };
 
-            // Wrap the ChatMessage in the Message union.
-            const msg = util.message.Message{ .Chat = chatMsg };
-
-            self.client.send(msg) catch unreachable;
+            //self.client.send(msg) catch unreachable;
+            //self.client.send(msg2) catch unreachable;
         }
     }
 
@@ -142,10 +144,10 @@ pub const Control = struct {
 
     fn getNetworkState(self: *Control) void {
         const terms: [32]ecs.term_t = [_]ecs.term_t{
-            ecs.term_t{ .id = ecs.id(component.Position) },
-            ecs.term_t{ .id = ecs.id(component.ShipSize) },
-            ecs.term_t{ .id = ecs.id(tag.Ship) },
-            ecs.term_t{ .id = ecs.id(tag.Visible) },
+            ecs.term_t{ .id = ecs.id(core.Position) },
+            ecs.term_t{ .id = ecs.id(core.ShipSize) },
+            ecs.term_t{ .id = ecs.id(core.Ship) },
+            ecs.term_t{ .id = ecs.id(core.Visible) },
         } ++ [_]ecs.term_t{ecs.term_t{}} ** 28;
 
         var query_desc = ecs.query_desc_t{
@@ -159,9 +161,9 @@ pub const Control = struct {
         var it = ecs.query_iter(self.model.world, query);
 
         while (ecs.query_next(&it)) {
-            const position: []const component.Position = ecs.field(&it, component.Position, 0).?;
-            const velocities: []const component.ShipSize = ecs.field(&it, component.Velocity, 1).?;
-            const accelerations: []const component.ShipSize = ecs.field(&it, component.Acceleration, 1).?;
+            const position: []const core.Position = ecs.field(&it, core.Position, 0).?;
+            const velocities: []const core.ShipSize = ecs.field(&it, core.Velocity, 1).?;
+            const accelerations: []const core.ShipSize = ecs.field(&it, core.Acceleration, 1).?;
 
             for (0..it.count()) |i| {
                 const entity = it.entities()[i];
@@ -181,10 +183,31 @@ pub const Control = struct {
             const entity = state.entities[i];
 
             if (ecs.is_alive(self.world, entity)) {
-                _ = ecs.set(self.world, entity, component.Position, state.positions[i]);
-                _ = ecs.set(self.world, entity, component.Velocity, state.velocities[i]);
-                _ = ecs.set(self.world, entity, component.Acceleration, state.accelerations[i]);
+                _ = ecs.set(self.world, entity, core.Position, state.positions[i]);
+                _ = ecs.set(self.world, entity, core.Velocity, state.velocities[i]);
+                _ = ecs.set(self.world, entity, core.Acceleration, state.accelerations[i]);
             }
+        }
+    }
+
+    fn captureInput(allocator: *std.mem.Allocator) std.ArrayList(core.Action) {
+        var events = std.ArrayList(core.Action).init(allocator.*);
+
+        if (rl.isKeyDown(rl.KeyboardKey.w)) events.append(core.Action.MoveForward) catch unreachable;
+        if (rl.isKeyDown(rl.KeyboardKey.a)) events.append(core.Action.MoveLeft) catch unreachable;
+        if (rl.isKeyDown(rl.KeyboardKey.s)) events.append(core.Action.MoveBackward) catch unreachable;
+        if (rl.isKeyDown(rl.KeyboardKey.d)) events.append(core.Action.MoveRight) catch unreachable;
+        if (rl.isKeyPressed(rl.KeyboardKey.space)) events.append(core.Action.Fire) catch unreachable;
+
+        return events;
+    }
+
+    fn sendInput(self: *Control, actions: std.ArrayList(core.Action)) void {
+        if (!self.client.connected) return;
+
+        for (actions.items) |a| {
+            const msg = util.Message{ .Action = util.ActionMessage.init(a) };
+            self.client.send(msg) catch unreachable;
         }
     }
 };

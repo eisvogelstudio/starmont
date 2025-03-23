@@ -36,6 +36,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    util_mod.addImport("core", core_mod);
     util_mod.addImport("network", network.module("network"));
 
     // client module
@@ -58,6 +59,7 @@ pub fn build(b: *std.Build) void {
     });
     server_mod.addImport("core", core_mod);
     server_mod.addImport("util", util_mod);
+    server_mod.addImport("zflecs", zflecs.module("root"));
 
     // ########## objects ##########
 

@@ -19,19 +19,34 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-const Control = @import("control.zig").Control;
+const core = @import("core");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
+pub fn serializeF32(writer: anytype, float: f32) !void {
+    var buf: [4]u8 = undefined;
+    buf = @bitCast(float);
+    try writer.writeAll(&buf);
+}
 
-    var allocator = gpa.allocator();
+pub fn serializeEnum(writer: anytype, comptime T: type, value: T) !void {
+    try writer.writeByte(@intFromEnum(value));
+}
 
-    var control = Control.init(&allocator);
+pub fn serializePosition(writer: anytype, pos: core.Position) !void {
+    try serializeF32(writer, pos.x);
+    try serializeF32(writer, pos.y);
+}
 
-    while (!control.shouldStop()) {
-        control.update();
-    }
+pub fn serializeVelocity(writer: anytype, vel: core.Velocity) !void {
+    try serializeF32(writer, vel.x);
+    try serializeF32(writer, vel.y);
+}
 
-    control.deinit();
+pub fn serializeAcceleration(writer: anytype, acc: core.Acceleration) !void {
+    try serializeF32(writer, acc.x);
+    try serializeF32(writer, acc.y);
+}
+
+pub fn serializeJerk(writer: anytype, jerk: core.Jerk) !void {
+    try serializeF32(writer, jerk.x);
+    try serializeF32(writer, jerk.y);
 }

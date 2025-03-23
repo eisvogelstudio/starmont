@@ -14,8 +14,10 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
 const std = @import("std");
 const testing = std.testing;
+// -------------------------
 
-pub const network = @import("network.zig");
-pub const message = @import("message.zig");
+pub usingnamespace @import("message.zig");
+pub usingnamespace @import("network.zig");
