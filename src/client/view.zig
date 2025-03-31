@@ -19,12 +19,18 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
+// ---------- starmont ----------
 const core = @import("core");
 const util = @import("util");
+// ------------------------------
 
+// ---------- external ----------
 const ecs = @import("zflecs");
 const rl = @import("raylib");
 const rg = @import("raygui");
+// ------------------------------
+
+const log = std.log.scoped(.view);
 
 pub const View = struct {
     allocator: *std.mem.Allocator,

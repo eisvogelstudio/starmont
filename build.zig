@@ -10,7 +10,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const raylib = b.dependency("raylib_zig", .{
+    const string = b.dependency("string", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const raylib = b.dependency("raylib", .{
         .target = target,
         .optimize = optimize,
     });
@@ -38,6 +42,7 @@ pub fn build(b: *std.Build) void {
     });
     util_mod.addImport("core", core_mod);
     util_mod.addImport("network", network.module("network"));
+    util_mod.addImport("string", string.module("string"));
 
     // client module
     const client_mod = b.createModule(.{

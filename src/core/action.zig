@@ -19,6 +19,10 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
+// ---------- starmont ----------
+const core = @import("root.zig");
+// ------------------------------
+
 pub const Action = enum {
     SpawnPlayer,
     MoveLeft,

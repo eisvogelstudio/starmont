@@ -28,9 +28,10 @@ pub const View = @import("view.zig").View;
 
 // ---------- external ----------
 const ecs = @import("zflecs");
-
 const rl = @import("raylib");
 // ------------------------------
+
+const log = std.log.scoped(.control);
 
 const name = "client";
 
@@ -55,8 +56,8 @@ pub const Control = struct {
             .client = util.Client.init(allocator),
         };
 
-        std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
-        std.log.info("All your starbase are belong to us", .{});
+        log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
+        log.info("All your starbase are belong to us", .{});
 
         return control;
     }
@@ -66,7 +67,7 @@ pub const Control = struct {
         self.model.deinit();
         self.view.deinit();
 
-        std.log.info("stopped sucessfully", .{});
+        log.info("stopped sucessfully", .{});
     }
 
     pub fn update(self: *Control) void {
@@ -83,51 +84,13 @@ pub const Control = struct {
             const msgs = self.client.receive() catch return;
             defer {
                 for (msgs) |msg| {
-                    switch (msg) {
-                        util.Message.Chat => |chat| {
-                            chat.deinit(self.allocator);
-                        },
-                        util.Message.Static => |static| {
-                            static.deinit();
-                        },
-                        util.Message.Linear => |linear| {
-                            linear.deinit();
-                        },
-                        util.Message.Accelerated => |accelerated| {
-                            accelerated.deinit();
-                        },
-                        util.Message.Dynamic => |dynamic| {
-                            dynamic.deinit();
-                        },
-                        util.Message.Action => |action| {
-                            action.deinit();
-                        },
-                    }
+                    msg.deinit(self.allocator);
                 }
                 self.allocator.free(msgs);
             }
 
             for (msgs) |msg| {
-                switch (msg) {
-                    util.Message.Chat => |chat| {
-                        std.debug.print("Chat: {s}\n", .{chat.text});
-                    },
-                    util.Message.Static => |pos| {
-                        std.debug.print("Position: ({}, {})\n", .{ pos.position.x, pos.position.y });
-                    },
-                    util.Message.Linear => |vel| {
-                        std.debug.print("Velocity: ({}, {})\n", .{ vel.velocity.x, vel.velocity.y });
-                    },
-                    util.Message.Accelerated => |acc| {
-                        std.debug.print("Acceleration: ({}, {})\n", .{ acc.acceleration.x, acc.acceleration.y });
-                    },
-                    util.Message.Dynamic => |acc| {
-                        std.debug.print("Dynamic: ({}, {})\n", .{ acc.jerk.x, acc.jerk.y });
-                    },
-                    util.Message.Action => |act| {
-                        std.debug.print("Action: ({s})\n", .{@tagName(act.action)});
-                    },
-                }
+                msg.print(std.io.getStdOut().writer()) catch @panic("error dsfds");
             }
 
             //const msg = util.Message{ .Chat = .{ .text = "Hello there" } };

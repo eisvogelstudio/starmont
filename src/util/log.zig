@@ -14,40 +14,21 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- builtin ----------
-const builtin = @import("builtin");
-// -------------------------
-
 // ---------- std ----------
 const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-// ---------- starmont ----------
-const util = @import("util");
-const Control = @import("control.zig").Control;
-// ------------------------------
+const min_level = std.log.Level.info;
 
-pub const std_options: std.Options = .{
-    .log_level = if (builtin.mode == .Debug) .debug else .info,
-    //.log_scope_levels = &.{
-    //    .{ .scope = .decimal, .level = .info },
-    //    .{ .scope = .proper, .level = .info },
-    //},
-    .logFn = util.log,
-};
+pub fn log(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
+    const writer = switch (level) {
+        .debug, .info => std.io.getStdOut().writer(),
+        .warn, .err => std.io.getStdErr().writer(),
+    };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-
-    var allocator = gpa.allocator();
-
-    var control = Control.init(&allocator);
-
-    while (!control.shouldStop()) {
-        control.update();
-    }
-
-    control.deinit();
+    _ = writer.print("[{s}][{s}] " ++ format ++ "\n", .{
+        @tagName(scope),
+        @tagName(level),
+    } ++ args) catch {};
 }

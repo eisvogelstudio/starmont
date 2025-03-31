@@ -14,40 +14,39 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- builtin ----------
-const builtin = @import("builtin");
-// -------------------------
-
 // ---------- std ----------
 const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
 // ---------- starmont ----------
-const util = @import("util");
-const Control = @import("control.zig").Control;
+const core = @import("core");
 // ------------------------------
 
-pub const std_options: std.Options = .{
-    .log_level = if (builtin.mode == .Debug) .debug else .info,
-    //.log_scope_levels = &.{
-    //    .{ .scope = .decimal, .level = .info },
-    //    .{ .scope = .proper, .level = .info },
-    //},
-    .logFn = util.log,
-};
+// ---------- external ----------
+const String = @import("string").String;
+// ------------------------------
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
+pub fn writeId(writer: anytype, id: core.Id) !void {
+    try writer.print("Id: {d}", .{id.id});
+}
 
-    var allocator = gpa.allocator();
+pub fn writePosition(writer: anytype, pos: core.Position) !void {
+    try writer.print("Position: ({any}, {any})", .{ pos.x, pos.y });
+}
 
-    var control = Control.init(&allocator);
+pub fn writeVelocity(writer: anytype, vel: core.Velocity) !void {
+    try writer.print("Velocity: ({any}, {any})", .{ vel.x, vel.y });
+}
 
-    while (!control.shouldStop()) {
-        control.update();
-    }
+pub fn writeAcceleration(writer: anytype, acc: core.Acceleration) !void {
+    try writer.print("Acceleration: ({any}, {any})", .{ acc.x, acc.y });
+}
 
-    control.deinit();
+pub fn writeJerk(writer: anytype, jerk: core.Jerk) !void {
+    try writer.print("Jerk: ({any}, {any})", .{ jerk.x, jerk.y });
+}
+
+pub fn writeShipSize(writer: anytype, size: core.ShipSize) !void {
+    try writer.print("Ship Size: {s}", .{@tagName(size)});
 }

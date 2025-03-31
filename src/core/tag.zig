@@ -19,6 +19,20 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
+// ---------- starmont ----------
+const core = @import("root.zig");
+// ------------------------------
+
+const TagId = enum {
+    Player,
+    Ship,
+    Small,
+    Medium,
+    Large,
+    Capital,
+    Visible,
+};
+
 pub const Player = struct {};
 
 pub const Ship = struct {};

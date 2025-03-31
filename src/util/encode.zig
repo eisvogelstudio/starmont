@@ -19,7 +19,23 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
+// ---------- starmont ----------
 const core = @import("core");
+// ------------------------------
+
+// ########## primitive ##########
+
+pub fn serializeU32(writer: anytype, uint: u32) !void {
+    var buf: [4]u8 = undefined;
+    buf = @bitCast(uint);
+    try writer.writeAll(&buf);
+}
+
+pub fn serializeU64(writer: anytype, uint: u64) !void {
+    var buf: [8]u8 = undefined;
+    buf = @bitCast(uint);
+    try writer.writeAll(&buf);
+}
 
 pub fn serializeF32(writer: anytype, float: f32) !void {
     var buf: [4]u8 = undefined;
@@ -29,6 +45,14 @@ pub fn serializeF32(writer: anytype, float: f32) !void {
 
 pub fn serializeEnum(writer: anytype, comptime T: type, value: T) !void {
     try writer.writeByte(@intFromEnum(value));
+}
+
+// ###############################
+
+// ########## component ##########
+
+pub fn serializeId(writer: anytype, id: core.Id) !void {
+    try serializeU64(writer, id.id);
 }
 
 pub fn serializePosition(writer: anytype, pos: core.Position) !void {
@@ -50,3 +74,9 @@ pub fn serializeJerk(writer: anytype, jerk: core.Jerk) !void {
     try serializeF32(writer, jerk.x);
     try serializeF32(writer, jerk.y);
 }
+
+pub fn serializeShipSize(writer: anytype, size: core.ShipSize) !void {
+    try serializeEnum(writer, core.ShipSize, size);
+}
+
+// ###############################

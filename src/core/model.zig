@@ -20,7 +20,15 @@ const math = std.math;
 const testing = std.testing;
 // -------------------------
 
+// ---------- starmont ----------
+const core = @import("root.zig");
+// ------------------------------
+
+// ---------- external ----------
 const ecs = @import("zflecs");
+// ------------------------------
+
+const log = std.log.scoped(.model);
 
 const component = @import("component.zig");
 const tag = @import("tag.zig");
@@ -123,7 +131,7 @@ pub const Model = struct {
     }
 
     fn registerComponents(self: *Model) void {
-        ecs.COMPONENT(self.world, component.Identifier);
+        ecs.COMPONENT(self.world, component.Id);
         ecs.COMPONENT(self.world, component.Position);
         ecs.COMPONENT(self.world, component.Velocity);
         ecs.COMPONENT(self.world, component.Acceleration);

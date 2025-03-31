@@ -19,9 +19,16 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-const Message = @import("message.zig").Message;
+// ---------- starmont ----------
+const core = @import("core");
+const util = @import("root.zig");
+const decode = @import("decode.zig");
+const encode = @import("encode.zig");
+// ------------------------------
 
+// ---------- external ----------
 const net = @import("network");
+// ------------------------------
 
 pub const Error = error{
     EndOfBuffer,
@@ -70,7 +77,7 @@ pub const Client = struct {
         }
     }
 
-    pub fn receive(self: *Client) ![]Message {
+    pub fn receive(self: *Client) ![]util.Message {
         var buffer: [1024]u8 = undefined;
         if (self.connected) {
             const available = try self.socket.peek(&buffer);
@@ -97,7 +104,7 @@ pub const Client = struct {
         }
     }
 
-    pub fn send(self: *Client, msg: Message) !void {
+    pub fn send(self: *Client, msg: util.Message) !void {
         try sendMessage(&self.socket, msg);
     }
 };
@@ -157,8 +164,8 @@ pub const Server = struct {
         std.log.info("Client connected\n", .{});
     }
 
-    pub fn receive(self: *Server, allocator: *std.mem.Allocator) ![]Message {
-        var messages = std.ArrayList(Message).init(allocator.*);
+    pub fn receive(self: *Server, allocator: *std.mem.Allocator) ![]util.Message {
+        var messages = std.ArrayList(util.Message).init(allocator.*);
         var i: usize = 0;
         while (i < self.clients.items.len) {
             const client = self.clients.items[i];
@@ -176,7 +183,7 @@ pub const Server = struct {
                     const reader = stream.reader();
 
                     while (true) {
-                        const msg = Message.deserialize(reader, allocator) catch {
+                        const msg = util.Message.deserialize(reader, allocator) catch {
                             break;
                         };
                         try messages.append(msg);
@@ -198,12 +205,12 @@ pub const Server = struct {
         return messages.toOwnedSlice();
     }
 
-    pub fn send(self: *Server, client: usize, msg: Message) !void {
+    pub fn send(self: *Server, client: usize, msg: util.Message) !void {
         try sendMessage(&self.clients.items[client], msg);
     }
 };
 
-fn sendMessage(socket: *net.Socket, msg: Message) !void {
+fn sendMessage(socket: *net.Socket, msg: util.Message) !void {
     var buffer: [1024]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buffer);
     const writer = stream.writer();
@@ -220,7 +227,7 @@ fn sendMessage(socket: *net.Socket, msg: Message) !void {
     }
 }
 
-pub fn receiveMessages(socket: *net.Socket, allocator: *std.mem.Allocator) ![]Message {
+pub fn receiveMessages(socket: *net.Socket, allocator: *std.mem.Allocator) ![]util.Message {
     var buffer: [1024]u8 = undefined;
     const bytes_read = try socket.reader().read(buffer[0..]);
     if (bytes_read == 0) {
@@ -229,9 +236,9 @@ pub fn receiveMessages(socket: *net.Socket, allocator: *std.mem.Allocator) ![]Me
     var stream = std.io.fixedBufferStream(buffer[0..bytes_read]);
     const reader = stream.reader();
 
-    var messages = std.ArrayList(Message).init(allocator.*);
+    var messages = std.ArrayList(util.Message).init(allocator.*);
     while (true) {
-        const msg = Message.deserialize(reader, allocator) catch {
+        const msg = util.Message.deserialize(reader, allocator) catch {
             break;
         };
         try messages.append(msg);
