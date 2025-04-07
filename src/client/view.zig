@@ -37,6 +37,7 @@ pub const View = struct {
 
     const screenWidth = 800;
     const screenHeight = 450;
+
     var camera: rl.Camera2D = undefined;
 
     pub fn init(allocator: *std.mem.Allocator) View {
@@ -46,6 +47,17 @@ pub const View = struct {
 
         rl.setTraceLogLevel(rl.TraceLogLevel.all);
         rl.initWindow(screenWidth, screenHeight, core.name ++ " v" ++ core.version);
+
+        std.log.info("{any}\n", .{rl.getWindowScaleDPI()});
+        //rl.setWindowSize(@as(i32, @as(f32, screenWidth) / rl.getWindowScaleDPI().x), @as(i32, @as(f32, screenHeight) / rl.getWindowScaleDPI().y));
+        const dpiScale = rl.getWindowScaleDPI();
+
+        // Convert scaled width/height to integer using @divFloor
+        const newWidth = @divFloor(@as(f32, screenWidth), dpiScale.x);
+        const newHeight = @divFloor(@as(f32, screenHeight), dpiScale.y);
+
+        rl.setWindowSize(@intFromFloat(newWidth), @intFromFloat(newHeight));
+        rl.setMouseScale(rl.getWindowScaleDPI().x, rl.getWindowScaleDPI().y);
 
         camera = rl.Camera2D{
             .offset = rl.Vector2{ .x = 400, .y = 300 }, // Center the camera
@@ -73,6 +85,8 @@ pub const View = struct {
         self.renderPlayers(model);
         rl.drawFPS(100, 100);
         //rl.endMode2D();
+
+        //const scale = @min(rl.getScreenWidth()/rl.gameScreenWidth, (float)GetScreenHeight()/gameScreenHeight);
 
         const text = "Welcome to " ++ core.name ++ " - till the stars and far beyond";
         const fontSize = 20;
