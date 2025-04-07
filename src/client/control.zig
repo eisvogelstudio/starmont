@@ -96,6 +96,39 @@ pub const Control = struct {
             // Print all received messages
             for (received) |msg| {
                 msg.print(std.io.getStdOut().writer()) catch unreachable;
+
+                switch (msg) {
+                    .Chat => |chat| {
+                        _ = chat;
+                    },
+                    .Static => |static| {
+                        _ = static;
+                    },
+                    .Linear => |linear| {
+                        _ = linear;
+                    },
+                    .Accelerated => |accelerated| {
+                        _ = accelerated;
+                    },
+                    .Dynamic => |dynamic| {
+                        _ = dynamic;
+                    },
+                    .Action => |action| {
+                        _ = action;
+                    },
+                    .Entity => |id| {
+                        self.model.createEntity(id.id);
+                    },
+                    .EntityRemove => |id| {
+                        _ = id;
+                    },
+                    .Component => |comp| {
+                        _ = comp;
+                    },
+                    .ComponentRemove => |comp| {
+                        _ = comp;
+                    },
+                }
             }
         } else |err| {
             switch (err) {
@@ -110,10 +143,10 @@ pub const Control = struct {
         }
 
         // Construct and send a message
-        const msg = util.ComponentMessage.fromShipSize(.{ .id = 0 }, .Large);
-        self.client.send(msg) catch |err| {
-            std.debug.print("send error: {}\n", .{err});
-        };
+        //const msg = util.ComponentMessage.fromShipSize(.{ .id = 0 }, .Large);
+        //self.client.send(msg) catch |err| {
+        //    std.debug.print("send error: {}\n", .{err});
+        //};
     }
 
     pub fn shouldStop(self: *Control) bool {

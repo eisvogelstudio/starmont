@@ -225,6 +225,11 @@ pub const Model = struct {
     pub fn createEntity(self: *Model, id: core.Id) void {
         const entity = ecs.new_id(self.world);
         self.registry.register(id, entity) catch unreachable;
+
+        _ = ecs.set(self.world, entity, component.Position, .{ .x = 0, .y = 0 });
+        _ = ecs.set(self.world, entity, component.Velocity, .{ .x = 10, .y = 10 });
+        ecs.add(self.world, entity, tag.Player);
+        ecs.add(self.world, entity, tag.Visible);
     }
 
     pub fn removeEntity(self: *Model, id: core.Id) void {
