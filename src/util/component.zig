@@ -20,48 +20,10 @@ const testing = std.testing;
 // -------------------------
 
 // ---------- starmont ----------
-const core = @import("root.zig");
+const core = @import("core");
+const util = @import("root.zig");
+const decode = @import("decode.zig");
+const encode = @import("encode.zig");
+const format = @import("format.zig");
 // ------------------------------
 
-// ---------- external ----------
-const ecs = @import("zflecs");
-// ------------------------------
-
-pub const Id = struct {
-    id: u64,
-};
-
-pub const ComponentType = enum {
-    Position,
-    Velocity,
-    Acceleration,
-    Jerk,
-    ShipSize,
-};
-
-pub const Position = struct {
-    x: f32,
-    y: f32,
-};
-
-pub const Velocity = struct {
-    x: f32,
-    y: f32,
-};
-
-pub const Acceleration = struct {
-    x: f32,
-    y: f32,
-};
-
-pub const Jerk = struct {
-    x: f32,
-    y: f32,
-};
-
-pub const ShipSize = enum {
-    Small,
-    Medium,
-    Large,
-    Capital,
-};

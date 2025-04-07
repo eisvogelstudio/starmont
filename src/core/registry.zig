@@ -29,17 +29,15 @@ const ecs = @import("zflecs");
 
 pub const Registry = struct {
     allocator: *std.mem.Allocator,
-    is_authoritative: bool,
 
     next_id: u64 = 1,
 
     id_to_entity: std.AutoHashMap(core.Id, ecs.entity_t),
     entity_to_id: std.AutoHashMap(ecs.entity_t, core.Id),
 
-    pub fn init(allocator: *std.mem.Allocator, is_authoritative: bool) Registry {
+    pub fn init(allocator: *std.mem.Allocator) Registry {
         return Registry{
             .allocator = allocator,
-            .is_authoritative = is_authoritative,
             .id_to_entity = std.AutoHashMap(core.Id, ecs.entity_t).init(allocator.*),
             .entity_to_id = std.AutoHashMap(ecs.entity_t, core.Id).init(allocator.*),
         };
@@ -50,13 +48,13 @@ pub const Registry = struct {
         self.entity_to_id.deinit();
     }
 
-    pub fn createEntity(self: *Registry) core.Id {
+    pub fn create(self: *Registry) core.Id {
         const id = self.next_id;
         self.next_id += 1;
         return id;
     }
 
-    pub fn registerEntity(self: *Registry, id: core.Id, entity: ecs.entity_t) !void {
+    pub fn register(self: *Registry, id: core.Id, entity: ecs.entity_t) !void {
         try self.id_to_entity.put(id, entity);
         try self.entity_to_id.put(entity, id);
     }

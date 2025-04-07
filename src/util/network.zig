@@ -54,8 +54,8 @@ pub const Client = struct {
     }
 
     pub fn connect(self: *Client, address: []const u8, port: u16) void {
-        self.socket = net.connectToHost(self.allocator.*, address, port, .tcp) catch {
-            //std.log.warn("Connection failed: {s}\n", .{@errorName(err)});
+        self.socket = net.connectToHost(self.allocator.*, address, port, .tcp) catch |err| {
+            std.log.warn("Connection failed: {s}\n", .{@errorName(err)});
             return;
         };
 
@@ -152,19 +152,20 @@ pub const Server = struct {
         self.opened = false;
     }
 
-    pub fn accept(self: *Server) !void {
-        const client = self.socket.accept() catch |err| {
-            if (err == error.WouldBlock) {
-                return;
-            } else {
-                return err;
-            }
-        };
-        self.clients.append(client) catch unreachable;
-        std.log.info("Client connected\n", .{});
-    }
-
     pub fn receive(self: *Server, allocator: *std.mem.Allocator) ![]util.Message {
+        while (true) {
+            const client = self.socket.accept() catch |err| {
+                if (err == error.WouldBlock) {
+                    break;
+                } else {
+                    return err;
+                }
+            };
+
+            try self.clients.append(client);
+            std.log.info("Client connected\n", .{});
+        }
+
         var messages = std.ArrayList(util.Message).init(allocator.*);
         var i: usize = 0;
         while (i < self.clients.items.len) {
@@ -178,7 +179,6 @@ pub const Server = struct {
                     _ = self.clients.swapRemove(i);
                     continue;
                 } else {
-                    std.debug.print("Received {d} bytes from client\n", .{n});
                     var stream = std.io.fixedBufferStream(buffer[0..n]);
                     const reader = stream.reader();
 

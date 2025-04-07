@@ -80,25 +80,40 @@ pub const Control = struct {
 
         if (!self.client.connected) {
             self.client.connect("127.0.0.1", 11111);
-        } else {
-            const msgs = self.client.receive() catch return;
+            return;
+        }
+
+        // Receive messages
+        const msgs = self.client.receive();
+        if (msgs) |received| {
             defer {
-                for (msgs) |msg| {
+                for (received) |msg| {
                     msg.deinit(self.allocator);
                 }
-                self.allocator.free(msgs);
+                self.allocator.free(received);
             }
 
-            for (msgs) |msg| {
-                msg.print(std.io.getStdOut().writer()) catch @panic("error dsfds");
+            // Print all received messages
+            for (received) |msg| {
+                msg.print(std.io.getStdOut().writer()) catch unreachable;
             }
-
-            //const msg = util.Message{ .Chat = .{ .text = "Hello there" } };
-            //const msg2 = util.Message{ .Position = util.PositionMessage.init(.{ .x = 1, .y = 0 }) };
-
-            //self.client.send(msg) catch unreachable;
-            //self.client.send(msg2) catch unreachable;
+        } else |err| {
+            switch (err) {
+                error.WouldBlock => {
+                    //nothing
+                },
+                else => {
+                    std.debug.print("receive error: {}\n", .{err});
+                    return;
+                },
+            }
         }
+
+        // Construct and send a message
+        const msg = util.ComponentMessage.fromShipSize(.{ .id = 0 }, .Large);
+        self.client.send(msg) catch |err| {
+            std.debug.print("send error: {}\n", .{err});
+        };
     }
 
     pub fn shouldStop(self: *Control) bool {
@@ -169,8 +184,7 @@ pub const Control = struct {
         if (!self.client.connected) return;
 
         for (actions.items) |a| {
-            const msg = util.Message{ .Action = util.ActionMessage.init(a) };
-            self.client.send(msg) catch unreachable;
+            self.client.send(util.ActionMessage.init(a)) catch unreachable;
         }
     }
 };

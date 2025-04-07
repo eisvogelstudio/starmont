@@ -63,60 +63,22 @@ pub const Control = struct {
     pub fn update(self: *Control) void {
         self.model.update();
 
-        self.server.accept() catch return;
+        const msgs = self.server.receive(self.allocator) catch return;
 
-        //const msgs = self.server.receive(self.allocator) catch return;
-        //defer {
-        //    for (msgs) |msg| {
-        //        switch (msg) {
-        //            util.Message.Chat => |chat| {
-        //                chat.deinit(self.allocator);
-        //            },
-        //            util.Message.Static => |static| {
-        //                static.deinit();
-        //            },
-        //            util.Message.Linear => |linear| {
-        //                linear.deinit();
-        //            },
-        //            util.Message.Accelerated => |accelerated| {
-        //                accelerated.deinit();
-        //            },
-        //            util.Message.Dynamic => |dynamic| {
-        //                dynamic.deinit();
-        //            },
-        //            util.Message.Action => |act| {
-        //                act.deinit();
-        //            },
-        //        }
-        //    }
-        //    self.allocator.free(msgs);
-        //}
-        //
-        //for (msgs) |msg| {
-        //    switch (msg) {
-        //        util.Message.Chat => |chat| {
-        //            std.debug.print("Chat: {s}\n", .{chat.text});
-        //        },
-        //        util.Message.Static => |static| {
-        //            std.debug.print("Position: ({}, {})\n", .{ static.position.x, static.position.y });
-        //        },
-        //        util.Message.Linear => |linear| {
-        //            std.debug.print("Velocity: ({}, {})\n", .{ linear.velocity.x, linear.velocity.y });
-        //        },
-        //        util.Message.Accelerated => |accelerated| {
-        //            std.debug.print("Acceleration: ({}, {})\n", .{ accelerated.acceleration.x, accelerated.acceleration.y });
-        //            if (self.player != 0) self.model.moveEntity(self.player, accelerated.position);
-        //        },
-        //        util.Message.Dynamic => |dynamic| {
-        //            std.debug.print("Acceleration: ({}, {})\n", .{ dynamic.acceleration.x, dynamic.acceleration.y });
-        //            if (self.player != 0) self.model.moveEntity(self.player, dynamic.position);
-        //        },
-        //        util.Message.Action => |act| {
-        //            std.debug.print("Action: ({s})\n", .{@tagName(act.action)});
-        //            if (self.player != 0) self.player = self.model.createPlayer();
-        //        },
-        //    }
-        //}
+        defer {
+            for (msgs) |msg| {
+                msg.deinit(self.allocator);
+            }
+            self.allocator.free(msgs);
+        }
+
+        for (msgs) |msg| {
+            msg.print(std.io.getStdOut().writer()) catch @panic("error dsfds");
+
+            if (self.server.clients.items.len < 1) return;
+            const spawn = util.EntityMessage.init(.{ .id = 0 });
+            self.server.send(0, spawn) catch unreachable;
+        }
 
         //if (self.server.clients.items.len < 1) return;
 

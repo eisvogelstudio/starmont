@@ -101,12 +101,14 @@ pub const Model = struct {
     allocator: *std.mem.Allocator,
     world: *ecs.world_t,
     prng: std.Random.DefaultPrng,
+    registry: core.Registry,
 
     pub fn init(allocator: *std.mem.Allocator) Model {
         var model = Model{
             .allocator = allocator,
             .world = ecs.init(),
             .prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp())),
+            .registry = core.Registry.init(allocator),
         };
 
         model.registerComponents();
@@ -172,8 +174,9 @@ pub const Model = struct {
         _ = velocity_dynamic_id;
     }
 
-    fn createShip(self: *Model, name: [:0]const u8, size: component.ShipSize) ecs.entity_t {
+    fn createShip(self: *Model, id: core.Id, name: [:0]const u8, size: component.ShipSize) ecs.entity_t {
         const ship = ecs.new_entity(self.world, name);
+        self.registry.register(id, ship);
 
         const rng = self.prng.random();
 
@@ -206,7 +209,7 @@ pub const Model = struct {
         _ = ecs.set(self.world, player, component.Position, .{ .x = 0, .y = 0 });
         _ = ecs.set(self.world, player, component.Velocity, .{ .x = 0, .y = 0 });
         _ = ecs.set(self.world, player, component.Acceleration, .{ .x = 0, .y = 0 });
-        _ = ecs.set(self.world, player, component.Jerk, .{ .x = 1, .y = 1 });
+        _ = ecs.set(self.world, player, component.Jerk, .{ .x = 100, .y = 100 });
         ecs.add(self.world, player, tag.Player);
         ecs.add(self.world, player, tag.Visible);
 
@@ -217,5 +220,16 @@ pub const Model = struct {
         //const player = ecs.new_id(self.world);
 
         _ = ecs.set(self.world, entity, component.Position, acc);
+    }
+
+    pub fn createEntity(self: *Model, id: core.Id) void {
+        const entity = ecs.new_id(self.world);
+        self.registry.register(id, entity) catch unreachable;
+    }
+
+    pub fn removeEntity(self: *Model, id: core.Id) void {
+        const entity = self.registry.getEntity(id) catch unreachable;
+        ecs.delete(self.world, entity);
+        self.registry.remove(id);
     }
 };
