@@ -78,30 +78,7 @@ pub const Client = struct {
     }
 
     pub fn receive(self: *Client) ![]util.Message {
-        var buffer: [1024]u8 = undefined;
-        if (self.connected) {
-            const available = try self.socket.peek(&buffer);
-
-            if (available == 0) {
-                const n = try self.socket.reader().read(&buffer);
-                if (n == 0) {
-                    std.debug.print("Socket closed by server.\n", .{});
-                    self.disconnect();
-                    return error.ClosedConnection;
-                }
-                return receiveMessages(&self.socket, self.allocator);
-            }
-
-            const n = try self.socket.reader().read(buffer[0..available]);
-            if (n == 0) {
-                std.debug.print("Socket closed by server.\n", .{});
-                self.disconnect();
-                return error.ClosedConnection;
-            }
-            return receiveMessages(&self.socket, self.allocator);
-        } else {
-            return error.NotConnected;
-        }
+        return receiveMessages(&self.socket, self.allocator);
     }
 
     pub fn send(self: *Client, msg: util.Message) !void {
@@ -152,7 +129,7 @@ pub const Server = struct {
         self.opened = false;
     }
 
-    pub fn receive(self: *Server, allocator: *std.mem.Allocator) ![]util.Message {
+    pub fn accept(self: *Server) !void {
         while (true) {
             const client = self.socket.accept() catch |err| {
                 if (err == error.WouldBlock) {
@@ -165,41 +142,14 @@ pub const Server = struct {
             try self.clients.append(client);
             std.log.info("Client connected\n", .{});
         }
+    }
 
+    pub fn receive(self: *Server, allocator: *std.mem.Allocator) ![]util.Message {
         var messages = std.ArrayList(util.Message).init(allocator.*);
         var i: usize = 0;
         while (i < self.clients.items.len) {
-            const client = self.clients.items[i];
-            var buffer: [1024]u8 = undefined;
-            const readResult = client.reader().read(buffer[0..]);
-            if (readResult) |n| {
-                if (n == 0) {
-                    std.debug.print("Client disconnected\n", .{});
-                    client.close();
-                    _ = self.clients.swapRemove(i);
-                    continue;
-                } else {
-                    var stream = std.io.fixedBufferStream(buffer[0..n]);
-                    const reader = stream.reader();
-
-                    while (true) {
-                        const msg = util.Message.deserialize(reader, allocator) catch {
-                            break;
-                        };
-                        try messages.append(msg);
-                    }
-                }
-            } else |readErr| {
-                if (readErr == error.WouldBlock) {
-                    i += 1;
-                    continue;
-                } else {
-                    std.debug.print("Client read error: {any}, removing client.\n", .{readErr});
-                    client.close();
-                    _ = self.clients.swapRemove(i);
-                    continue;
-                }
-            }
+            const msg = try receiveMessages(&self.clients.items[i], self.allocator);
+            try messages.appendSlice(msg);
             i += 1;
         }
         return messages.toOwnedSlice();
@@ -228,21 +178,31 @@ fn sendMessage(socket: *net.Socket, msg: util.Message) !void {
 }
 
 pub fn receiveMessages(socket: *net.Socket, allocator: *std.mem.Allocator) ![]util.Message {
-    var buffer: [1024]u8 = undefined;
-    const bytes_read = try socket.reader().read(buffer[0..]);
-    if (bytes_read == 0) {
-        return Error.ClosedConnection;
-    }
-    var stream = std.io.fixedBufferStream(buffer[0..bytes_read]);
-    const reader = stream.reader();
-
     var messages = std.ArrayList(util.Message).init(allocator.*);
-    while (true) {
-        const msg = util.Message.deserialize(reader, allocator) catch {
-            break;
-        };
-        try messages.append(msg);
-    }
+    var buffer: [1024]u8 = undefined;
+    const readResult = socket.reader().read(buffer[0..]);
+    if (readResult) |n| {
+        if (n == 0) {
+            socket.close();
+            return error.ClosedConnection;
+        } else {
+            var stream = std.io.fixedBufferStream(buffer[0..n]);
+            const reader = stream.reader();
 
+            while (true) {
+                const msg = util.Message.deserialize(reader, allocator) catch {
+                    break;
+                };
+                try messages.append(msg);
+            }
+        }
+    } else |readErr| {
+        if (readErr == error.WouldBlock) {
+            return error.WouldBlock;
+        } else {
+            socket.close();
+            return error.ClosedConnection;
+        }
+    }
     return messages.toOwnedSlice();
 }

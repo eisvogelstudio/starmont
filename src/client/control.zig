@@ -47,6 +47,7 @@ pub const Control = struct {
     model: core.Model,
     view: View,
     client: util.Client,
+    count: i32 = 0,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
@@ -117,6 +118,8 @@ pub const Control = struct {
                         _ = action;
                     },
                     .Entity => |id| {
+                        self.count += 1;
+                        std.log.info("count: {d}\n", .{self.count});
                         self.model.createEntity(id.id);
                     },
                     .EntityRemove => |id| {
@@ -133,6 +136,9 @@ pub const Control = struct {
         } else |err| {
             switch (err) {
                 error.WouldBlock => {
+                    //nothing
+                },
+                error.ClosedConnection => {
                     //nothing
                 },
                 else => {

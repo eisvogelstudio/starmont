@@ -37,6 +37,7 @@ pub const Control = struct {
     model: core.Model,
     server: util.Server,
     player: ecs.entity_t = 0,
+    count: i32 = 0,
 
     pub fn init(allocator: *std.mem.Allocator) !Control {
         var control = Control{
@@ -63,6 +64,7 @@ pub const Control = struct {
     pub fn update(self: *Control) void {
         self.model.update();
 
+        self.server.accept() catch return;
         const msgs = self.server.receive(self.allocator) catch return;
 
         defer {
@@ -78,6 +80,8 @@ pub const Control = struct {
             if (self.server.clients.items.len < 1) return;
             const spawn = util.EntityMessage.init(.{ .id = 0 });
             self.server.send(0, spawn) catch unreachable;
+            self.count += 1;
+            std.log.info("count: {d}\n", .{self.count});
         }
 
         //if (self.server.clients.items.len < 1) return;
