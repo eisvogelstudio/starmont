@@ -36,10 +36,13 @@ pub const Error = error{
     NotConnected,
 };
 
+const cooldown = 1;
+
 pub const Client = struct {
     allocator: *std.mem.Allocator,
     socket: net.Socket = undefined,
     connected: bool = false,
+    stamp: i64 = 0,
 
     pub fn init(allocator: *std.mem.Allocator) Client {
         const client = Client{
@@ -53,11 +56,16 @@ pub const Client = struct {
         self.disconnect();
     }
 
-    pub fn connect(self: *Client, address: []const u8, port: u16) void {
-        self.socket = net.connectToHost(self.allocator.*, address, port, .tcp) catch |err| {
-            std.log.warn("Connection failed: {s}\n", .{@errorName(err)});
-            return;
-        };
+    pub fn connect(self: *Client, address: []const u8, port: u16) !void {
+        if (self.stamp != 0) {
+            if (std.time.timestamp() - self.stamp < cooldown) {
+                return error.Cooldown;
+            }
+        }
+
+        self.stamp = std.time.timestamp();
+
+        self.socket = try net.connectToHost(self.allocator.*, address, port, .tcp);
 
         self.socket.enablePortReuse(true) catch @panic("failed to configure socket");
         self.socket.setReadTimeout(10) catch @panic("failed to configure socket");
@@ -78,7 +86,15 @@ pub const Client = struct {
     }
 
     pub fn receive(self: *Client) ![]util.Message {
-        return receiveMessages(&self.socket, self.allocator);
+        const messages = receiveMessages(&self.socket, self.allocator) catch |err| {
+            if (err == error.ClosedConnection) {
+                self.connected = false;
+            }
+
+            return err;
+        };
+
+        return messages;
     }
 
     pub fn send(self: *Client, msg: util.Message) !void {
@@ -112,7 +128,7 @@ pub const Server = struct {
         try self.socket.setReadTimeout(10);
         try self.socket.listen();
 
-        std.log.info("Server listening on port {}\n", .{port});
+        std.log.info("Server listening on port {}", .{port});
 
         self.opened = true;
     }
@@ -139,8 +155,8 @@ pub const Server = struct {
                 }
             };
 
+            std.log.info("Client #{d} connected", .{self.clients.items.len});
             try self.clients.append(client);
-            std.log.info("Client connected\n", .{});
         }
     }
 
@@ -148,10 +164,25 @@ pub const Server = struct {
         var messages = std.ArrayList(util.Message).init(allocator.*);
         var i: usize = 0;
         while (i < self.clients.items.len) {
-            const msg = try receiveMessages(&self.clients.items[i], self.allocator);
+            const msg = receiveMessages(&self.clients.items[i], self.allocator) catch |err| {
+                if (err == error.ClosedConnection) {
+                    _ = self.clients.swapRemove(i);
+                    std.log.info("Client #{d} disconnected", .{i});
+                    continue;
+                } else if (err == error.WouldBlock) {
+                    continue;
+                } else {
+                    return err;
+                }
+            };
             try messages.appendSlice(msg);
             i += 1;
         }
+
+        if (0 == messages.items.len) {
+            return error.WouldBlock;
+        }
+
         return messages.toOwnedSlice();
     }
 

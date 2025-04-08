@@ -111,8 +111,8 @@ pub const View = struct {
 
         if ((sliderValue > 80) or (sliderValue < 20)) {
             rl.drawText("AHHHHHH!", 300, 60, 20, rl.Color.red);
-            const other = model.createPlayer();
-            _ = ecs.set(model.world, other, core.Acceleration, .{ .x = -20, .y = 20 });
+            //const other = model.createPlayer();
+            //_ = ecs.set(model.world, other, core.Acceleration, .{ .x = -20, .y = 20 });
         }
     }
 

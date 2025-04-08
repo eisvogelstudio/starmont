@@ -174,53 +174,47 @@ pub const Model = struct {
         _ = velocity_dynamic_id;
     }
 
-    fn createShip(self: *Model, id: core.Id, name: [:0]const u8, size: component.ShipSize) ecs.entity_t {
-        const ship = ecs.new_entity(self.world, name);
-        self.registry.register(id, ship);
-
-        const rng = self.prng.random();
-
-        const x = rng.float(f32) * 1000;
-        const y = rng.float(f32) * 200;
-
-        const ax = rng.float(f32) * 10;
-        const ay = rng.float(f32) * 10;
-
-        _ = ecs.set(self.world, ship, component.Position, .{ .x = x, .y = y });
-        _ = ecs.set(self.world, ship, component.Velocity, .{ .x = 0, .y = 0 });
-        _ = ecs.set(self.world, ship, component.Acceleration, .{ .x = ax, .y = ay });
-        _ = ecs.set(self.world, ship, component.ShipSize, size);
-        ecs.add(self.world, ship, tag.Ship);
-        ecs.add(self.world, ship, tag.Visible);
-
-        switch (size) {
-            .Small => ecs.add(self.world, ship, tag.Small),
-            .Medium => ecs.add(self.world, ship, tag.Medium),
-            .Large => ecs.add(self.world, ship, tag.Large),
-            .Capital => ecs.add(self.world, ship, tag.Capital),
-        }
-
-        return ship;
-    }
-
-    pub fn createPlayer(self: *Model) ecs.entity_t {
-        const player = ecs.new_id(self.world);
-
-        _ = ecs.set(self.world, player, component.Position, .{ .x = 0, .y = 0 });
-        _ = ecs.set(self.world, player, component.Velocity, .{ .x = 0, .y = 0 });
-        _ = ecs.set(self.world, player, component.Acceleration, .{ .x = 0, .y = 0 });
-        _ = ecs.set(self.world, player, component.Jerk, .{ .x = 100, .y = 100 });
-        ecs.add(self.world, player, tag.Player);
-        ecs.add(self.world, player, tag.Visible);
-
-        return player;
-    }
-
-    pub fn moveEntity(self: *Model, entity: ecs.entity_t, acc: component.Position) void {
-        //const player = ecs.new_id(self.world);
-
-        _ = ecs.set(self.world, entity, component.Position, acc);
-    }
+    //fn createShip(self: *Model, id: core.Id, name: [:0]const u8, size: component.ShipSize) ecs.entity_t {
+    //    const ship = ecs.new_entity(self.world, name);
+    //    self.registry.register(id, ship);
+    //
+    //    const rng = self.prng.random();
+    //
+    //    const x = rng.float(f32) * 1000;
+    //    const y = rng.float(f32) * 200;
+    //
+    //    const ax = rng.float(f32) * 10;
+    //    const ay = rng.float(f32) * 10;
+    //
+    //    _ = ecs.set(self.world, ship, component.Position, .{ .x = x, .y = y });
+    //    _ = ecs.set(self.world, ship, component.Velocity, .{ .x = 0, .y = 0 });
+    //    _ = ecs.set(self.world, ship, component.Acceleration, .{ .x = ax, .y = ay });
+    //    _ = ecs.set(self.world, ship, component.ShipSize, size);
+    //    ecs.add(self.world, ship, tag.Ship);
+    //    ecs.add(self.world, ship, tag.Visible);
+    //
+    //    switch (size) {
+    //        .Small => ecs.add(self.world, ship, tag.Small),
+    //        .Medium => ecs.add(self.world, ship, tag.Medium),
+    //        .Large => ecs.add(self.world, ship, tag.Large),
+    //        .Capital => ecs.add(self.world, ship, tag.Capital),
+    //    }
+    //
+    //    return ship;
+    //}
+    //
+    //pub fn createPlayer(self: *Model) ecs.entity_t {
+    //    const player = ecs.new_id(self.world);
+    //
+    //    _ = ecs.set(self.world, player, component.Position, .{ .x = 0, .y = 0 });
+    //    _ = ecs.set(self.world, player, component.Velocity, .{ .x = 0, .y = 0 });
+    //    _ = ecs.set(self.world, player, component.Acceleration, .{ .x = 0, .y = 0 });
+    //    _ = ecs.set(self.world, player, component.Jerk, .{ .x = 100, .y = 100 });
+    //    ecs.add(self.world, player, tag.Player);
+    //    ecs.add(self.world, player, tag.Visible);
+    //
+    //    return player;
+    //}
 
     pub fn createEntity(self: *Model, id: core.Id) void {
         const entity = ecs.new_id(self.world);
@@ -233,8 +227,30 @@ pub const Model = struct {
     }
 
     pub fn removeEntity(self: *Model, id: core.Id) void {
-        const entity = self.registry.getEntity(id) catch unreachable;
-        ecs.delete(self.world, entity);
-        self.registry.remove(id);
+        const entity = self.registry.getEntity(id);
+        if (entity) |e| {
+            ecs.delete(self.world, e);
+            self.registry.remove(id);
+        }
+    }
+
+    pub fn addComponent(self: *Model, id: core.Id, T: type, value: T) void {
+        const entity = self.registry.getEntity(id);
+
+        if (entity) |e| {
+            _ = ecs.set(self.world, e, T, value);
+        } else {
+            std.log.warn("Tried to add component to unknown entity", .{});
+        }
+    }
+
+    pub fn removeComponent(self: *Model, id: core.Id, T: type) void {
+        const entity = self.registry.getEntity(id);
+
+        if (entity) |e| {
+            _ = ecs.remove(self.world, e, T);
+        } else {
+            std.log.warn("Tried to remove component from unknown entity", .{});
+        }
     }
 };

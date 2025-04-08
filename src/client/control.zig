@@ -47,7 +47,6 @@ pub const Control = struct {
     model: core.Model,
     view: View,
     client: util.Client,
-    count: i32 = 0,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
@@ -80,7 +79,12 @@ pub const Control = struct {
         self.view.update(&self.model);
 
         if (!self.client.connected) {
-            self.client.connect("127.0.0.1", 11111);
+            self.client.connect("127.0.0.1", 11111) catch {
+                log.warn("Could not connect", .{});
+            };
+        }
+
+        if (!self.client.connected) {
             return;
         }
 
@@ -118,18 +122,48 @@ pub const Control = struct {
                         _ = action;
                     },
                     .Entity => |id| {
-                        self.count += 1;
-                        std.log.info("count: {d}\n", .{self.count});
                         self.model.createEntity(id.id);
                     },
                     .EntityRemove => |id| {
-                        _ = id;
+                        self.model.removeEntity(id.id);
                     },
                     .Component => |comp| {
-                        _ = comp;
+                        switch (comp.component) {
+                            .Position => {
+                                self.model.addComponent(comp.id, core.Position, comp.component.Position);
+                            },
+                            .Velocity => {
+                                self.model.addComponent(comp.id, core.Velocity, comp.component.Velocity);
+                            },
+                            .Acceleration => {
+                                self.model.addComponent(comp.id, core.Acceleration, comp.component.Acceleration);
+                            },
+                            .Jerk => {
+                                self.model.addComponent(comp.id, core.Jerk, comp.component.Jerk);
+                            },
+                            .ShipSize => {
+                                self.model.addComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                            },
+                        }
                     },
                     .ComponentRemove => |comp| {
-                        _ = comp;
+                        switch (comp.component) {
+                            .Position => {
+                                self.model.removeComponent(comp.id, core.Position);
+                            },
+                            .Velocity => {
+                                self.model.removeComponent(comp.id, core.Position);
+                            },
+                            .Acceleration => {
+                                self.model.removeComponent(comp.id, core.Position);
+                            },
+                            .Jerk => {
+                                self.model.removeComponent(comp.id, core.Position);
+                            },
+                            .ShipSize => {
+                                self.model.removeComponent(comp.id, core.Position);
+                            },
+                        }
                     },
                 }
             }
@@ -139,7 +173,7 @@ pub const Control = struct {
                     //nothing
                 },
                 error.ClosedConnection => {
-                    //nothing
+                    log.info("Connection closed by Server", .{});
                 },
                 else => {
                     std.debug.print("receive error: {}\n", .{err});

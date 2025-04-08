@@ -447,12 +447,12 @@ pub const ComponentMessage = struct {
 
 pub const ComponentRemoveMessage = struct {
     id: core.Id,
-    comp: core.ComponentType,
+    component: core.ComponentType,
 
-    pub fn init(id: core.Id, comp: core.ComponentType) Message {
+    pub fn init(id: core.Id, component: core.ComponentType) Message {
         const msg = ComponentRemoveMessage{
             .id = id,
-            .comp = comp,
+            .component = component,
         };
 
         return Message{ .ComponentRemove = msg };
@@ -464,7 +464,7 @@ pub const ComponentRemoveMessage = struct {
 
     fn serialize(self: ComponentRemoveMessage, writer: anytype) !void {
         try encode.serializeId(writer, self.id);
-        try writer.writeByte(@intFromEnum(self.comp));
+        try writer.writeByte(@intFromEnum(self.component));
     }
 
     fn deserialize(reader: anytype) !ComponentRemoveMessage {
@@ -474,7 +474,7 @@ pub const ComponentRemoveMessage = struct {
     }
 
     pub fn write(self: ComponentRemoveMessage, writer: anytype) !void {
-        try writer.print("ComponentRemove: {}", .{self.comp});
+        try writer.print("ComponentRemove: {}", .{self.component});
     }
 };
 
