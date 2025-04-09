@@ -100,15 +100,19 @@ pub const Control = struct {
         if (data) |messages| {
             defer {
                 for (messages) |msg| {
-                    msg.deinit(self.allocator);
+                    msg.deinit();
                 }
                 self.allocator.free(messages);
             }
 
             for (messages) |msg| {
                 msg.print(std.io.getStdOut().writer()) catch unreachable;
+                std.io.getStdOut().writer().print("\n", .{}) catch unreachable;
 
                 switch (msg) {
+                    .Alpha => |alpha| {
+                        self.model.tick = alpha.tick;
+                    },
                     .Chat => |chat| {
                         _ = chat;
                     },
@@ -136,19 +140,19 @@ pub const Control = struct {
                     .Component => |comp| {
                         switch (comp.component) {
                             .Position => {
-                                self.model.addComponent(comp.id, core.Position, comp.component.Position);
+                                self.model.setComponent(comp.id, core.Position, comp.component.Position);
                             },
                             .Velocity => {
-                                self.model.addComponent(comp.id, core.Velocity, comp.component.Velocity);
+                                self.model.setComponent(comp.id, core.Velocity, comp.component.Velocity);
                             },
                             .Acceleration => {
-                                self.model.addComponent(comp.id, core.Acceleration, comp.component.Acceleration);
+                                self.model.setComponent(comp.id, core.Acceleration, comp.component.Acceleration);
                             },
                             .Jerk => {
-                                self.model.addComponent(comp.id, core.Jerk, comp.component.Jerk);
+                                self.model.setComponent(comp.id, core.Jerk, comp.component.Jerk);
                             },
                             .ShipSize => {
-                                self.model.addComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                                self.model.setComponent(comp.id, core.ShipSize, comp.component.ShipSize);
                             },
                         }
                     },
@@ -253,7 +257,7 @@ pub const Control = struct {
         if (rl.isKeyDown(rl.KeyboardKey.a)) events.append(core.Action.MoveLeft) catch unreachable;
         if (rl.isKeyDown(rl.KeyboardKey.s)) events.append(core.Action.MoveBackward) catch unreachable;
         if (rl.isKeyDown(rl.KeyboardKey.d)) events.append(core.Action.MoveRight) catch unreachable;
-        if (rl.isKeyPressed(rl.KeyboardKey.space)) events.append(core.Action.Fire) catch unreachable;
+        if (rl.isKeyPressed(rl.KeyboardKey.space)) events.append(core.Action.SpawnPlayer) catch unreachable;
 
         return events; //TODO: move func to view
     }

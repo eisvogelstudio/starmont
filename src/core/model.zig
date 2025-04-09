@@ -216,10 +216,19 @@ pub const Model = struct {
 
     pub fn createEntity(self: *Model, id: core.Id) void {
         const entity = ecs.new_id(self.world);
+
+        if (self.registry.getEntity(id)) |i| {
+            _ = i;
+            self.removeEntity(id);
+            self.registry.remove(id);
+        }
+
         self.registry.register(id, entity) catch unreachable;
 
         _ = ecs.set(self.world, entity, component.Position, .{ .x = 0, .y = 0 });
-        //_ = ecs.set(self.world, entity, component.Velocity, .{ .x = 10, .y = 10 });
+        _ = ecs.set(self.world, entity, component.Velocity, .{ .x = 0, .y = 0 });
+        _ = ecs.set(self.world, entity, component.Acceleration, .{ .x = 0, .y = 0 });
+        _ = ecs.set(self.world, entity, component.Jerk, .{ .x = 0, .y = 0 });
         ecs.add(self.world, entity, tag.Player);
         ecs.add(self.world, entity, tag.Visible);
     }
@@ -232,13 +241,13 @@ pub const Model = struct {
         }
     }
 
-    pub fn addComponent(self: *Model, id: core.Id, T: type, value: T) void {
+    pub fn setComponent(self: *Model, id: core.Id, T: type, value: T) void {
         const entity = self.registry.getEntity(id);
 
         if (entity) |e| {
             _ = ecs.set(self.world, e, T, value);
         } else {
-            std.log.warn("Tried to add component to unknown entity", .{});
+            std.log.warn("tried to set component to unknown entity", .{});
         }
     }
 
@@ -248,7 +257,7 @@ pub const Model = struct {
         if (entity) |e| {
             _ = ecs.remove(self.world, e, T);
         } else {
-            std.log.warn("Tried to remove component from unknown entity", .{});
+            std.log.warn("tried to remove component from unknown entity", .{});
         }
     }
 };

@@ -27,6 +27,8 @@ const core = @import("root.zig");
 const ecs = @import("zflecs");
 // ------------------------------
 
+const log = std.log.scoped(.model);
+
 pub const Id = struct {
     id: u64,
 };
@@ -59,6 +61,11 @@ pub const Registry = struct {
     }
 
     pub fn register(self: *Registry, id: Id, entity: ecs.entity_t) !void {
+        if (self.id_to_entity.contains(id)) {
+            self.remove(id);
+            log.err("entity #{d} was already registered", .{id.id});
+        }
+
         try self.id_to_entity.put(id, entity);
         try self.entity_to_id.put(entity, id);
     }

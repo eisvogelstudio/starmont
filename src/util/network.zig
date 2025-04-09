@@ -155,7 +155,7 @@ pub const Server = struct {
                 }
             };
 
-            std.log.info("Client #{d} connected", .{self.clients.items.len});
+            std.log.info("client #{d} connected", .{self.clients.items.len});
             try self.clients.append(client);
         }
     }
@@ -167,7 +167,7 @@ pub const Server = struct {
             const msg = receiveMessages(&self.clients.items[i], self.allocator) catch |err| {
                 if (err == error.ClosedConnection) {
                     _ = self.clients.swapRemove(i);
-                    std.log.info("Client #{d} disconnected", .{i});
+                    std.log.info("client #{d} disconnected", .{i});
                     i += 1;
                     continue;
                 } else if (err == error.WouldBlock) {

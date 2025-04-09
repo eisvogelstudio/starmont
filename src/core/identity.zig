@@ -16,15 +16,30 @@
 
 // ---------- std ----------
 const std = @import("std");
+const math = std.math;
 const testing = std.testing;
 // -------------------------
 
-pub const name = "starmont";
-pub const version = "0.1.0-dev";
+// ---------- starmont ----------
+const core = @import("root.zig");
+// ------------------------------
 
-pub usingnamespace @import("action.zig");
-pub usingnamespace @import("component.zig");
-pub usingnamespace @import("identity.zig");
-pub usingnamespace @import("model.zig");
-pub usingnamespace @import("registry.zig");
-pub usingnamespace @import("tag.zig");
+// ---------- external ----------
+const ecs = @import("zflecs");
+// ------------------------------
+
+pub const Identity = struct {
+    body: core.Id,
+
+    pub fn init(body: core.Id) Identity {
+        const identity = Identity{
+            .body = body,
+        };
+
+        return identity;
+    }
+
+    pub fn deinit(self: *Identity) void {
+        _ = self;
+    }
+};

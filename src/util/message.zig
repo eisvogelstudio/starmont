@@ -27,7 +27,37 @@ const encode = @import("encode.zig");
 const format = @import("format.zig");
 // ------------------------------
 
+pub const AlphaMessage = struct {
+    tick: u64,
+
+    pub fn init(tick: u64) Message {
+        const alpha = AlphaMessage{
+            .tick = tick,
+        };
+
+        return Message{ .Alpha = alpha };
+    }
+
+    fn deinit(self: AlphaMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: AlphaMessage, writer: anytype) !void {
+        try encode.serializeU64(writer, self.tick);
+    }
+
+    fn deserialize(reader: anytype) !AlphaMessage {
+        const tick = try decode.deserializeU64(reader);
+        return AlphaMessage{ .tick = tick };
+    }
+
+    pub fn write(self: AlphaMessage, writer: anytype) !void {
+        try writer.print("Alpha: {d}", .{self.tick});
+    }
+};
+
 pub const ChatMessage = struct {
+    allocator: *std.mem.Allocator,
     text: []const u8,
 
     pub fn init(allocator: *std.mem.Allocator, text: []const u8) !Message {
@@ -39,8 +69,8 @@ pub const ChatMessage = struct {
         return Message{ .Chat = chat };
     }
 
-    fn deinit(self: ChatMessage, allocator: *std.mem.Allocator) void {
-        allocator.free(self.text);
+    fn deinit(self: ChatMessage) void {
+        self.allocator.free(self.text);
     }
 
     fn serialize(self: ChatMessage, writer: anytype) !void {
@@ -56,7 +86,7 @@ pub const ChatMessage = struct {
         const len: u16 = @bitCast(len_buf);
         const text = try allocator.alloc(u8, len);
         _ = try reader.readAll(text);
-        return ChatMessage{ .text = text };
+        return ChatMessage{ .allocator = allocator, .text = text };
     }
 
     pub fn write(self: ChatMessage, writer: anytype) !void {
@@ -479,6 +509,7 @@ pub const ComponentRemoveMessage = struct {
 };
 
 pub const MessageType = enum(u8) {
+    Alpha,
     Chat,
     Static,
     Linear,
@@ -492,6 +523,7 @@ pub const MessageType = enum(u8) {
 };
 
 pub const Message = union(MessageType) {
+    Alpha: AlphaMessage,
     Chat: ChatMessage,
     Static: StaticMessage,
     Linear: LinearMessage,
@@ -503,10 +535,13 @@ pub const Message = union(MessageType) {
     Component: ComponentMessage,
     ComponentRemove: ComponentRemoveMessage,
 
-    pub fn deinit(self: Message, allocator: *std.mem.Allocator) void {
+    pub fn deinit(self: Message) void {
         switch (self) {
+            .Alpha => |alpha| {
+                alpha.deinit();
+            },
             .Chat => |chat| {
-                chat.deinit(allocator);
+                chat.deinit();
             },
             .Static => |static| {
                 static.deinit();
@@ -541,6 +576,9 @@ pub const Message = union(MessageType) {
     pub fn serialize(self: Message, writer: anytype) !void {
         try writer.writeByte(@intFromEnum(self));
         switch (self) {
+            .Alpha => |alpha| {
+                try alpha.serialize(writer);
+            },
             .Chat => |chat| {
                 try chat.serialize(writer);
             },
@@ -578,6 +616,10 @@ pub const Message = union(MessageType) {
         const type_byte = try reader.readByte();
         const message_type: MessageType = @enumFromInt(type_byte);
         switch (message_type) {
+            .Alpha => {
+                const alpha = try AlphaMessage.deserialize(reader);
+                return Message{ .Alpha = alpha };
+            },
             .Chat => {
                 const chat = try ChatMessage.deserialize(reader, allocator);
                 return Message{ .Chat = chat };
@@ -623,6 +665,9 @@ pub const Message = union(MessageType) {
 
     pub fn print(self: Message, writer: anytype) !void {
         switch (self) {
+            .Alpha => |alpha| {
+                try alpha.write(writer);
+            },
             .Chat => |chat| {
                 try chat.write(writer);
             },

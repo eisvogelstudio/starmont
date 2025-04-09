@@ -68,7 +68,7 @@ pub const Control = struct {
         if (data) |messages| {
             defer {
                 for (messages) |msg| {
-                    msg.deinit(self.allocator);
+                    msg.deinit();
                 }
                 self.allocator.free(messages);
             }
@@ -78,6 +78,9 @@ pub const Control = struct {
                 //apply/apply best effort version
 
                 switch (msg) {
+                    .Alpha => |alpha| {
+                        _ = alpha;
+                    },
                     .Chat => |chat| {
                         _ = chat;
                     },
@@ -94,24 +97,31 @@ pub const Control = struct {
                         _ = dynamic;
                     },
                     .Action => |action| {
-                        switch (action) {
+                        const id = core.Id{ .id = 0 };
+                        switch (action.action) {
                             .SpawnPlayer => {
-                                self.model.addComponent(comp.id, core.Position, comp.component.Position);
+                                self.model.createEntity(id);
+
+                                const cmsg = util.EntityMessage.init(id);
+
+                                for (0..self.server.clients.items.len) |j| {
+                                    self.server.send(j, cmsg) catch unreachable;
+                                }
                             },
                             .MoveLeft => {
-                                self.model.addComponent(comp.id, core.Velocity, comp.component.Velocity);
+                                self.model.setComponent(id, core.Velocity, .{ .x = -100, .y = 0 });
                             },
                             .MoveRight => {
-                                self.model.addComponent(comp.id, core.Acceleration, comp.component.Acceleration);
+                                self.model.setComponent(id, core.Velocity, .{ .x = 100, .y = 0 });
                             },
                             .MoveForward => {
-                                self.model.addComponent(comp.id, core.Jerk, comp.component.Jerk);
+                                self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = -100 });
                             },
                             .MoveBackward => {
-                                self.model.addComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                                self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = 100 });
                             },
                             .Fire => {
-                                self.model.addComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                                //nothing
                             },
                         }
                     },
@@ -124,19 +134,19 @@ pub const Control = struct {
                     .Component => |comp| {
                         switch (comp.component) {
                             .Position => {
-                                self.model.addComponent(comp.id, core.Position, comp.component.Position);
+                                self.model.setComponent(comp.id, core.Position, comp.component.Position);
                             },
                             .Velocity => {
-                                self.model.addComponent(comp.id, core.Velocity, comp.component.Velocity);
+                                self.model.setComponent(comp.id, core.Velocity, comp.component.Velocity);
                             },
                             .Acceleration => {
-                                self.model.addComponent(comp.id, core.Acceleration, comp.component.Acceleration);
+                                self.model.setComponent(comp.id, core.Acceleration, comp.component.Acceleration);
                             },
                             .Jerk => {
-                                self.model.addComponent(comp.id, core.Jerk, comp.component.Jerk);
+                                self.model.setComponent(comp.id, core.Jerk, comp.component.Jerk);
                             },
                             .ShipSize => {
-                                self.model.addComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                                self.model.setComponent(comp.id, core.ShipSize, comp.component.ShipSize);
                             },
                         }
                     },
@@ -159,6 +169,7 @@ pub const Control = struct {
                             },
                         }
                     },
+                }
             }
         } else |err| {
             switch (err) {
@@ -171,7 +182,7 @@ pub const Control = struct {
             }
         }
 
-        //update clients
+        self.syncEntites();
     }
 
     fn syncEntites(self: *Control) void {
@@ -189,6 +200,14 @@ pub const Control = struct {
 
         var it = ecs.query_iter(self.model.world, query);
 
+        //##### force tick
+        const tick_msg = util.AlphaMessage.init(self.model.tick);
+
+        for (0..self.server.clients.items.len) |j| {
+            self.server.send(j, tick_msg) catch unreachable;
+        }
+        //#####
+
         while (ecs.query_next(&it)) {
             const positions: []const core.Position = ecs.field(&it, core.Position, 0).?;
 
@@ -196,10 +215,10 @@ pub const Control = struct {
                 const entity = it.entities()[i];
                 const id = self.model.registry.getId(entity);
 
-                const msg = util.ComponentMessage.fromPosition(id, positions[i]);
+                const msg = util.ComponentMessage.fromPosition(id.?, positions[i]);
 
                 for (0..self.server.clients.items.len) |j| {
-                    self.server.send(j, msg);
+                    self.server.send(j, msg) catch unreachable;
                 }
             }
         }
