@@ -100,14 +100,13 @@ fn applyVelocityDynamic(it: *ecs.iter_t, positions: []component.Position, veloci
 pub const Model = struct {
     allocator: *std.mem.Allocator,
     world: *ecs.world_t,
-    prng: std.Random.DefaultPrng,
     registry: core.Registry,
+    tick: u64 = 0,
 
     pub fn init(allocator: *std.mem.Allocator) Model {
         var model = Model{
             .allocator = allocator,
             .world = ecs.init(),
-            .prng = std.Random.DefaultPrng.init(@intCast(std.time.milliTimestamp())),
             .registry = core.Registry.init(allocator),
         };
 
@@ -115,25 +114,24 @@ pub const Model = struct {
         model.registerTags();
         model.registerSystems();
 
-        //_ = createShip(&model, "Shuttle_0", .Small);
-        //_ = createShip(&model, "Cargo-Shuttle", .Small);
-        //_ = createShip(&model, "Frigatte", .Medium);
-        //_ = createShip(&model, "Destroyer", .Large);
-        //_ = createShip(&model, "Battleship", .Capital);
-
         return model;
     }
 
     pub fn deinit(self: *Model) void {
+        self.registry.deinit();
         _ = ecs.fini(self.world);
     }
 
+    pub fn apply(self: *Model, other: *Model) void {
+        self.tick = other.tick;
+    }
+
     pub fn update(self: *Model) void {
+        self.tick += 1;
         _ = ecs.progress(self.world, 0);
     }
 
     fn registerComponents(self: *Model) void {
-        ecs.COMPONENT(self.world, component.Id);
         ecs.COMPONENT(self.world, component.Position);
         ecs.COMPONENT(self.world, component.Velocity);
         ecs.COMPONENT(self.world, component.Acceleration);
@@ -221,7 +219,7 @@ pub const Model = struct {
         self.registry.register(id, entity) catch unreachable;
 
         _ = ecs.set(self.world, entity, component.Position, .{ .x = 0, .y = 0 });
-        _ = ecs.set(self.world, entity, component.Velocity, .{ .x = 10, .y = 10 });
+        //_ = ecs.set(self.world, entity, component.Velocity, .{ .x = 10, .y = 10 });
         ecs.add(self.world, entity, tag.Player);
         ecs.add(self.world, entity, tag.Visible);
     }

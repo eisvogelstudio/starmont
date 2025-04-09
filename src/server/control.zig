@@ -28,7 +28,7 @@ const util = @import("util");
 const ecs = @import("zflecs");
 // ------------------------------
 
-pub const log_scope = .control;
+const log = std.log.scoped(.control);
 
 const name = "server";
 
@@ -46,8 +46,8 @@ pub const Control = struct {
 
         control.server.open(11111) catch @panic("failed to open socket");
 
-        std.log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
-        std.log.info("All your starbase are belong to us", .{});
+        log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
+        log.info("all your starbase are belong to us", .{});
 
         return control;
     }
@@ -56,42 +56,153 @@ pub const Control = struct {
         self.server.deinit();
         self.model.deinit();
 
-        std.log.info("stopped sucessfully", .{});
+        log.info("stopped sucessfully", .{});
     }
 
     pub fn update(self: *Control) void {
         self.model.update();
 
-        self.server.accept() catch return;
-        const msgs = self.server.receive(self.allocator) catch |err| {
-            if (err == error.WouldBlock) {
-                return;
-            } else {
-                std.log.info("An error occured while receiving: {s}", .{@errorName(err)});
-                return;
+        self.server.accept() catch unreachable;
+        const data = self.server.receive(self.allocator);
+
+        if (data) |messages| {
+            defer {
+                for (messages) |msg| {
+                    msg.deinit(self.allocator);
+                }
+                self.allocator.free(messages);
             }
+
+            for (messages) |msg| {
+                //check if is valid
+                //apply/apply best effort version
+
+                switch (msg) {
+                    .Chat => |chat| {
+                        _ = chat;
+                    },
+                    .Static => |static| {
+                        _ = static;
+                    },
+                    .Linear => |linear| {
+                        _ = linear;
+                    },
+                    .Accelerated => |accelerated| {
+                        _ = accelerated;
+                    },
+                    .Dynamic => |dynamic| {
+                        _ = dynamic;
+                    },
+                    .Action => |action| {
+                        switch (action) {
+                            .SpawnPlayer => {
+                                self.model.addComponent(comp.id, core.Position, comp.component.Position);
+                            },
+                            .MoveLeft => {
+                                self.model.addComponent(comp.id, core.Velocity, comp.component.Velocity);
+                            },
+                            .MoveRight => {
+                                self.model.addComponent(comp.id, core.Acceleration, comp.component.Acceleration);
+                            },
+                            .MoveForward => {
+                                self.model.addComponent(comp.id, core.Jerk, comp.component.Jerk);
+                            },
+                            .MoveBackward => {
+                                self.model.addComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                            },
+                            .Fire => {
+                                self.model.addComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                            },
+                        }
+                    },
+                    .Entity => |id| {
+                        self.model.createEntity(id.id);
+                    },
+                    .EntityRemove => |id| {
+                        self.model.removeEntity(id.id);
+                    },
+                    .Component => |comp| {
+                        switch (comp.component) {
+                            .Position => {
+                                self.model.addComponent(comp.id, core.Position, comp.component.Position);
+                            },
+                            .Velocity => {
+                                self.model.addComponent(comp.id, core.Velocity, comp.component.Velocity);
+                            },
+                            .Acceleration => {
+                                self.model.addComponent(comp.id, core.Acceleration, comp.component.Acceleration);
+                            },
+                            .Jerk => {
+                                self.model.addComponent(comp.id, core.Jerk, comp.component.Jerk);
+                            },
+                            .ShipSize => {
+                                self.model.addComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                            },
+                        }
+                    },
+                    .ComponentRemove => |comp| {
+                        switch (comp.component) {
+                            .Position => {
+                                self.model.removeComponent(comp.id, core.Position);
+                            },
+                            .Velocity => {
+                                self.model.removeComponent(comp.id, core.Velocity);
+                            },
+                            .Acceleration => {
+                                self.model.removeComponent(comp.id, core.Acceleration);
+                            },
+                            .Jerk => {
+                                self.model.removeComponent(comp.id, core.Jerk);
+                            },
+                            .ShipSize => {
+                                self.model.removeComponent(comp.id, core.ShipSize);
+                            },
+                        }
+                    },
+            }
+        } else |err| {
+            switch (err) {
+                error.WouldBlock => {
+                    //nothing
+                },
+                else => {
+                    std.debug.print("receive error: {}\n", .{err});
+                },
+            }
+        }
+
+        //update clients
+    }
+
+    fn syncEntites(self: *Control) void {
+        const terms: [32]ecs.term_t = [_]ecs.term_t{
+            ecs.term_t{ .id = ecs.id(core.Position) },
+        } ++ [_]ecs.term_t{ecs.term_t{}} ** 31;
+
+        var query_desc = ecs.query_desc_t{
+            .terms = terms,
+            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
         };
 
-        defer {
-            for (msgs) |msg| {
-                msg.deinit(self.allocator);
+        const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
+        defer ecs.query_fini(query);
+
+        var it = ecs.query_iter(self.model.world, query);
+
+        while (ecs.query_next(&it)) {
+            const positions: []const core.Position = ecs.field(&it, core.Position, 0).?;
+
+            for (0..it.count()) |i| {
+                const entity = it.entities()[i];
+                const id = self.model.registry.getId(entity);
+
+                const msg = util.ComponentMessage.fromPosition(id, positions[i]);
+
+                for (0..self.server.clients.items.len) |j| {
+                    self.server.send(j, msg);
+                }
             }
-            self.allocator.free(msgs);
         }
-
-        for (msgs) |msg| {
-            msg.print(std.io.getStdOut().writer()) catch @panic("error dsfds");
-
-            if (self.server.clients.items.len < 1) return;
-            const spawn = util.EntityMessage.init(.{ .id = 0 });
-            self.server.send(0, spawn) catch unreachable;
-        }
-
-        //if (self.server.clients.items.len < 1) return;
-
-        //const msg = util.Message{ .Static = util.StaticMessage.init(.{ .x = 1, .y = 0 }) };
-
-        //self.server.send(0, msg) catch unreachable;
     }
 
     pub fn shouldStop(self: *Control) bool {

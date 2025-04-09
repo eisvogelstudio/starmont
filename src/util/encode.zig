@@ -49,7 +49,7 @@ pub fn serializeEnum(writer: anytype, comptime T: type, value: T) !void {
 
 // ###############################
 
-// ########## component ##########
+// ########## model ##########
 
 pub fn serializeId(writer: anytype, id: core.Id) !void {
     try serializeU64(writer, id.id);
@@ -79,4 +79,4 @@ pub fn serializeShipSize(writer: anytype, size: core.ShipSize) !void {
     try serializeEnum(writer, core.ShipSize, size);
 }
 
-// ###############################
+// ###########################

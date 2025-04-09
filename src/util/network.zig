@@ -168,8 +168,10 @@ pub const Server = struct {
                 if (err == error.ClosedConnection) {
                     _ = self.clients.swapRemove(i);
                     std.log.info("Client #{d} disconnected", .{i});
+                    i += 1;
                     continue;
                 } else if (err == error.WouldBlock) {
+                    i += 1;
                     continue;
                 } else {
                     return err;

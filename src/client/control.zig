@@ -79,8 +79,15 @@ pub const Control = struct {
         self.view.update(&self.model);
 
         if (!self.client.connected) {
-            self.client.connect("127.0.0.1", 11111) catch {
-                log.warn("Could not connect", .{});
+            self.client.connect("127.0.0.1", 11111) catch |err| {
+                switch (err) {
+                    error.Cooldown => {
+                        //nothing
+                    },
+                    else => {
+                        log.warn("could not connect to server", .{});
+                    },
+                }
             };
         }
 
@@ -89,17 +96,16 @@ pub const Control = struct {
         }
 
         // Receive messages
-        const msgs = self.client.receive();
-        if (msgs) |received| {
+        const data = self.client.receive();
+        if (data) |messages| {
             defer {
-                for (received) |msg| {
+                for (messages) |msg| {
                     msg.deinit(self.allocator);
                 }
-                self.allocator.free(received);
+                self.allocator.free(messages);
             }
 
-            // Print all received messages
-            for (received) |msg| {
+            for (messages) |msg| {
                 msg.print(std.io.getStdOut().writer()) catch unreachable;
 
                 switch (msg) {
@@ -152,16 +158,16 @@ pub const Control = struct {
                                 self.model.removeComponent(comp.id, core.Position);
                             },
                             .Velocity => {
-                                self.model.removeComponent(comp.id, core.Position);
+                                self.model.removeComponent(comp.id, core.Velocity);
                             },
                             .Acceleration => {
-                                self.model.removeComponent(comp.id, core.Position);
+                                self.model.removeComponent(comp.id, core.Acceleration);
                             },
                             .Jerk => {
-                                self.model.removeComponent(comp.id, core.Position);
+                                self.model.removeComponent(comp.id, core.Jerk);
                             },
                             .ShipSize => {
-                                self.model.removeComponent(comp.id, core.Position);
+                                self.model.removeComponent(comp.id, core.ShipSize);
                             },
                         }
                     },
@@ -173,11 +179,10 @@ pub const Control = struct {
                     //nothing
                 },
                 error.ClosedConnection => {
-                    log.info("Connection closed by Server", .{});
+                    log.info("connection closed by server", .{});
                 },
                 else => {
                     std.debug.print("receive error: {}\n", .{err});
-                    return;
                 },
             }
         }
@@ -250,14 +255,17 @@ pub const Control = struct {
         if (rl.isKeyDown(rl.KeyboardKey.d)) events.append(core.Action.MoveRight) catch unreachable;
         if (rl.isKeyPressed(rl.KeyboardKey.space)) events.append(core.Action.Fire) catch unreachable;
 
-        return events;
+        return events; //TODO: move func to view
     }
 
     fn sendInput(self: *Control, actions: std.ArrayList(core.Action)) void {
         if (!self.client.connected) return;
 
         for (actions.items) |a| {
-            self.client.send(util.ActionMessage.init(a)) catch unreachable;
+            self.client.send(util.ActionMessage.init(a)) catch |err| {
+                log.err("failed to send action: {s}", .{@errorName(err)});
+                continue;
+            };
         }
     }
 };

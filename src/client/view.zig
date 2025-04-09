@@ -45,10 +45,10 @@ pub const View = struct {
             .allocator = allocator,
         };
 
-        rl.setTraceLogLevel(rl.TraceLogLevel.all);
+        rl.setTraceLogLevel(rl.TraceLogLevel.none);
         rl.initWindow(screenWidth, screenHeight, core.name ++ " v" ++ core.version);
 
-        std.log.info("{any}\n", .{rl.getWindowScaleDPI()});
+        //std.log.info("{any}\n", .{rl.getWindowScaleDPI()});
         //rl.setWindowSize(@as(i32, @as(f32, screenWidth) / rl.getWindowScaleDPI().x), @as(i32, @as(f32, screenHeight) / rl.getWindowScaleDPI().y));
         const dpiScale = rl.getWindowScaleDPI();
 

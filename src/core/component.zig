@@ -27,10 +27,6 @@ const core = @import("root.zig");
 const ecs = @import("zflecs");
 // ------------------------------
 
-pub const Id = struct {
-    id: u64,
-};
-
 pub const ComponentType = enum {
     Position,
     Velocity,

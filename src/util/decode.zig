@@ -50,7 +50,7 @@ pub fn deserializeEnum(reader: anytype, comptime T: type) !T {
 
 // ###############################
 
-// ########## component ##########
+// ########## model ##########
 
 pub fn deserializeId(reader: anytype) !core.Id {
     const id = try deserializeU64(reader);
@@ -85,4 +85,4 @@ pub fn deserializeShipSize(reader: anytype) !core.ShipSize {
     return try deserializeEnum(reader, core.ShipSize);
 }
 
-// ###############################
+// ###########################
