@@ -49,11 +49,15 @@ pub const Client = struct {
             .allocator = allocator,
         };
 
+        net.init() catch unreachable;
+
         return client;
     }
 
     pub fn deinit(self: *Client) void {
         self.disconnect();
+
+        net.deinit();
     }
 
     pub fn connect(self: *Client, address: []const u8, port: u16) !void {
@@ -114,11 +118,15 @@ pub const Server = struct {
             .clients = std.ArrayList(net.Socket).init(allocator.*),
         };
 
+        net.init() catch unreachable;
+
         return server;
     }
 
     pub fn deinit(self: *Server) void {
         self.close();
+
+        net.deinit();
     }
 
     pub fn open(self: *Server, port: u16) !void {
