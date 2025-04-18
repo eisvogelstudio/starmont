@@ -41,6 +41,7 @@ const cooldown = 1;
 pub const Client = struct {
     allocator: *std.mem.Allocator,
     socket: net.Socket = undefined,
+    socket_ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     connected: bool = false,
     stamp: i64 = 0,
 
@@ -69,10 +70,24 @@ pub const Client = struct {
 
         self.stamp = std.time.timestamp();
 
-        self.socket = try net.connectToHost(self.allocator.*, address, port, .tcp);
+        _ = try std.Thread.spawn(.{}, struct {
+            fn run(client: *Client, ad: []const u8, po: u16) void {
+                client.socket = net.connectToHost(client.allocator.*, ad, po, .tcp) catch |err| {
+                    std.debug.print("Connect error: {}\n", .{err});
+                    return;
+                };
+
+                client.socket_ready.store(true, .seq_cst);
+            }
+        }.run, .{ self, address, port });
+
+        if (!self.socket_ready.load(.seq_cst)) {
+            return error.Skip;
+        }
 
         self.socket.enablePortReuse(true) catch @panic("failed to configure socket");
         self.socket.setReadTimeout(10) catch @panic("failed to configure socket");
+        self.socket.setWriteTimeout(10) catch @panic("failed to configure socket");
 
         std.log.info("Connected to {s}:{d}\n", .{ address, port });
 

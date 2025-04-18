@@ -84,6 +84,9 @@ pub const Control = struct {
                     error.Cooldown => {
                         //nothing
                     },
+                    error.Skip => {
+                        //nothing
+                    },
                     else => {
                         log.warn("could not connect to server", .{});
                     },
