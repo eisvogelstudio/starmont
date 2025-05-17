@@ -16,6 +16,7 @@
 
 // ---------- std ----------
 const std = @import("std");
+const atomic = std.atomic;
 const testing = std.testing;
 // -------------------------
 
@@ -41,9 +42,10 @@ const cooldown = 1;
 pub const Client = struct {
     allocator: *std.mem.Allocator,
     socket: net.Socket = undefined,
-    socket_ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    //socket_ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     connected: bool = false,
     stamp: i64 = 0,
+    //connecting: atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
     pub fn init(allocator: *std.mem.Allocator) Client {
         const client = Client{
@@ -61,39 +63,66 @@ pub const Client = struct {
         net.deinit();
     }
 
-    pub fn connect(self: *Client, address: []const u8, port: u16) !void {
-        if (self.stamp != 0) {
-            if (std.time.timestamp() - self.stamp < cooldown) {
-                return error.Cooldown;
-            }
+    pub fn connect(self: *Client, host: []const u8, port: u16) !void {
+        if (self.connected) {
+            return error.AlreadyConnected;
         }
 
-        self.stamp = std.time.timestamp();
+        const now = std.time.timestamp();
 
-        _ = try std.Thread.spawn(.{}, struct {
-            fn run(client: *Client, ad: []const u8, po: u16) void {
-                client.socket = net.connectToHost(client.allocator.*, ad, po, .tcp) catch |err| {
-                    std.debug.print("Connect error: {}\n", .{err});
-                    return;
-                };
-
-                client.socket_ready.store(true, .seq_cst);
-            }
-        }.run, .{ self, address, port });
-
-        if (!self.socket_ready.load(.seq_cst)) {
-            return error.Skip;
+        if (self.stamp != 0 and now - self.stamp < cooldown) {
+            return error.Cooldown;
         }
 
-        self.socket.enablePortReuse(true) catch @panic("failed to configure socket");
-        self.socket.setReadTimeout(10) catch @panic("failed to configure socket");
-        self.socket.setWriteTimeout(10) catch @panic("failed to configure socket");
+        var socket = try net.connectToHost(self.allocator.*, host, port, .tcp);
+        defer if (!self.connected) socket.close();
 
-        std.log.info("Connected to {s}:{d}\n", .{ address, port });
+        try socket.setReadTimeout(100); // 100ns
+        try socket.setWriteTimeout(100); // 100ns
 
+        self.socket = socket;
         self.connected = true;
+        self.stamp = now;
+
+        std.log.info("Connected to {s}:{d}", .{ host, port });
     }
 
+    ///pub fn connect(self: *Client, address: []const u8, port: u16) !void {
+    ///    if (self.stamp != 0) {
+    ///        if (std.time.timestamp() - self.stamp < cooldown) {
+    ///            return error.Cooldown;
+    ///        }
+    ///    }
+    ///
+    ///    if (!self.connecting.swap(true, .seq_cst)) {
+    ///        self.stamp = std.time.timestamp();
+    ///
+    ///        _ = try std.Thread.spawn(.{}, struct {
+    ///            fn run(client: *Client, ad: []const u8, po: u16) void {
+    ///                defer client.connecting.store(false, .release);
+    ///
+    ///                client.socket = net.connectToHost(client.allocator.*, ad, po, .tcp) catch |err| {
+    ///                    std.debug.print("Connect error: {}\n", .{err});
+    ///                    return;
+    ///                };
+    ///
+    ///                client.socket_ready.store(true, .seq_cst);
+    ///            }
+    ///        }.run, .{ self, address, port });
+    ///    }
+    ///
+    ///    if (!self.socket_ready.load(.seq_cst)) {
+    ///        return error.Skip;
+    ///    }
+    ///
+    ///    self.socket.enablePortReuse(true) catch @panic("failed to configure socket");
+    ///    self.socket.setReadTimeout(10) catch @panic("failed to configure socket");
+    ///    //self.socket.setWriteTimeout(10) catch @panic("failed to configure socket"); leads to compile error ?!
+    ///
+    ///    std.log.info("Connected to {s}:{d}", .{ address, port });
+    ///
+    ///    self.connected = true;
+    ///}
     pub fn disconnect(self: *Client) void {
         if (self.connected) {
             self.socket.close();
@@ -191,10 +220,11 @@ pub const Server = struct {
                 if (err == error.ClosedConnection) {
                     _ = self.clients.swapRemove(i);
                     std.log.info("client #{d} disconnected", .{i});
-                    i += 1;
+                    //i += 1;
                     continue;
                 } else if (err == error.WouldBlock) {
                     i += 1;
+
                     continue;
                 } else {
                     return err;
@@ -225,7 +255,13 @@ fn sendMessage(socket: *net.Socket, msg: util.Message) !void {
 
     var total: usize = 0;
     while (total < data.len) {
-        const bytes_written = try socket.writer().write(data[total..]);
+        const bytes_written = socket.writer().write(data[total..]) catch |err| {
+            switch (err) {
+                error.ConnectionResetByPeer, error.BrokenPipe => return error.ClosedConnection,
+                error.WouldBlock => return error.WouldBlock,
+                else => return err,
+            }
+        };
         if (bytes_written == 0) {
             return Error.ClosedConnection;
         }
@@ -233,7 +269,7 @@ fn sendMessage(socket: *net.Socket, msg: util.Message) !void {
     }
 }
 
-pub fn receiveMessages(socket: *net.Socket, allocator: *std.mem.Allocator) ![]util.Message {
+fn receiveMessages(socket: *net.Socket, allocator: *std.mem.Allocator) ![]util.Message {
     var messages = std.ArrayList(util.Message).init(allocator.*);
     var buffer: [1024]u8 = undefined;
     const readResult = socket.reader().read(buffer[0..]);

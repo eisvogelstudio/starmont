@@ -7,8 +7,8 @@
 
     .dependencies = .{
         .network = .{
-            .url = "git+https://github.com/eisvogelstudio/zig-network.git#c76240d2240711a3dcbf1c0fb461d5d1f18be79a",
-            .hash = "network-0.1.0-AAAAAOwlAQAQ6zKPUrsibdpGisxld9ftUKGdMvcCSpaj",
+            .url = "git+https://github.com/eisvogelstudio/zig-network.git#bdabb4c97fafbdd5c660914b2605ca12a34dca23",
+            .hash = "network-0.1.0-AAAAAO4lAQCVjSlkBuMpeI_QIzbBssnWmonYJBtZ6tCU",
         },
         .raylib = .{
             .url = "git+https://github.com/eisvogelstudio/raylib-zig.git#17a1754271ab440395256002cd7ae7a7d0a6f1cc",

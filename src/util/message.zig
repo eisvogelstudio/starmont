@@ -455,6 +455,7 @@ pub const ComponentMessage = struct {
         try writer.print("ComponentMessage: ", .{});
         try writer.print("\n\t", .{});
         try format.writeId(writer, self.id);
+        try writer.print("\n\t", .{});
         switch (self.component) {
             .Position => |pos| {
                 try format.writePosition(writer, pos);
@@ -508,6 +509,36 @@ pub const ComponentRemoveMessage = struct {
     }
 };
 
+pub const SnapshotRequestMessage = struct {
+    pub fn init() Message {
+        const msg = SnapshotRequestMessage{};
+
+        return Message{ .SnapshotRequest = msg };
+    }
+
+    fn deinit(self: SnapshotRequestMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: SnapshotRequestMessage, writer: anytype) !void {
+        _ = self;
+        _ = writer;
+
+        return;
+    }
+
+    fn deserialize(reader: anytype) !SnapshotRequestMessage {
+        _ = reader;
+        return init().SnapshotRequest;
+    }
+
+    pub fn write(self: SnapshotRequestMessage, writer: anytype) !void {
+        _ = self;
+
+        try writer.print("SnapshotRequestMessage", .{});
+    }
+};
+
 pub const MessageType = enum(u8) {
     Alpha,
     Chat,
@@ -520,6 +551,7 @@ pub const MessageType = enum(u8) {
     EntityRemove,
     Component,
     ComponentRemove,
+    SnapshotRequest,
 };
 
 pub const Message = union(MessageType) {
@@ -534,6 +566,7 @@ pub const Message = union(MessageType) {
     EntityRemove: EntityRemoveMessage,
     Component: ComponentMessage,
     ComponentRemove: ComponentRemoveMessage,
+    SnapshotRequest: SnapshotRequestMessage,
 
     pub fn deinit(self: Message) void {
         switch (self) {
@@ -569,6 +602,9 @@ pub const Message = union(MessageType) {
             },
             .ComponentRemove => |comp| {
                 comp.deinit();
+            },
+            .SnapshotRequest => |snap| {
+                snap.deinit();
             },
         }
     }
@@ -608,6 +644,9 @@ pub const Message = union(MessageType) {
             },
             .ComponentRemove => |comp| {
                 try comp.serialize(writer);
+            },
+            .SnapshotRequest => |snap| {
+                try snap.serialize(writer);
             },
         }
     }
@@ -660,6 +699,10 @@ pub const Message = union(MessageType) {
                 const comp = try ComponentRemoveMessage.deserialize(reader);
                 return Message{ .ComponentRemove = comp };
             },
+            .SnapshotRequest => {
+                const snap = try SnapshotRequestMessage.deserialize(reader);
+                return Message{ .SnapshotRequest = snap };
+            },
         }
     }
 
@@ -697,6 +740,9 @@ pub const Message = union(MessageType) {
             },
             .ComponentRemove => |comp| {
                 try comp.write(writer);
+            },
+            .SnapshotRequest => |snap| {
+                try snap.write(writer);
             },
         }
     }

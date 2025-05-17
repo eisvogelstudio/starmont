@@ -47,6 +47,7 @@ pub const Control = struct {
     model: core.Model,
     view: View,
     client: util.Client,
+    snapshotRequired: bool = true,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
@@ -84,7 +85,7 @@ pub const Control = struct {
                     error.Cooldown => {
                         //nothing
                     },
-                    error.Skip => {
+                    error.AlreadyConnected => {
                         //nothing
                     },
                     else => {
@@ -96,6 +97,14 @@ pub const Control = struct {
 
         if (!self.client.connected) {
             return;
+        }
+
+        if (self.snapshotRequired) {
+            self.client.send(util.SnapshotRequestMessage.init()) catch |err| {
+                log.err("failed to send snapshot request: {s}", .{@errorName(err)});
+                return;
+            };
+            self.snapshotRequired = false;
         }
 
         // Receive messages
@@ -178,6 +187,7 @@ pub const Control = struct {
                             },
                         }
                     },
+                    .SnapshotRequest => {},
                 }
             }
         } else |err| {

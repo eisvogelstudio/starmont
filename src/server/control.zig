@@ -101,7 +101,6 @@ pub const Control = struct {
                         switch (action.action) {
                             .SpawnPlayer => {
                                 self.model.createEntity(id);
-
                                 const cmsg = util.EntityMessage.init(id);
 
                                 for (0..self.server.clients.items.len) |j| {
@@ -169,6 +168,10 @@ pub const Control = struct {
                             },
                         }
                     },
+                    .SnapshotRequest => {
+                        std.debug.print("requsted snapshot\n", .{});
+                        self.sendSnapshot();
+                    },
                 }
             }
         } else |err| {
@@ -218,6 +221,41 @@ pub const Control = struct {
                 const msg = util.ComponentMessage.fromPosition(id.?, positions[i]);
 
                 for (0..self.server.clients.items.len) |j| {
+                    self.server.send(j, msg) catch unreachable;
+                }
+            }
+        }
+    }
+
+    fn sendSnapshot(self: *Control) void {
+        const terms: [32]ecs.term_t = [_]ecs.term_t{
+            ecs.term_t{ .id = ecs.id(core.Position) },
+        } ++ [_]ecs.term_t{ecs.term_t{}} ** 31;
+
+        var query_desc = ecs.query_desc_t{
+            .terms = terms,
+            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
+        };
+
+        const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
+        defer ecs.query_fini(query);
+
+        var it = ecs.query_iter(self.model.world, query);
+
+        while (ecs.query_next(&it)) {
+            const positions: []const core.Position = ecs.field(&it, core.Position, 0).?;
+
+            for (0..it.count()) |i| {
+                const entity = it.entities()[i];
+                const id = self.model.registry.getId(entity);
+
+                const createmsg = util.EntityMessage.init(id.?);
+                const msg = util.ComponentMessage.fromPosition(id.?, positions[i]);
+
+                for (0..self.server.clients.items.len) |j| {
+                    self.server.send(j, createmsg) catch {
+                        continue;
+                    };
                     self.server.send(j, msg) catch unreachable;
                 }
             }
