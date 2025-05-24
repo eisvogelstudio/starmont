@@ -16,13 +16,11 @@
 
 // ---------- std ----------
 const std = @import("std");
-const testing = std.testing;
 // -------------------------
 
-// ---------- starmont ----------
-const core = @import("core");
-const util = @import("util");
-// ------------------------------
+// ---------- shared ----------
+const core = @import("shared").core;
+// ----------------------------
 
 // ---------- external ----------
 const ecs = @import("zflecs");

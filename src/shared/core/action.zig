@@ -14,21 +14,11 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
-
-const min_level = std.log.Level.info;
-
-pub fn log(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
-    const writer = switch (level) {
-        .debug, .info => std.io.getStdOut().writer(),
-        .warn, .err => std.io.getStdErr().writer(),
-    };
-
-    _ = writer.print("[{s}][{s}] " ++ format ++ "\n", .{
-        @tagName(scope),
-        @tagName(level),
-    } ++ args) catch {};
-}
+pub const Action = enum {
+    SpawnPlayer,
+    MoveLeft,
+    MoveRight,
+    MoveForward,
+    MoveBackward,
+    Fire,
+};

@@ -20,13 +20,15 @@ const builtin = @import("builtin");
 
 // ---------- std ----------
 const std = @import("std");
-const testing = std.testing;
 // -------------------------
 
-// ---------- starmont ----------
-const util = @import("util");
+// ---------- client ----------
 const Control = @import("control.zig").Control;
-// ------------------------------
+// ----------------------------
+
+// ---------- shared ----------
+const util = @import("shared").util;
+// ----------------------------
 
 pub const std_options: std.Options = .{
     .log_level = if (builtin.mode == .Debug) .debug else .info,
@@ -34,7 +36,7 @@ pub const std_options: std.Options = .{
     //    .{ .scope = .decimal, .level = .info },
     //    .{ .scope = .proper, .level = .info },
     //},
-    .logFn = util.log,
+    .logFn = util.log.logFn,
 };
 
 pub fn main() !void {

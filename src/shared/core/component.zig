@@ -14,17 +14,37 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
+pub const ComponentType = enum {
+    Position,
+    Velocity,
+    Acceleration,
+    Jerk,
+    ShipSize,
+};
 
-pub const name = "starmont";
-pub const version = "0.1.0-dev";
+pub const Position = struct {
+    x: f32,
+    y: f32,
+};
 
-pub usingnamespace @import("action.zig");
-pub usingnamespace @import("component.zig");
-pub usingnamespace @import("identity.zig");
-pub usingnamespace @import("model.zig");
-pub usingnamespace @import("registry.zig");
-pub usingnamespace @import("tag.zig");
+pub const Velocity = struct {
+    x: f32,
+    y: f32,
+};
+
+pub const Acceleration = struct {
+    x: f32,
+    y: f32,
+};
+
+pub const Jerk = struct {
+    x: f32,
+    y: f32,
+};
+
+pub const ShipSize = enum {
+    Small,
+    Medium,
+    Large,
+    Capital,
+};

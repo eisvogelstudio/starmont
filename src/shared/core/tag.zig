@@ -14,16 +14,7 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
-
-// ---------- starmont ----------
-const core = @import("root.zig");
-// ------------------------------
-
-const TagId = enum {
+const TagType = enum {
     Player,
     Ship,
     Small,

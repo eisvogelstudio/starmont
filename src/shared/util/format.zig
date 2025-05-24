@@ -14,32 +14,30 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const math = std.math;
-const testing = std.testing;
-// -------------------------
+// ---------- shared ----------
+const core = @import("../core/root.zig");
+// ----------------------------
 
-// ---------- starmont ----------
-const core = @import("root.zig");
-// ------------------------------
+pub fn writeId(writer: anytype, id: core.Id) !void {
+    try writer.print("Id({d})", .{id.id});
+}
 
-// ---------- external ----------
-const ecs = @import("zflecs");
-// ------------------------------
+pub fn writePosition(writer: anytype, pos: core.Position) !void {
+    try writer.print("Position({any}, {any})", .{ pos.x, pos.y });
+}
 
-pub const Identity = struct {
-    body: core.Id,
+pub fn writeVelocity(writer: anytype, vel: core.Velocity) !void {
+    try writer.print("Velocity({any}, {any})", .{ vel.x, vel.y });
+}
 
-    pub fn init(body: core.Id) Identity {
-        const identity = Identity{
-            .body = body,
-        };
+pub fn writeAcceleration(writer: anytype, acc: core.Acceleration) !void {
+    try writer.print("Acceleration({any}, {any})", .{ acc.x, acc.y });
+}
 
-        return identity;
-    }
+pub fn writeJerk(writer: anytype, jerk: core.Jerk) !void {
+    try writer.print("Jerk({any}, {any})", .{ jerk.x, jerk.y });
+}
 
-    pub fn deinit(self: *Identity) void {
-        _ = self;
-    }
-};
+pub fn writeShipSize(writer: anytype, size: core.ShipSize) !void {
+    try writer.print("ShipSize({s})", .{@tagName(size)});
+}

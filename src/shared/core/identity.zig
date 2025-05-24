@@ -14,20 +14,22 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
+// ---------- core ----------
+const Id = @import("registry.zig").Id;
+// --------------------------
 
-// ---------- starmont ----------
-const core = @import("root.zig");
-// ------------------------------
+pub const Identity = struct {
+    body: Id,
 
-pub const Action = enum {
-    SpawnPlayer,
-    MoveLeft,
-    MoveRight,
-    MoveForward,
-    MoveBackward,
-    Fire,
+    pub fn init(body: Id) Identity {
+        const identity = Identity{
+            .body = body,
+        };
+
+        return identity;
+    }
+
+    pub fn deinit(self: *Identity) void {
+        _ = self;
+    }
 };

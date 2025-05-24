@@ -19,7 +19,5 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-pub usingnamespace @import("format.zig");
-pub usingnamespace @import("log.zig");
-pub usingnamespace @import("message.zig");
-pub usingnamespace @import("network.zig");
+pub const format = @import("format.zig");
+pub const log = @import("log.zig");

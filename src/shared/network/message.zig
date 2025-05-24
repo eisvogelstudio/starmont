@@ -16,16 +16,17 @@
 
 // ---------- std ----------
 const std = @import("std");
-const testing = std.testing;
 // -------------------------
 
-// ---------- starmont ----------
-const core = @import("core");
-const util = @import("root.zig");
+// ---------- network ----------
 const decode = @import("decode.zig");
 const encode = @import("encode.zig");
-const format = @import("format.zig");
-// ------------------------------
+// -----------------------------
+
+// ---------- shared ----------
+const core = @import("../core/root.zig");
+const util = @import("../util/root.zig");
+// ----------------------------
 
 pub const AlphaMessage = struct {
     tick: u64,
@@ -122,7 +123,7 @@ pub const StaticMessage = struct {
         try writer.print("Linear: ", .{});
 
         try writer.print("\n\t", .{});
-        try format.writePosition(writer, self.position);
+        try util.format.writePosition(writer, self.position);
     }
 };
 
@@ -158,9 +159,9 @@ pub const LinearMessage = struct {
         try writer.print("Linear: ", .{});
 
         try writer.print("\n\t", .{});
-        try format.writePosition(writer, self.position);
+        try util.format.writePosition(writer, self.position);
         try writer.print("\n\t", .{});
-        try format.writeVelocity(writer, self.velocity);
+        try util.format.writeVelocity(writer, self.velocity);
     }
 };
 
@@ -200,11 +201,11 @@ pub const AcceleratedMessage = struct {
         try writer.print("Accelerated: ", .{});
 
         try writer.print("\n\t", .{});
-        try format.writePosition(writer, self.position);
+        try util.format.writePosition(writer, self.position);
         try writer.print("\n\t", .{});
-        try format.writeVelocity(writer, self.velocity);
+        try util.format.writeVelocity(writer, self.velocity);
         try writer.print("\n\t", .{});
-        try format.writeAcceleration(writer, self.acceleration);
+        try util.format.writeAcceleration(writer, self.acceleration);
     }
 };
 
@@ -248,13 +249,13 @@ pub const DynamicMessage = struct {
         try writer.print("Dynamic: ", .{});
 
         try writer.print("\n\t", .{});
-        try format.writePosition(writer, self.position);
+        try util.format.writePosition(writer, self.position);
         try writer.print("\n\t", .{});
-        try format.writeVelocity(writer, self.velocity);
+        try util.format.writeVelocity(writer, self.velocity);
         try writer.print("\n\t", .{});
-        try format.writeAcceleration(writer, self.acceleration);
+        try util.format.writeAcceleration(writer, self.acceleration);
         try writer.print("\n\t", .{});
-        try format.writeJerk(writer, self.jerk);
+        try util.format.writeJerk(writer, self.jerk);
     }
 };
 
@@ -439,8 +440,8 @@ pub const ComponentMessage = struct {
     pub fn deserialize(reader: anytype) !ComponentMessage {
         const id = try decode.deserializeId(reader);
         const type_byte = try reader.readByte();
-        const component_type: core.ComponentType = @enumFromInt(type_byte);
-        const component = switch (component_type) {
+        const comp_type: core.ComponentType = @enumFromInt(type_byte);
+        const comp = switch (comp_type) {
             .Position => Component{ .Position = try decode.deserializePosition(reader) },
             .Velocity => Component{ .Velocity = try decode.deserializeVelocity(reader) },
             .Acceleration => Component{ .Acceleration = try decode.deserializeAcceleration(reader) },
@@ -448,29 +449,29 @@ pub const ComponentMessage = struct {
             .ShipSize => Component{ .ShipSize = try decode.deserializeShipSize(reader) },
         };
 
-        return ComponentMessage{ .id = id, .component = component };
+        return ComponentMessage{ .id = id, .component = comp };
     }
 
     pub fn write(self: ComponentMessage, writer: anytype) !void {
         try writer.print("ComponentMessage: ", .{});
         try writer.print("\n\t", .{});
-        try format.writeId(writer, self.id);
+        try util.format.writeId(writer, self.id);
         try writer.print("\n\t", .{});
         switch (self.component) {
             .Position => |pos| {
-                try format.writePosition(writer, pos);
+                try util.format.writePosition(writer, pos);
             },
             .Velocity => |vel| {
-                try format.writeVelocity(writer, vel);
+                try util.format.writeVelocity(writer, vel);
             },
             .Acceleration => |acc| {
-                try format.writeAcceleration(writer, acc);
+                try util.format.writeAcceleration(writer, acc);
             },
             .Jerk => |jerk| {
-                try format.writeJerk(writer, jerk);
+                try util.format.writeJerk(writer, jerk);
             },
             .ShipSize => |size| {
-                try format.writeShipSize(writer, size);
+                try util.format.writeShipSize(writer, size);
             },
         }
     }
@@ -480,10 +481,10 @@ pub const ComponentRemoveMessage = struct {
     id: core.Id,
     component: core.ComponentType,
 
-    pub fn init(id: core.Id, component: core.ComponentType) Message {
+    pub fn init(id: core.Id, comp: core.ComponentType) Message {
         const msg = ComponentRemoveMessage{
             .id = id,
-            .component = component,
+            .component = comp,
         };
 
         return Message{ .ComponentRemove = msg };

@@ -16,22 +16,20 @@
 
 // ---------- std ----------
 const std = @import("std");
-const math = std.math;
-const testing = std.testing;
 // -------------------------
 
-// ---------- starmont ----------
-const core = @import("root.zig");
-// ------------------------------
+// ---------- core ----------
+const component = @import("component.zig");
+const Registry = @import("registry.zig").Registry;
+const Id = @import("registry.zig").Id;
+const tag = @import("tag.zig");
+// --------------------------
 
 // ---------- external ----------
 const ecs = @import("zflecs");
 // ------------------------------
 
 const log = std.log.scoped(.model);
-
-const component = @import("component.zig");
-const tag = @import("tag.zig");
 
 const velocity_max: component.Velocity = .{
     .x = 200,
@@ -58,7 +56,7 @@ fn applyAccelerationAccelerated(it: *ecs.iter_t, velocities: []component.Velocit
 
 fn applyAccelerationDynamic(it: *ecs.iter_t, velocities: []component.Velocity, accelerations: []component.Acceleration, jerks: []component.Jerk) void {
     const delta: f32 = it.delta_time;
-    const delta2: f32 = math.pow(f32, delta, 2);
+    const delta2: f32 = std.math.pow(f32, delta, 2);
 
     for (velocities, accelerations, jerks) |*vel, *acc, *jerk| {
         vel.x += (acc.x * delta) + (0.5 * jerk.x * delta2);
@@ -77,7 +75,7 @@ fn applyVelocityLinear(it: *ecs.iter_t, positions: []component.Position, velocit
 
 fn applyVelocityAccelerated(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity, accelerations: []component.Acceleration) void {
     const delta: f32 = it.delta_time;
-    const delta2: f32 = math.pow(f32, delta, 2);
+    const delta2: f32 = std.math.pow(f32, delta, 2);
 
     for (positions, velocities, accelerations) |*pos, *vel, *acc| {
         pos.x += (vel.x * delta) + (0.5 * acc.x * delta2);
@@ -87,8 +85,8 @@ fn applyVelocityAccelerated(it: *ecs.iter_t, positions: []component.Position, ve
 
 fn applyVelocityDynamic(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity, accelerations: []component.Acceleration, jerks: []component.Jerk) void {
     const delta: f32 = it.delta_time;
-    const delta2: f32 = math.pow(f32, delta, 2);
-    const delta3: f32 = math.pow(f32, delta, 3);
+    const delta2: f32 = std.math.pow(f32, delta, 2);
+    const delta3: f32 = std.math.pow(f32, delta, 3);
     const sixth = 1.0 / 6.0;
 
     for (positions, velocities, accelerations, jerks) |*pos, *vel, *acc, *jerk| {
@@ -100,14 +98,14 @@ fn applyVelocityDynamic(it: *ecs.iter_t, positions: []component.Position, veloci
 pub const Model = struct {
     allocator: *std.mem.Allocator,
     world: *ecs.world_t,
-    registry: core.Registry,
+    registry: Registry,
     tick: u64 = 0,
 
     pub fn init(allocator: *std.mem.Allocator) Model {
         var model = Model{
             .allocator = allocator,
             .world = ecs.init(),
-            .registry = core.Registry.init(allocator),
+            .registry = Registry.init(allocator),
         };
 
         model.registerComponents();
@@ -214,7 +212,7 @@ pub const Model = struct {
     //    return player;
     //}
 
-    pub fn createEntity(self: *Model, id: core.Id) void {
+    pub fn createEntity(self: *Model, id: Id) void {
         const entity = ecs.new_id(self.world);
 
         if (self.registry.getEntity(id)) |i| {
@@ -233,7 +231,7 @@ pub const Model = struct {
         ecs.add(self.world, entity, tag.Visible);
     }
 
-    pub fn removeEntity(self: *Model, id: core.Id) void {
+    pub fn removeEntity(self: *Model, id: Id) void {
         const entity = self.registry.getEntity(id);
         if (entity) |e| {
             ecs.delete(self.world, e);
@@ -241,7 +239,7 @@ pub const Model = struct {
         }
     }
 
-    pub fn setComponent(self: *Model, id: core.Id, T: type, value: T) void {
+    pub fn setComponent(self: *Model, id: Id, T: type, value: T) void {
         const entity = self.registry.getEntity(id);
 
         if (entity) |e| {
@@ -251,7 +249,7 @@ pub const Model = struct {
         }
     }
 
-    pub fn removeComponent(self: *Model, id: core.Id, T: type) void {
+    pub fn removeComponent(self: *Model, id: Id, T: type) void {
         const entity = self.registry.getEntity(id);
 
         if (entity) |e| {

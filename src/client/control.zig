@@ -16,15 +16,16 @@
 
 // ---------- std ----------
 const std = @import("std");
-const testing = std.testing;
 // -------------------------
 
-// ---------- starmont ----------
-const core = @import("core");
-const util = @import("util");
+// ---------- client ----------
+const View = @import("view/view.zig").View;
+// ----------------------------
 
-pub const View = @import("view.zig").View;
-// ------------------------------
+// ---------- shared ----------
+const core = @import("shared").core;
+const network = @import("shared").network;
+// ----------------------------
 
 // ---------- external ----------
 const ecs = @import("zflecs");
@@ -35,18 +36,11 @@ const log = std.log.scoped(.control);
 
 const name = "client";
 
-const NetworkState = struct {
-    entities: []ecs.entity_t,
-    positions: []const core.Position,
-    velocities: []const core.Velocity,
-    accelerations: []const core.Acceleration,
-};
-
 pub const Control = struct {
     allocator: *std.mem.Allocator,
     model: core.Model,
     view: View,
-    client: util.Client,
+    client: network.Client,
     snapshotRequired: bool = true,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
@@ -54,7 +48,7 @@ pub const Control = struct {
             .allocator = allocator,
             .model = core.Model.init(allocator),
             .view = View.init(allocator),
-            .client = util.Client.init(allocator),
+            .client = network.Client.init(allocator),
         };
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
@@ -100,7 +94,7 @@ pub const Control = struct {
         }
 
         if (self.snapshotRequired) {
-            self.client.send(util.SnapshotRequestMessage.init()) catch |err| {
+            self.client.submit(network.SnapshotRequestMessage.init()) catch |err| {
                 log.err("failed to send snapshot request: {s}", .{@errorName(err)});
                 return;
             };
@@ -109,85 +103,87 @@ pub const Control = struct {
 
         // Receive messages
         const data = self.client.receive();
-        if (data) |messages| {
+        if (data) |batches| {
             defer {
-                for (messages) |msg| {
-                    msg.deinit();
+                for (batches) |*b| {
+                    b.*.deinit();
                 }
-                self.allocator.free(messages);
+
+                self.allocator.free(batches);
             }
 
-            for (messages) |msg| {
-                msg.print(std.io.getStdOut().writer()) catch unreachable;
-                std.io.getStdOut().writer().print("\n", .{}) catch unreachable;
-
-                switch (msg) {
-                    .Alpha => |alpha| {
-                        self.model.tick = alpha.tick;
-                    },
-                    .Chat => |chat| {
-                        _ = chat;
-                    },
-                    .Static => |static| {
-                        _ = static;
-                    },
-                    .Linear => |linear| {
-                        _ = linear;
-                    },
-                    .Accelerated => |accelerated| {
-                        _ = accelerated;
-                    },
-                    .Dynamic => |dynamic| {
-                        _ = dynamic;
-                    },
-                    .Action => |action| {
-                        _ = action;
-                    },
-                    .Entity => |id| {
-                        self.model.createEntity(id.id);
-                    },
-                    .EntityRemove => |id| {
-                        self.model.removeEntity(id.id);
-                    },
-                    .Component => |comp| {
-                        switch (comp.component) {
-                            .Position => {
-                                self.model.setComponent(comp.id, core.Position, comp.component.Position);
-                            },
-                            .Velocity => {
-                                self.model.setComponent(comp.id, core.Velocity, comp.component.Velocity);
-                            },
-                            .Acceleration => {
-                                self.model.setComponent(comp.id, core.Acceleration, comp.component.Acceleration);
-                            },
-                            .Jerk => {
-                                self.model.setComponent(comp.id, core.Jerk, comp.component.Jerk);
-                            },
-                            .ShipSize => {
-                                self.model.setComponent(comp.id, core.ShipSize, comp.component.ShipSize);
-                            },
-                        }
-                    },
-                    .ComponentRemove => |comp| {
-                        switch (comp.component) {
-                            .Position => {
-                                self.model.removeComponent(comp.id, core.Position);
-                            },
-                            .Velocity => {
-                                self.model.removeComponent(comp.id, core.Velocity);
-                            },
-                            .Acceleration => {
-                                self.model.removeComponent(comp.id, core.Acceleration);
-                            },
-                            .Jerk => {
-                                self.model.removeComponent(comp.id, core.Jerk);
-                            },
-                            .ShipSize => {
-                                self.model.removeComponent(comp.id, core.ShipSize);
-                            },
-                        }
-                    },
-                    .SnapshotRequest => {},
+            for (batches) |b| {
+                //msg.print(std.io.getStdOut().writer()) catch unreachable;
+                //std.io.getStdOut().writer().print("\n", .{}) catch unreachable;
+                for (b.messages.items) |message| {
+                    switch (message) {
+                        .Alpha => |alpha| {
+                            self.model.tick = alpha.tick;
+                        },
+                        .Chat => |chat| {
+                            _ = chat;
+                        },
+                        .Static => |static| {
+                            _ = static;
+                        },
+                        .Linear => |linear| {
+                            _ = linear;
+                        },
+                        .Accelerated => |accelerated| {
+                            _ = accelerated;
+                        },
+                        .Dynamic => |dynamic| {
+                            _ = dynamic;
+                        },
+                        .Action => |action| {
+                            _ = action;
+                        },
+                        .Entity => |id| {
+                            self.model.createEntity(id.id);
+                        },
+                        .EntityRemove => |id| {
+                            self.model.removeEntity(id.id);
+                        },
+                        .Component => |comp| {
+                            switch (comp.component) {
+                                .Position => {
+                                    self.model.setComponent(comp.id, core.Position, comp.component.Position);
+                                },
+                                .Velocity => {
+                                    self.model.setComponent(comp.id, core.Velocity, comp.component.Velocity);
+                                },
+                                .Acceleration => {
+                                    self.model.setComponent(comp.id, core.Acceleration, comp.component.Acceleration);
+                                },
+                                .Jerk => {
+                                    self.model.setComponent(comp.id, core.Jerk, comp.component.Jerk);
+                                },
+                                .ShipSize => {
+                                    self.model.setComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                                },
+                            }
+                        },
+                        .ComponentRemove => |comp| {
+                            switch (comp.component) {
+                                .Position => {
+                                    self.model.removeComponent(comp.id, core.Position);
+                                },
+                                .Velocity => {
+                                    self.model.removeComponent(comp.id, core.Velocity);
+                                },
+                                .Acceleration => {
+                                    self.model.removeComponent(comp.id, core.Acceleration);
+                                },
+                                .Jerk => {
+                                    self.model.removeComponent(comp.id, core.Jerk);
+                                },
+                                .ShipSize => {
+                                    self.model.removeComponent(comp.id, core.ShipSize);
+                                },
+                            }
+                        },
+                        .SnapshotRequest => {},
+                    }
                 }
             }
         } else |err| {
@@ -209,6 +205,8 @@ pub const Control = struct {
         //self.client.send(msg) catch |err| {
         //    std.debug.print("send error: {}\n", .{err});
         //};
+
+        self.client.update();
     }
 
     pub fn shouldStop(self: *Control) bool {
@@ -250,18 +248,18 @@ pub const Control = struct {
         }
     }
 
-    fn setNetworkState(self: *Control, state: *const NetworkState) void {
-        const count = state.entities.len;
-        for (0..count) |i| {
-            const entity = state.entities[i];
-
-            if (ecs.is_alive(self.world, entity)) {
-                _ = ecs.set(self.world, entity, core.Position, state.positions[i]);
-                _ = ecs.set(self.world, entity, core.Velocity, state.velocities[i]);
-                _ = ecs.set(self.world, entity, core.Acceleration, state.accelerations[i]);
-            }
-        }
-    }
+    //fn setNetworkState(self: *Control, state: *const NetworkState) void {
+    //    const count = state.entities.len;
+    //    for (0..count) |i| {
+    //        const entity = state.entities[i];
+    //
+    //        if (ecs.is_alive(self.world, entity)) {
+    //            _ = ecs.set(self.world, entity, core.Position, state.positions[i]);
+    //            _ = ecs.set(self.world, entity, core.Velocity, state.velocities[i]);
+    //            _ = ecs.set(self.world, entity, core.Acceleration, state.accelerations[i]);
+    //        }
+    //    }
+    //}
 
     fn captureInput(allocator: *std.mem.Allocator) std.ArrayList(core.Action) {
         var events = std.ArrayList(core.Action).init(allocator.*);
@@ -279,7 +277,7 @@ pub const Control = struct {
         if (!self.client.connected) return;
 
         for (actions.items) |a| {
-            self.client.send(util.ActionMessage.init(a)) catch |err| {
+            self.client.submit(network.ActionMessage.init(a)) catch |err| {
                 log.err("failed to send action: {s}", .{@errorName(err)});
                 continue;
             };

@@ -14,16 +14,23 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
-
-// ---------- starmont ----------
-const core = @import("core");
-// ------------------------------
+// ---------- shared ----------
+const core = @import("../core/root.zig");
+// ----------------------------
 
 // ########## primitive ##########
+
+pub fn deserializeU8(reader: anytype) !u8 {
+    var buf: [1]u8 = undefined;
+    _ = try reader.readAll(&buf);
+    return @bitCast(buf);
+}
+
+pub fn deserializeU16(reader: anytype) !u16 {
+    var buf: [2]u8 = undefined;
+    _ = try reader.readAll(&buf);
+    return @bitCast(buf);
+}
 
 pub fn deserializeU32(reader: anytype) !u32 {
     var buf: [4]u8 = undefined;
@@ -39,6 +46,12 @@ pub fn deserializeU64(reader: anytype) !u64 {
 
 pub fn deserializeF32(reader: anytype) !f32 {
     var buf: [4]u8 = undefined;
+    _ = try reader.readAll(&buf);
+    return @bitCast(buf);
+}
+
+pub fn deserializeF64(reader: anytype) !f64 {
+    var buf: [8]u8 = undefined;
     _ = try reader.readAll(&buf);
     return @bitCast(buf);
 }

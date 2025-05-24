@@ -14,50 +14,8 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
-
-// ---------- starmont ----------
-const core = @import("root.zig");
-// ------------------------------
-
-// ---------- external ----------
-const ecs = @import("zflecs");
-// ------------------------------
-
-pub const ComponentType = enum {
-    Position,
-    Velocity,
-    Acceleration,
-    Jerk,
-    ShipSize,
-};
-
-pub const Position = struct {
-    x: f32,
-    y: f32,
-};
-
-pub const Velocity = struct {
-    x: f32,
-    y: f32,
-};
-
-pub const Acceleration = struct {
-    x: f32,
-    y: f32,
-};
-
-pub const Jerk = struct {
-    x: f32,
-    y: f32,
-};
-
-pub const ShipSize = enum {
-    Small,
-    Medium,
-    Large,
-    Capital,
-};
+// ---------- root ----------
+pub const core = @import("core/root.zig");
+pub const network = @import("network/root.zig");
+pub const util = @import("util/root.zig");
+// --------------------------

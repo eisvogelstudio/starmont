@@ -16,12 +16,7 @@
 
 // ---------- std ----------
 const std = @import("std");
-const testing = std.testing;
 // -------------------------
-
-// ---------- starmont ----------
-const core = @import("root.zig");
-// ------------------------------
 
 // ---------- external ----------
 const ecs = @import("zflecs");

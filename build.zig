@@ -10,10 +10,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const string = b.dependency("string", .{
-        .target = target,
-        .optimize = optimize,
-    });
     const raylib = b.dependency("raylib", .{
         .target = target,
         .optimize = optimize,
@@ -25,24 +21,15 @@ pub fn build(b: *std.Build) void {
 
     // ########## modules ##########
 
-    // core lib module
-    const core_mod = b.createModule(.{
-        .root_source_file = b.path("src/core/root.zig"),
+    // shared lib module
+    const shared_mod = b.createModule(.{
+        .root_source_file = b.path("src/shared/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    core_mod.addImport("zflecs", zflecs.module("root"));
+    shared_mod.addImport("zflecs", zflecs.module("root"));
+    shared_mod.addImport("network", network.module("network"));
     //core_mod.addImport("zphysics", zphysics.module("root"));
-
-    // util lib module
-    const util_mod = b.createModule(.{
-        .root_source_file = b.path("src/util/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    util_mod.addImport("core", core_mod);
-    util_mod.addImport("network", network.module("network"));
-    util_mod.addImport("string", string.module("string"));
 
     // client module
     const client_mod = b.createModule(.{
@@ -50,8 +37,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    client_mod.addImport("core", core_mod);
-    client_mod.addImport("util", util_mod);
+    client_mod.addImport("shared", shared_mod);
     client_mod.addImport("raylib", raylib.module("raylib"));
     client_mod.addImport("raygui", raylib.module("raygui"));
     client_mod.addImport("zflecs", zflecs.module("root"));
@@ -62,37 +48,28 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    server_mod.addImport("core", core_mod);
-    server_mod.addImport("util", util_mod);
+    server_mod.addImport("shared", shared_mod);
+    server_mod.addImport("util", shared_mod);
     server_mod.addImport("zflecs", zflecs.module("root"));
 
     // ########## objects ##########
 
-    // core lib
-    const core_lib = b.addStaticLibrary(.{
-        .name = "starmont_core",
-        .root_module = core_mod,
+    // shared lib
+    const shared_lib = b.addStaticLibrary(.{
+        .name = "starmont_shared",
+        .root_module = shared_mod,
     });
-    core_lib.linkLibrary(zflecs.artifact("flecs"));
+    shared_lib.linkLibrary(zflecs.artifact("flecs"));
     //core_lib.linkLibrary(zphysics.artifact("joltc"));
 
-    b.installArtifact(core_lib);
-
-    // util lib
-    const util_lib = b.addStaticLibrary(.{
-        .name = "starmont_util",
-        .root_module = util_mod,
-    });
-
-    b.installArtifact(util_lib);
+    b.installArtifact(shared_lib);
 
     // client
     const client_exe = b.addExecutable(.{
         .name = "starmont_client",
         .root_module = client_mod,
     });
-    client_exe.linkLibrary(core_lib);
-    client_exe.linkLibrary(util_lib);
+    client_exe.linkLibrary(shared_lib);
     client_exe.linkLibrary(raylib.artifact("raylib"));
     client_exe.linkLibrary(zflecs.artifact("flecs"));
 
@@ -103,8 +80,7 @@ pub fn build(b: *std.Build) void {
         .name = "starmont_server",
         .root_module = server_mod,
     });
-    server_exe.linkLibrary(core_lib);
-    server_exe.linkLibrary(util_lib);
+    server_exe.linkLibrary(shared_lib);
 
     b.installArtifact(server_exe);
 
@@ -129,19 +105,16 @@ pub fn build(b: *std.Build) void {
 
     // ########## testing ##########
 
-    const core_tests = b.addTest(.{ .root_module = core_mod });
-    const util_tests = b.addTest(.{ .root_module = util_mod });
+    const shared_tests = b.addTest(.{ .root_module = shared_mod });
     const client_tests = b.addTest(.{ .root_module = client_mod });
     const server_tests = b.addTest(.{ .root_module = server_mod });
 
-    const run_core_tests = b.addRunArtifact(core_tests);
-    const run_util_tests = b.addRunArtifact(util_tests);
+    const run_shared_tests = b.addRunArtifact(shared_tests);
     const run_client_tests = b.addRunArtifact(client_tests);
     const run_server_tests = b.addRunArtifact(server_tests);
 
     const test_step = b.step("test", "Run all tests");
-    test_step.dependOn(&run_core_tests.step);
-    test_step.dependOn(&run_util_tests.step);
+    test_step.dependOn(&run_shared_tests.step);
     test_step.dependOn(&run_client_tests.step);
     test_step.dependOn(&run_server_tests.step);
 }

@@ -16,13 +16,13 @@
 
 // ---------- std ----------
 const std = @import("std");
-const testing = std.testing;
 // -------------------------
 
-// ---------- starmont ----------
-const core = @import("core");
-const util = @import("util");
-// ------------------------------
+// ---------- shared ----------
+const core = @import("shared").core;
+const network = @import("shared").network;
+const util = @import("shared").util;
+// ----------------------------
 
 // ---------- external ----------
 const ecs = @import("zflecs");
@@ -35,13 +35,13 @@ const name = "server";
 pub const Control = struct {
     allocator: *std.mem.Allocator,
     model: core.Model,
-    server: util.Server,
+    server: network.Server,
 
     pub fn init(allocator: *std.mem.Allocator) !Control {
         var control = Control{
             .allocator = allocator,
             .model = core.Model.init(allocator),
-            .server = try util.Server.init(allocator),
+            .server = try network.Server.init(allocator),
         };
 
         control.server.open(11111) catch @panic("failed to open socket");
@@ -65,113 +65,115 @@ pub const Control = struct {
         self.server.accept() catch unreachable;
         const data = self.server.receive(self.allocator);
 
-        if (data) |messages| {
+        if (data) |batches| {
             defer {
-                for (messages) |msg| {
-                    msg.deinit();
+                for (batches) |*b| {
+                    b.*.deinit();
                 }
-                self.allocator.free(messages);
+                self.allocator.free(batches);
             }
 
-            for (messages) |msg| {
-                //check if is valid
-                //apply/apply best effort version
+            for (batches) |b| {
+                for (b.messages.items) |msg| {
+                    //check if is valid
+                    //apply/apply best effort version
 
-                switch (msg) {
-                    .Alpha => |alpha| {
-                        _ = alpha;
-                    },
-                    .Chat => |chat| {
-                        _ = chat;
-                    },
-                    .Static => |static| {
-                        _ = static;
-                    },
-                    .Linear => |linear| {
-                        _ = linear;
-                    },
-                    .Accelerated => |accelerated| {
-                        _ = accelerated;
-                    },
-                    .Dynamic => |dynamic| {
-                        _ = dynamic;
-                    },
-                    .Action => |action| {
-                        const id = core.Id{ .id = 0 };
-                        switch (action.action) {
-                            .SpawnPlayer => {
-                                self.model.createEntity(id);
-                                const cmsg = util.EntityMessage.init(id);
+                    switch (msg) {
+                        .Alpha => |alpha| {
+                            _ = alpha;
+                        },
+                        .Chat => |chat| {
+                            _ = chat;
+                        },
+                        .Static => |static| {
+                            _ = static;
+                        },
+                        .Linear => |linear| {
+                            _ = linear;
+                        },
+                        .Accelerated => |accelerated| {
+                            _ = accelerated;
+                        },
+                        .Dynamic => |dynamic| {
+                            _ = dynamic;
+                        },
+                        .Action => |action| {
+                            const id = core.Id{ .id = 0 };
+                            switch (action.action) {
+                                .SpawnPlayer => {
+                                    self.model.createEntity(id);
+                                    const cmsg = network.EntityMessage.init(id);
 
-                                for (0..self.server.clients.items.len) |j| {
-                                    self.server.send(j, cmsg) catch unreachable;
-                                }
-                            },
-                            .MoveLeft => {
-                                self.model.setComponent(id, core.Velocity, .{ .x = -100, .y = 0 });
-                            },
-                            .MoveRight => {
-                                self.model.setComponent(id, core.Velocity, .{ .x = 100, .y = 0 });
-                            },
-                            .MoveForward => {
-                                self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = -100 });
-                            },
-                            .MoveBackward => {
-                                self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = 100 });
-                            },
-                            .Fire => {
-                                //nothing
-                            },
-                        }
-                    },
-                    .Entity => |id| {
-                        self.model.createEntity(id.id);
-                    },
-                    .EntityRemove => |id| {
-                        self.model.removeEntity(id.id);
-                    },
-                    .Component => |comp| {
-                        switch (comp.component) {
-                            .Position => {
-                                self.model.setComponent(comp.id, core.Position, comp.component.Position);
-                            },
-                            .Velocity => {
-                                self.model.setComponent(comp.id, core.Velocity, comp.component.Velocity);
-                            },
-                            .Acceleration => {
-                                self.model.setComponent(comp.id, core.Acceleration, comp.component.Acceleration);
-                            },
-                            .Jerk => {
-                                self.model.setComponent(comp.id, core.Jerk, comp.component.Jerk);
-                            },
-                            .ShipSize => {
-                                self.model.setComponent(comp.id, core.ShipSize, comp.component.ShipSize);
-                            },
-                        }
-                    },
-                    .ComponentRemove => |comp| {
-                        switch (comp.component) {
-                            .Position => {
-                                self.model.removeComponent(comp.id, core.Position);
-                            },
-                            .Velocity => {
-                                self.model.removeComponent(comp.id, core.Velocity);
-                            },
-                            .Acceleration => {
-                                self.model.removeComponent(comp.id, core.Acceleration);
-                            },
-                            .Jerk => {
-                                self.model.removeComponent(comp.id, core.Jerk);
-                            },
-                            .ShipSize => {
-                                self.model.removeComponent(comp.id, core.ShipSize);
-                            },
-                        }
-                    },
-                    .SnapshotRequest => {
-                        std.debug.print("requsted snapshot\n", .{});
-                        self.sendSnapshot();
-                    },
+                                    for (0..self.server.clients.items.len) |j| {
+                                        self.server.submit(j, cmsg) catch unreachable;
+                                    }
+                                },
+                                .MoveLeft => {
+                                    self.model.setComponent(id, core.Velocity, .{ .x = -100, .y = 0 });
+                                },
+                                .MoveRight => {
+                                    self.model.setComponent(id, core.Velocity, .{ .x = 100, .y = 0 });
+                                },
+                                .MoveForward => {
+                                    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = -100 });
+                                },
+                                .MoveBackward => {
+                                    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = 100 });
+                                },
+                                .Fire => {
+                                    //nothing
+                                },
+                            }
+                        },
+                        .Entity => |id| {
+                            self.model.createEntity(id.id);
+                        },
+                        .EntityRemove => |id| {
+                            self.model.removeEntity(id.id);
+                        },
+                        .Component => |comp| {
+                            switch (comp.component) {
+                                .Position => {
+                                    self.model.setComponent(comp.id, core.Position, comp.component.Position);
+                                },
+                                .Velocity => {
+                                    self.model.setComponent(comp.id, core.Velocity, comp.component.Velocity);
+                                },
+                                .Acceleration => {
+                                    self.model.setComponent(comp.id, core.Acceleration, comp.component.Acceleration);
+                                },
+                                .Jerk => {
+                                    self.model.setComponent(comp.id, core.Jerk, comp.component.Jerk);
+                                },
+                                .ShipSize => {
+                                    self.model.setComponent(comp.id, core.ShipSize, comp.component.ShipSize);
+                                },
+                            }
+                        },
+                        .ComponentRemove => |comp| {
+                            switch (comp.component) {
+                                .Position => {
+                                    self.model.removeComponent(comp.id, core.Position);
+                                },
+                                .Velocity => {
+                                    self.model.removeComponent(comp.id, core.Velocity);
+                                },
+                                .Acceleration => {
+                                    self.model.removeComponent(comp.id, core.Acceleration);
+                                },
+                                .Jerk => {
+                                    self.model.removeComponent(comp.id, core.Jerk);
+                                },
+                                .ShipSize => {
+                                    self.model.removeComponent(comp.id, core.ShipSize);
+                                },
+                            }
+                        },
+                        .SnapshotRequest => {
+                            std.debug.print("requsted snapshot\n", .{});
+                            self.sendSnapshot();
+                        },
+                    }
                 }
             }
         } else |err| {
@@ -186,6 +188,8 @@ pub const Control = struct {
         }
 
         self.syncEntites();
+
+        self.server.update();
     }
 
     fn syncEntites(self: *Control) void {
@@ -204,10 +208,10 @@ pub const Control = struct {
         var it = ecs.query_iter(self.model.world, query);
 
         //##### force tick
-        const tick_msg = util.AlphaMessage.init(self.model.tick);
+        const tick_msg = network.AlphaMessage.init(self.model.tick);
 
         for (0..self.server.clients.items.len) |j| {
-            self.server.send(j, tick_msg) catch unreachable;
+            self.server.submit(j, tick_msg) catch unreachable;
         }
         //#####
 
@@ -218,10 +222,10 @@ pub const Control = struct {
                 const entity = it.entities()[i];
                 const id = self.model.registry.getId(entity);
 
-                const msg = util.ComponentMessage.fromPosition(id.?, positions[i]);
+                const msg = network.ComponentMessage.fromPosition(id.?, positions[i]);
 
                 for (0..self.server.clients.items.len) |j| {
-                    self.server.send(j, msg) catch unreachable;
+                    self.server.submit(j, msg) catch unreachable;
                 }
             }
         }
@@ -249,14 +253,14 @@ pub const Control = struct {
                 const entity = it.entities()[i];
                 const id = self.model.registry.getId(entity);
 
-                const createmsg = util.EntityMessage.init(id.?);
-                const msg = util.ComponentMessage.fromPosition(id.?, positions[i]);
+                const createmsg = network.EntityMessage.init(id.?);
+                const msg = network.ComponentMessage.fromPosition(id.?, positions[i]);
 
                 for (0..self.server.clients.items.len) |j| {
-                    self.server.send(j, createmsg) catch {
+                    self.server.submit(j, createmsg) catch {
                         continue;
                     };
-                    self.server.send(j, msg) catch unreachable;
+                    self.server.submit(j, msg) catch unreachable;
                 }
             }
         }

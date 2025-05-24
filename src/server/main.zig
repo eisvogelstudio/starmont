@@ -14,14 +14,30 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
+// ---------- builtin ----------
+const builtin = @import("builtin");
 // -------------------------
 
-// ---------- starmont ----------
+// ---------- std ----------
+const std = @import("std");
+// -------------------------
+
+// ---------- server ----------
 const Control = @import("control.zig").Control;
 // ------------------------------
+
+// ---------- shared ----------
+const util = @import("shared").util;
+// ----------------------------
+
+pub const std_options: std.Options = .{
+    .log_level = if (builtin.mode == .Debug) .debug else .info,
+    //.log_scope_levels = &.{
+    //    .{ .scope = .decimal, .level = .info },
+    //    .{ .scope = .proper, .level = .info },
+    //},
+    .logFn = util.log.logFn,
+};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

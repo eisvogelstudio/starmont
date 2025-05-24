@@ -14,16 +14,23 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
-
-// ---------- starmont ----------
-const core = @import("core");
-// ------------------------------
+// ---------- shared ----------
+const core = @import("../core/root.zig");
+// ----------------------------
 
 // ########## primitive ##########
+
+pub fn serializeU8(writer: anytype, uint: u8) !void {
+    var buf: [1]u8 = undefined;
+    buf = @bitCast(uint);
+    try writer.writeAll(&buf);
+}
+
+pub fn serializeU16(writer: anytype, uint: u16) !void {
+    var buf: [2]u8 = undefined;
+    buf = @bitCast(uint);
+    try writer.writeAll(&buf);
+}
 
 pub fn serializeU32(writer: anytype, uint: u32) !void {
     var buf: [4]u8 = undefined;
@@ -39,6 +46,12 @@ pub fn serializeU64(writer: anytype, uint: u64) !void {
 
 pub fn serializeF32(writer: anytype, float: f32) !void {
     var buf: [4]u8 = undefined;
+    buf = @bitCast(float);
+    try writer.writeAll(&buf);
+}
+
+pub fn serializeF64(writer: anytype, float: f64) !void {
+    var buf: [8]u8 = undefined;
     buf = @bitCast(float);
     try writer.writeAll(&buf);
 }
