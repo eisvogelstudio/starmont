@@ -63,7 +63,7 @@ pub const Control = struct {
         self.model.update();
 
         self.server.accept() catch unreachable;
-        const data = self.server.receive(self.allocator);
+        const data = self.server.withdraw(self.allocator);
 
         if (data) |batches| {
             defer {

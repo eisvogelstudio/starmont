@@ -39,6 +39,18 @@ pub const Batch = struct {
         return batch;
     }
 
+    pub fn copy(self: *Batch, allocator: *std.mem.Allocator) Batch {
+        var new_messages = std.ArrayList(message.Message).init(allocator.*);
+
+        new_messages.appendSlice(self.messages.items) catch unreachable;
+
+        return Batch{
+            .allocator = allocator,
+            .messages = new_messages,
+            .id = self.id,
+        };
+    }
+
     pub fn deinit(self: *Batch) void {
         for (self.messages.items) |*msg| {
             msg.deinit();
@@ -52,6 +64,10 @@ pub const Batch = struct {
         }
 
         try self.messages.append(msg);
+    }
+
+    pub fn clear(self: *Batch) void {
+        self.messages.clearRetainingCapacity();
     }
 
     pub fn serialize(self: *const Batch, writer: anytype) !void {

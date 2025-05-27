@@ -33,12 +33,22 @@ const log = std.log.scoped(.network);
 const hz = 10;
 const interval = 1000 / hz;
 
+const lag_ms = 200;
+const delay = lag_ms / 2;
+
+const TimedBatch = struct {
+    batch: Batch,
+    stamp: i64,
+};
+
 pub const Server = struct {
     allocator: *std.mem.Allocator,
     socket: net.Socket = undefined,
     opened: bool = false,
     clients: std.ArrayList(net.Socket),
     batches: std.ArrayList(Batch),
+    batchesToSend: std.ArrayList(TimedBatch),
+    batchesReceived: std.ArrayList(TimedBatch),
     last: i64 = 0,
 
     pub fn init(allocator: *std.mem.Allocator) !Server {
@@ -46,6 +56,8 @@ pub const Server = struct {
             .allocator = allocator,
             .clients = std.ArrayList(net.Socket).init(allocator.*),
             .batches = std.ArrayList(Batch).init(allocator.*),
+            .batchesToSend = std.ArrayList(TimedBatch).init(allocator.*),
+            .batchesReceived = std.ArrayList(TimedBatch).init(allocator.*),
         };
 
         net.init() catch unreachable;
@@ -58,33 +70,18 @@ pub const Server = struct {
 
         net.deinit();
 
-        self.clients.deinit();
-
-        for (self.batches.items) |*b| {
-            b.*.deinit();
-        }
-
+        self.batchesReceived.deinit();
+        self.batchesToSend.deinit();
         self.batches.deinit();
+
+        self.clients.deinit();
     }
 
     pub fn update(self: *Server) void {
-        const now = std.time.milliTimestamp();
+        self.stage();
+        self.send();
 
-        if (self.last != 0 and (now - self.last) < interval) {
-            return;
-        }
-
-        self.last = now;
-
-        var i: usize = 0;
-        while (i < self.clients.items.len) {
-            primitive.send(&self.clients.items[i], self.batches.items[i]) catch continue;
-            i += 1;
-        }
-
-        for (self.batches.items) |*batch| {
-            batch.*.messages.clearRetainingCapacity();
-        }
+        self.receive() catch unreachable;
     }
 
     pub fn open(self: *Server, port: u16) !void {
@@ -127,8 +124,9 @@ pub const Server = struct {
         }
     }
 
-    pub fn receive(self: *Server, allocator: *std.mem.Allocator) ![]Batch {
-        var all = std.ArrayList(Batch).init(allocator.*);
+    fn receive(self: *Server) !void {
+        const now = std.time.milliTimestamp();
+
         var i: usize = 0;
         while (i < self.clients.items.len) {
             const batches = primitive.receive(&self.clients.items[i], self.allocator) catch |err| {
@@ -136,7 +134,6 @@ pub const Server = struct {
                     _ = self.clients.swapRemove(i);
                     _ = self.batches.swapRemove(i);
                     log.info("client #{d} disconnected", .{i});
-                    //i += 1;
                     continue;
                 } else if (err == error.WouldBlock) {
                     i += 1;
@@ -149,10 +146,71 @@ pub const Server = struct {
 
             for (batches) |*b| {
                 b.*.id = i;
+
+                const timedBatch = TimedBatch{ .batch = b.*, .stamp = now };
+
+                try self.batchesReceived.append(timedBatch);
             }
 
-            try all.appendSlice(batches);
             i += 1;
+        }
+    }
+
+    fn stage(self: *Server) void {
+        const now = std.time.milliTimestamp();
+
+        if (self.last != 0 and (now - self.last) < interval) {
+            return;
+        }
+
+        self.last = now;
+
+        var i: usize = 0;
+        while (i < self.clients.items.len) {
+            self.batches.items[i].id = i;
+
+            const timedBatch = TimedBatch{ .batch = self.batches.items[i].copy(self.allocator), .stamp = now };
+
+            self.batchesToSend.append(timedBatch) catch unreachable;
+
+            self.batches.items[i].clear();
+
+            i += 1;
+        }
+    }
+
+    fn send(self: *Server) void {
+        const now = std.time.milliTimestamp();
+
+        var delete = std.ArrayList(usize).init(self.allocator.*);
+
+        for (self.batchesToSend.items, 0..) |*timedBatch, i| {
+            if (now - timedBatch.*.stamp < delay) {
+                continue;
+            }
+
+            primitive.send(&self.clients.items[timedBatch.*.batch.id], timedBatch.*.batch) catch continue;
+
+            timedBatch.*.batch.deinit();
+
+            delete.append(i) catch unreachable;
+        }
+
+        for (delete.items, 0..) |index, i| {
+            _ = self.batchesToSend.swapRemove(index - i);
+        }
+
+        delete.deinit();
+    }
+
+    pub fn withdraw(self: *Server, allocator: *std.mem.Allocator) ![]Batch {
+        const now = std.time.milliTimestamp();
+        var all = std.ArrayList(Batch).init(allocator.*);
+
+        for (self.batchesReceived.items) |*timedBatch| {
+            if (now - timedBatch.*.stamp < delay) {
+                try all.append(timedBatch.*.batch.copy(self.allocator));
+            }
         }
 
         if (0 == all.items.len) {
@@ -164,6 +222,5 @@ pub const Server = struct {
 
     pub fn submit(self: *Server, client: usize, msg: message.Message) !void {
         try self.batches.items[client].append(msg);
-        //try primitive.sendMessage(&self.clients.items[client], msg);
     }
 };
