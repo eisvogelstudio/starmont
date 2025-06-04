@@ -104,8 +104,9 @@ pub const Control = struct {
                                     self.model.createEntity(id);
                                     const cmsg = network.EntityMessage.init(id);
 
-                                    for (0..self.server.clients.items.len) |j| {
-                                        self.server.submit(j, cmsg) catch unreachable;
+                                    var it = self.server.clients.iterator();
+                                    while (it.next()) |entry| {
+                                        self.server.submit(entry.key_ptr.*, cmsg) catch unreachable;
                                     }
                                 },
                                 .MoveLeft => {
@@ -205,27 +206,29 @@ pub const Control = struct {
         const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
         defer ecs.query_fini(query);
 
-        var it = ecs.query_iter(self.model.world, query);
+        var ecsIt = ecs.query_iter(self.model.world, query);
 
         //##### force tick
         const tick_msg = network.AlphaMessage.init(self.model.tick);
 
-        for (0..self.server.clients.items.len) |j| {
-            self.server.submit(j, tick_msg) catch unreachable;
+        var it = self.server.clients.iterator();
+        while (it.next()) |entry| {
+            self.server.submit(entry.key_ptr.*, tick_msg) catch unreachable;
         }
         //#####
 
-        while (ecs.query_next(&it)) {
-            const positions: []const core.Position = ecs.field(&it, core.Position, 0).?;
+        while (ecs.query_next(&ecsIt)) {
+            const positions: []const core.Position = ecs.field(&ecsIt, core.Position, 0).?;
 
-            for (0..it.count()) |i| {
-                const entity = it.entities()[i];
+            for (0..ecsIt.count()) |i| {
+                const entity = ecsIt.entities()[i];
                 const id = self.model.registry.getId(entity);
 
                 const msg = network.ComponentMessage.fromPosition(id.?, positions[i]);
 
-                for (0..self.server.clients.items.len) |j| {
-                    self.server.submit(j, msg) catch unreachable;
+                var it2 = self.server.clients.iterator();
+                while (it2.next()) |entry| {
+                    self.server.submit(entry.key_ptr.*, msg) catch unreachable;
                 }
             }
         }
@@ -244,23 +247,24 @@ pub const Control = struct {
         const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
         defer ecs.query_fini(query);
 
-        var it = ecs.query_iter(self.model.world, query);
+        var ecsIt = ecs.query_iter(self.model.world, query);
 
-        while (ecs.query_next(&it)) {
-            const positions: []const core.Position = ecs.field(&it, core.Position, 0).?;
+        while (ecs.query_next(&ecsIt)) {
+            const positions: []const core.Position = ecs.field(&ecsIt, core.Position, 0).?;
 
-            for (0..it.count()) |i| {
-                const entity = it.entities()[i];
+            for (0..ecsIt.count()) |i| {
+                const entity = ecsIt.entities()[i];
                 const id = self.model.registry.getId(entity);
 
                 const createmsg = network.EntityMessage.init(id.?);
                 const msg = network.ComponentMessage.fromPosition(id.?, positions[i]);
 
-                for (0..self.server.clients.items.len) |j| {
-                    self.server.submit(j, createmsg) catch {
+                var it = self.server.clients.iterator();
+                while (it.next()) |entry| {
+                    self.server.submit(entry.key_ptr.*, createmsg) catch {
                         continue;
                     };
-                    self.server.submit(j, msg) catch unreachable;
+                    self.server.submit(entry.key_ptr.*, msg) catch unreachable;
                 }
             }
         }

@@ -45,17 +45,18 @@ pub const Server = struct {
     allocator: *std.mem.Allocator,
     socket: net.Socket = undefined,
     opened: bool = false,
-    clients: std.ArrayList(net.Socket),
-    batches: std.ArrayList(Batch),
+    clients: std.AutoHashMap(u64, net.Socket),
+    batches: std.AutoHashMap(u64, Batch),
     batchesToSend: std.ArrayList(TimedBatch),
     batchesReceived: std.ArrayList(TimedBatch),
     last: i64 = 0,
+    identifier: u64 = 0,
 
     pub fn init(allocator: *std.mem.Allocator) !Server {
         const server = Server{
             .allocator = allocator,
-            .clients = std.ArrayList(net.Socket).init(allocator.*),
-            .batches = std.ArrayList(Batch).init(allocator.*),
+            .clients = std.AutoHashMap(u64, net.Socket).init(allocator.*),
+            .batches = std.AutoHashMap(u64, Batch).init(allocator.*),
             .batchesToSend = std.ArrayList(TimedBatch).init(allocator.*),
             .batchesReceived = std.ArrayList(TimedBatch).init(allocator.*),
         };
@@ -72,8 +73,8 @@ pub const Server = struct {
 
         self.batchesReceived.deinit();
         self.batchesToSend.deinit();
-        self.batches.deinit();
 
+        self.batches.deinit();
         self.clients.deinit();
     }
 
@@ -99,7 +100,9 @@ pub const Server = struct {
     pub fn close(self: *Server) void {
         self.socket.close();
 
-        for (self.clients.items) |client| {
+        var it = self.clients.iterator();
+        while (it.next()) |entry| {
+            const client = entry.value_ptr.*;
             client.close();
         }
 
@@ -118,26 +121,27 @@ pub const Server = struct {
                 }
             };
 
-            log.info("client #{d} connected", .{self.clients.items.len});
-            try self.clients.append(client);
-            try self.batches.append(Batch.init(self.allocator));
+            log.info("client #{d} connected", .{self.identifier});
+            try self.clients.put(self.identifier, client);
+            try self.batches.put(self.identifier, Batch.init(self.allocator));
+            self.identifier += 1;
         }
     }
 
     fn receive(self: *Server) !void {
         const now = std.time.milliTimestamp();
 
-        var i: usize = 0;
-        while (i < self.clients.items.len) {
-            const batches = primitive.receive(&self.clients.items[i], self.allocator) catch |err| {
+        var delete = std.ArrayList(u64).init(self.allocator.*);
+
+        var it = self.clients.iterator();
+        while (it.next()) |entry| {
+            var client = entry.value_ptr.*;
+
+            const batches = primitive.receive(&client, self.allocator) catch |err| {
                 if (err == error.ClosedConnection) {
-                    _ = self.clients.swapRemove(i);
-                    _ = self.batches.swapRemove(i);
-                    log.info("client #{d} disconnected", .{i});
+                    delete.append(entry.key_ptr.*) catch unreachable;
                     continue;
                 } else if (err == error.WouldBlock) {
-                    i += 1;
-
                     continue;
                 } else {
                     return err;
@@ -145,15 +149,21 @@ pub const Server = struct {
             };
 
             for (batches) |*b| {
-                b.*.id = i;
+                b.*.id = entry.key_ptr.*;
 
                 const timedBatch = TimedBatch{ .batch = b.*, .stamp = now };
 
                 try self.batchesReceived.append(timedBatch);
             }
-
-            i += 1;
         }
+
+        for (delete.items) |key| {
+            _ = self.clients.remove(key);
+            _ = self.batches.remove(key);
+            log.info("client #{d} disconnected", .{key});
+        }
+
+        delete.deinit();
     }
 
     fn stage(self: *Server) void {
@@ -165,17 +175,15 @@ pub const Server = struct {
 
         self.last = now;
 
-        var i: usize = 0;
-        while (i < self.clients.items.len) {
-            self.batches.items[i].id = i;
+        var it = self.clients.iterator();
+        while (it.next()) |entry| {
+            self.batches.getPtr(entry.key_ptr.*).?.id = entry.key_ptr.*;
 
-            const timedBatch = TimedBatch{ .batch = self.batches.items[i].copy(self.allocator), .stamp = now };
+            const timedBatch = TimedBatch{ .batch = self.batches.getPtr(entry.key_ptr.*).?.copy(self.allocator), .stamp = now };
 
             self.batchesToSend.append(timedBatch) catch unreachable;
 
-            self.batches.items[i].clear();
-
-            i += 1;
+            self.batches.getPtr(entry.key_ptr.*).?.clear();
         }
     }
 
@@ -189,7 +197,7 @@ pub const Server = struct {
                 continue;
             }
 
-            primitive.send(&self.clients.items[timedBatch.*.batch.id], timedBatch.*.batch) catch continue;
+            primitive.send(self.clients.getPtr(timedBatch.*.batch.id).?, timedBatch.*.batch) catch continue;
 
             timedBatch.*.batch.deinit();
 
@@ -221,6 +229,7 @@ pub const Server = struct {
     }
 
     pub fn submit(self: *Server, client: usize, msg: message.Message) !void {
-        try self.batches.items[client].append(msg);
+        //log.info("{any}: {d}", .{ self.batches.contains(client), client });
+        try self.batches.getPtr(client).?.append(msg);
     }
 };
