@@ -197,7 +197,11 @@ pub const Server = struct {
                 continue;
             }
 
-            primitive.send(self.clients.getPtr(timedBatch.*.batch.id).?, timedBatch.*.batch) catch continue;
+            if (self.clients.getPtr(timedBatch.*.batch.id)) |id| {
+                primitive.send(id, timedBatch.*.batch) catch continue;
+            } else {
+                continue;
+            }
 
             timedBatch.*.batch.deinit();
 
