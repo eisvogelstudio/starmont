@@ -39,18 +39,6 @@ pub const Batch = struct {
         return batch;
     }
 
-    pub fn copy(self: *Batch, allocator: *std.mem.Allocator) Batch {
-        var new_messages = std.ArrayList(message.Message).init(allocator.*);
-
-        new_messages.appendSlice(self.messages.items) catch unreachable;
-
-        return Batch{
-            .allocator = allocator,
-            .messages = new_messages,
-            .id = self.id,
-        };
-    }
-
     pub fn deinit(self: *Batch) void {
         for (self.messages.items) |*msg| {
             msg.deinit();
@@ -58,46 +46,58 @@ pub const Batch = struct {
         self.messages.deinit();
     }
 
+    pub fn copy(self: *Batch, allocator: *std.mem.Allocator) Batch {
+        var messages = std.ArrayList(message.Message).init(allocator.*);
+
+        messages.appendSlice(self.messages.items) catch unreachable;
+
+        return Batch{
+            .allocator = allocator,
+            .messages = messages,
+            .id = self.id,
+        };
+    }
+
     pub fn append(self: *Batch, msg: message.Message) !void {
         if (self.messages.items.len > std.math.maxInt(u16) - 1) {
-            return error.TooManyMessages;
+            return error.Overflow;
         }
 
-        try self.messages.append(msg);
+        self.messages.append(msg) catch unreachable;
     }
 
     pub fn clear(self: *Batch) void {
         self.messages.clearRetainingCapacity();
     }
 
-    pub fn serialize(self: *const Batch, writer: anytype) !void {
+    pub fn serialize(self: *const Batch, writer: anytype) void {
         const count: u16 = @intCast(self.messages.items.len);
-        try encode.serializeU16(writer, count);
+        encode.serializeU16(writer, count) catch unreachable;
 
         for (self.messages.items) |msg| {
-            try msg.serialize(writer);
+            msg.serialize(writer) catch unreachable;
         }
     }
 
-    pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) !Batch {
-        const count = try decode.deserializeU16(reader);
+    pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) Batch {
+        const count = decode.deserializeU16(reader) catch unreachable;
         var batch = Batch.init(allocator);
 
         var i: usize = 0;
         while (i < count) : (i += 1) {
-            const msg = try message.Message.deserialize(reader, allocator);
-            try batch.append(msg);
+            const msg = message.Message.deserialize(reader, allocator) catch unreachable;
+            batch.append(msg) catch unreachable;
         }
 
         return batch;
     }
 
-    pub fn print(self: *const Batch, writer: anytype) !void {
-        try writer.print("Batch ({} messages):\n", .{self.messages.items.len});
+    pub fn print(self: *const Batch, writer: anytype) void {
+        writer.print("Batch ({} messages):\n", .{self.messages.items.len}) catch unreachable;
         for (self.messages.items, 0..) |msg, i| {
-            try writer.print("  [{}] ", .{i});
-            try msg.print(writer);
-            try writer.print("\n", .{});
+            writer.print("  [{}] ", .{i}) catch unreachable;
+            msg.print(writer) catch unreachable;
+            writer.print("\n", .{}) catch unreachable;
         }
     }
 };

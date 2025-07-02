@@ -16,6 +16,7 @@
 
 // ---------- std ----------
 const std = @import("std");
+const testing = std.testing;
 // -------------------------
 
 // ---------- network ----------
@@ -27,10 +28,8 @@ const net = @import("network");
 // ------------------------------
 
 pub const Error = error{
-    EndOfBuffer,
     ConnectionResetByPeer,
     ClosedConnection,
-    NotConnected,
     WouldBlock,
 };
 
@@ -38,9 +37,9 @@ pub fn send(socket: *net.Socket, batch: Batch) !void {
     var buffer: [1024]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buffer);
     const writer = stream.writer();
-    try batch.serialize(writer);
-    const data = buffer[0..stream.pos];
+    batch.serialize(writer);
 
+    const data = buffer[0..stream.pos];
     var total: usize = 0;
     while (total < data.len) {
         const bytes_written = socket.writer().write(data[total..]) catch |err| {
@@ -69,10 +68,8 @@ pub fn receive(socket: *net.Socket, allocator: *std.mem.Allocator) ![]Batch {
             var stream = std.io.fixedBufferStream(buffer[0..n]);
             const reader = stream.reader();
 
-            while (true) {
-                const msg = Batch.deserialize(reader, allocator) catch {
-                    break;
-                };
+            while (stream.pos > stream.buffer.len) {
+                const msg = Batch.deserialize(reader, allocator);
                 try batches.append(msg);
             }
         }

@@ -41,10 +41,10 @@ pub const Control = struct {
         var control = Control{
             .allocator = allocator,
             .model = core.Model.init(allocator),
-            .server = try network.Server.init(allocator),
+            .server = network.Server.init(allocator),
         };
 
-        control.server.open(11111) catch @panic("failed to open socket");
+        control.server.open(11111);
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("all your starbase are belong to us", .{});
@@ -62,7 +62,7 @@ pub const Control = struct {
     pub fn update(self: *Control) void {
         self.model.update();
 
-        self.server.accept() catch unreachable;
+        self.server.accept();
         const data = self.server.withdraw(self.allocator);
 
         if (data) |batches| {

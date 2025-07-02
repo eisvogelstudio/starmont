@@ -52,7 +52,7 @@ pub const Server = struct {
     last: i64 = 0,
     identifier: u64 = 0,
 
-    pub fn init(allocator: *std.mem.Allocator) !Server {
+    pub fn init(allocator: *std.mem.Allocator) Server {
         const server = Server{
             .allocator = allocator,
             .clients = std.AutoHashMap(u64, net.Socket).init(allocator.*),
@@ -85,12 +85,14 @@ pub const Server = struct {
         self.receive() catch unreachable;
     }
 
-    pub fn open(self: *Server, port: u16) !void {
-        self.socket = try net.Socket.create(.ipv4, .tcp);
-        try self.socket.enablePortReuse(true);
-        try self.socket.bindToPort(port);
-        try self.socket.setReadTimeout(10);
-        try self.socket.listen();
+    pub fn open(self: *Server, port: u16) void {
+        self.socket = net.Socket.create(.ipv4, .tcp) catch unreachable;
+        self.socket.enablePortReuse(true) catch unreachable;
+        self.socket.bindToPort(port) catch unreachable;
+        self.socket.setReadTimeout(100) catch unreachable; // 100ns
+        self.socket.setWriteTimeout(100) catch unreachable; // 100ns
+
+        self.socket.listen() catch unreachable;
 
         log.info("server listening on port {}", .{port});
 
@@ -111,19 +113,19 @@ pub const Server = struct {
         self.opened = false;
     }
 
-    pub fn accept(self: *Server) !void {
+    pub fn accept(self: *Server) void {
         while (true) {
             const client = self.socket.accept() catch |err| {
                 if (err == error.WouldBlock) {
                     break;
                 } else {
-                    return err;
+                    unreachable;
                 }
             };
 
             log.info("client #{d} connected", .{self.identifier});
-            try self.clients.put(self.identifier, client);
-            try self.batches.put(self.identifier, Batch.init(self.allocator));
+            self.clients.put(self.identifier, client) catch unreachable;
+            self.batches.put(self.identifier, Batch.init(self.allocator)) catch unreachable;
             self.identifier += 1;
         }
     }
