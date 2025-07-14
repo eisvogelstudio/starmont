@@ -43,17 +43,17 @@ pub const AlphaMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: AlphaMessage, writer: anytype) !void {
-        try encode.serializeU64(writer, self.tick);
+    fn serialize(self: AlphaMessage, writer: anytype) void {
+        encode.serializeU64(writer, self.tick);
     }
 
-    fn deserialize(reader: anytype) !AlphaMessage {
-        const tick = try decode.deserializeU64(reader);
+    fn deserialize(reader: anytype) AlphaMessage {
+        const tick = decode.deserializeU64(reader);
         return AlphaMessage{ .tick = tick };
     }
 
-    pub fn write(self: AlphaMessage, writer: anytype) !void {
-        try writer.print("Alpha: {d}", .{self.tick});
+    pub fn write(self: AlphaMessage, writer: anytype) void {
+        writer.print("Alpha: {d}", .{self.tick}) catch unreachable;
     }
 };
 
@@ -61,8 +61,8 @@ pub const ChatMessage = struct {
     allocator: *std.mem.Allocator,
     text: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, text: []const u8) !Message {
-        const dup = try allocator.dupe(u8, text);
+    pub fn init(allocator: *std.mem.Allocator, text: []const u8) Message {
+        const dup = allocator.dupe(u8, text) catch unreachable;
         const chat = ChatMessage{
             .text = dup,
         };
@@ -74,24 +74,24 @@ pub const ChatMessage = struct {
         self.allocator.free(self.text);
     }
 
-    fn serialize(self: ChatMessage, writer: anytype) !void {
+    fn serialize(self: ChatMessage, writer: anytype) void {
         const len: u16 = @intCast(self.text.len);
         const buf: [2]u8 = @bitCast(len);
-        try writer.writeAll(&buf);
-        try writer.writeAll(self.text);
+        writer.writeAll(&buf) catch unreachable;
+        writer.writeAll(self.text) catch unreachable;
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) !ChatMessage {
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) ChatMessage {
         var len_buf: [2]u8 = undefined;
-        _ = try reader.readAll(&len_buf);
+        _ = reader.readAll(&len_buf) catch unreachable;
         const len: u16 = @bitCast(len_buf);
-        const text = try allocator.alloc(u8, len);
-        _ = try reader.readAll(text);
+        const text = allocator.alloc(u8, len) catch unreachable;
+        _ = reader.readAll(text) catch unreachable;
         return ChatMessage{ .allocator = allocator, .text = text };
     }
 
-    pub fn write(self: ChatMessage, writer: anytype) !void {
-        try writer.print("Chat: {s}", .{self.text});
+    pub fn write(self: ChatMessage, writer: anytype) void {
+        writer.print("Chat: {s}", .{self.text}) catch unreachable;
     }
 };
 
@@ -110,20 +110,20 @@ pub const StaticMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: StaticMessage, writer: anytype) !void {
-        try encode.serializePosition(writer, self.position);
+    fn serialize(self: StaticMessage, writer: anytype) void {
+        encode.serializePosition(writer, self.position);
     }
 
-    fn deserialize(reader: anytype) !StaticMessage {
-        const pos = try decode.deserializePosition(reader);
+    fn deserialize(reader: anytype) StaticMessage {
+        const pos = decode.deserializePosition(reader);
         return init(pos).Static;
     }
 
-    pub fn write(self: StaticMessage, writer: anytype) !void {
-        try writer.print("Linear: ", .{});
+    pub fn write(self: StaticMessage, writer: anytype) void {
+        writer.print("Linear: ", .{}) catch unreachable;
 
-        try writer.print("\n\t", .{});
-        try util.format.writePosition(writer, self.position);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writePosition(writer, self.position);
     }
 };
 
@@ -144,24 +144,24 @@ pub const LinearMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: LinearMessage, writer: anytype) !void {
-        try encode.serializePosition(writer, self.position);
-        try encode.serializeVelocity(writer, self.velocity);
+    fn serialize(self: LinearMessage, writer: anytype) void {
+        encode.serializePosition(writer, self.position);
+        encode.serializeVelocity(writer, self.velocity);
     }
 
-    fn deserialize(reader: anytype) !LinearMessage {
-        const pos = try decode.deserializePosition(reader);
-        const vel = try decode.deserializeVelocity(reader);
+    fn deserialize(reader: anytype) LinearMessage {
+        const pos = decode.deserializePosition(reader);
+        const vel = decode.deserializeVelocity(reader);
         return init(pos, vel).Linear;
     }
 
-    pub fn write(self: LinearMessage, writer: anytype) !void {
-        try writer.print("Linear: ", .{});
+    pub fn write(self: LinearMessage, writer: anytype) void {
+        writer.print("Linear: ", .{}) catch unreachable;
 
-        try writer.print("\n\t", .{});
-        try util.format.writePosition(writer, self.position);
-        try writer.print("\n\t", .{});
-        try util.format.writeVelocity(writer, self.velocity);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writePosition(writer, self.position);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writeVelocity(writer, self.velocity);
     }
 };
 
@@ -184,28 +184,28 @@ pub const AcceleratedMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: AcceleratedMessage, writer: anytype) !void {
-        try encode.serializePosition(writer, self.position);
-        try encode.serializeVelocity(writer, self.velocity);
-        try encode.serializeAcceleration(writer, self.acceleration);
+    fn serialize(self: AcceleratedMessage, writer: anytype) void {
+        encode.serializePosition(writer, self.position);
+        encode.serializeVelocity(writer, self.velocity);
+        encode.serializeAcceleration(writer, self.acceleration);
     }
 
-    fn deserialize(reader: anytype) !AcceleratedMessage {
-        const pos = try decode.deserializePosition(reader);
-        const vel = try decode.deserializeVelocity(reader);
-        const acc = try decode.deserializeAcceleration(reader);
+    fn deserialize(reader: anytype) AcceleratedMessage {
+        const pos = decode.deserializePosition(reader);
+        const vel = decode.deserializeVelocity(reader);
+        const acc = decode.deserializeAcceleration(reader);
         return init(pos, vel, acc).Accelerated;
     }
 
-    pub fn write(self: AcceleratedMessage, writer: anytype) !void {
-        try writer.print("Accelerated: ", .{});
+    pub fn write(self: AcceleratedMessage, writer: anytype) void {
+        writer.print("Accelerated: ", .{}) catch unreachable;
 
-        try writer.print("\n\t", .{});
-        try util.format.writePosition(writer, self.position);
-        try writer.print("\n\t", .{});
-        try util.format.writeVelocity(writer, self.velocity);
-        try writer.print("\n\t", .{});
-        try util.format.writeAcceleration(writer, self.acceleration);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writePosition(writer, self.position);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writeVelocity(writer, self.velocity);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writeAcceleration(writer, self.acceleration);
     }
 };
 
@@ -230,32 +230,32 @@ pub const DynamicMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: DynamicMessage, writer: anytype) !void {
-        try encode.serializePosition(writer, self.position);
-        try encode.serializeVelocity(writer, self.velocity);
-        try encode.serializeAcceleration(writer, self.acceleration);
-        try encode.serializeJerk(writer, self.jerk);
+    fn serialize(self: DynamicMessage, writer: anytype) void {
+        encode.serializePosition(writer, self.position);
+        encode.serializeVelocity(writer, self.velocity);
+        encode.serializeAcceleration(writer, self.acceleration);
+        encode.serializeJerk(writer, self.jerk);
     }
 
-    fn deserialize(reader: anytype) !DynamicMessage {
-        const pos = try decode.deserializePosition(reader);
-        const vel = try decode.deserializeVelocity(reader);
-        const acc = try decode.deserializeAcceleration(reader);
-        const jerk = try decode.deserializeJerk(reader);
+    fn deserialize(reader: anytype) DynamicMessage {
+        const pos = decode.deserializePosition(reader);
+        const vel = decode.deserializeVelocity(reader);
+        const acc = decode.deserializeAcceleration(reader);
+        const jerk = decode.deserializeJerk(reader);
         return init(pos, vel, acc, jerk).Dynamic;
     }
 
-    pub fn write(self: DynamicMessage, writer: anytype) !void {
-        try writer.print("Dynamic: ", .{});
+    pub fn write(self: DynamicMessage, writer: anytype) void {
+        writer.print("Dynamic: ", .{}) catch unreachable;
 
-        try writer.print("\n\t", .{});
-        try util.format.writePosition(writer, self.position);
-        try writer.print("\n\t", .{});
-        try util.format.writeVelocity(writer, self.velocity);
-        try writer.print("\n\t", .{});
-        try util.format.writeAcceleration(writer, self.acceleration);
-        try writer.print("\n\t", .{});
-        try util.format.writeJerk(writer, self.jerk);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writePosition(writer, self.position);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writeVelocity(writer, self.velocity);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writeAcceleration(writer, self.acceleration);
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writeJerk(writer, self.jerk);
     }
 };
 
@@ -274,17 +274,17 @@ pub const ActionMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: ActionMessage, writer: anytype) !void {
-        try writer.writeByte(@intFromEnum(self.action));
+    fn serialize(self: ActionMessage, writer: anytype) void {
+        writer.writeByte(@intFromEnum(self.action)) catch unreachable;
     }
 
-    fn deserialize(reader: anytype) !ActionMessage {
-        const action_byte = try reader.readByte();
+    fn deserialize(reader: anytype) ActionMessage {
+        const action_byte = reader.readByte() catch unreachable;
         return init(@enumFromInt(action_byte)).Action;
     }
 
-    pub fn write(self: ActionMessage, writer: anytype) !void {
-        try writer.print("Action: {}", .{self.action});
+    pub fn write(self: ActionMessage, writer: anytype) void {
+        writer.print("Action: {}", .{self.action}) catch unreachable;
     }
 };
 
@@ -303,17 +303,17 @@ pub const EntityMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: EntityMessage, writer: anytype) !void {
-        try encode.serializeId(writer, self.id);
+    fn serialize(self: EntityMessage, writer: anytype) void {
+        encode.serializeId(writer, self.id);
     }
 
-    fn deserialize(reader: anytype) !EntityMessage {
-        const id = try decode.deserializeId(reader);
+    fn deserialize(reader: anytype) EntityMessage {
+        const id = decode.deserializeId(reader);
         return init(id).Entity;
     }
 
-    pub fn write(self: EntityMessage, writer: anytype) !void {
-        try writer.print("EntityMessage: {}", .{self.id});
+    pub fn write(self: EntityMessage, writer: anytype) void {
+        writer.print("EntityMessage: {}", .{self.id}) catch unreachable;
     }
 };
 
@@ -332,17 +332,17 @@ pub const EntityRemoveMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: EntityRemoveMessage, writer: anytype) !void {
-        try encode.serializeId(writer, self.id);
+    fn serialize(self: EntityRemoveMessage, writer: anytype) void {
+        encode.serializeId(writer, self.id);
     }
 
-    fn deserialize(reader: anytype) !EntityRemoveMessage {
-        const id = try decode.deserializeId(reader);
+    fn deserialize(reader: anytype) EntityRemoveMessage {
+        const id = decode.deserializeId(reader);
         return init(id).EntityRemove;
     }
 
-    pub fn write(self: EntityRemoveMessage, writer: anytype) !void {
-        try writer.print("EntityRemoveMessage: {}", .{self.id});
+    pub fn write(self: EntityRemoveMessage, writer: anytype) void {
+        writer.print("EntityRemoveMessage: {}", .{self.id}) catch unreachable;
     }
 };
 
@@ -415,63 +415,63 @@ pub const ComponentMessage = struct {
         _ = self;
     }
 
-    pub fn serialize(self: ComponentMessage, writer: anytype) !void {
-        try encode.serializeId(writer, self.id);
-        try writer.writeByte(@intFromEnum(self.component));
+    pub fn serialize(self: ComponentMessage, writer: anytype) void {
+        encode.serializeId(writer, self.id);
+        writer.writeByte(@intFromEnum(self.component)) catch unreachable;
         switch (self.component) {
             .Position => |pos| {
-                try encode.serializePosition(writer, pos);
+                encode.serializePosition(writer, pos);
             },
             .Velocity => |vel| {
-                try encode.serializeVelocity(writer, vel);
+                encode.serializeVelocity(writer, vel);
             },
             .Acceleration => |acc| {
-                try encode.serializeAcceleration(writer, acc);
+                encode.serializeAcceleration(writer, acc);
             },
             .Jerk => |jerk| {
-                try encode.serializeJerk(writer, jerk);
+                encode.serializeJerk(writer, jerk);
             },
             .ShipSize => |size| {
-                try encode.serializeShipSize(writer, size);
+                encode.serializeShipSize(writer, size);
             },
         }
     }
 
-    pub fn deserialize(reader: anytype) !ComponentMessage {
-        const id = try decode.deserializeId(reader);
-        const type_byte = try reader.readByte();
+    pub fn deserialize(reader: anytype) ComponentMessage {
+        const id = decode.deserializeId(reader);
+        const type_byte = reader.readByte() catch unreachable;
         const comp_type: core.ComponentType = @enumFromInt(type_byte);
         const comp = switch (comp_type) {
-            .Position => Component{ .Position = try decode.deserializePosition(reader) },
-            .Velocity => Component{ .Velocity = try decode.deserializeVelocity(reader) },
-            .Acceleration => Component{ .Acceleration = try decode.deserializeAcceleration(reader) },
-            .Jerk => Component{ .Jerk = try decode.deserializeJerk(reader) },
-            .ShipSize => Component{ .ShipSize = try decode.deserializeShipSize(reader) },
+            .Position => Component{ .Position = decode.deserializePosition(reader) },
+            .Velocity => Component{ .Velocity = decode.deserializeVelocity(reader) },
+            .Acceleration => Component{ .Acceleration = decode.deserializeAcceleration(reader) },
+            .Jerk => Component{ .Jerk = decode.deserializeJerk(reader) },
+            .ShipSize => Component{ .ShipSize = decode.deserializeShipSize(reader) },
         };
 
         return ComponentMessage{ .id = id, .component = comp };
     }
 
-    pub fn write(self: ComponentMessage, writer: anytype) !void {
-        try writer.print("ComponentMessage: ", .{});
-        try writer.print("\n\t", .{});
-        try util.format.writeId(writer, self.id);
-        try writer.print("\n\t", .{});
+    pub fn write(self: ComponentMessage, writer: anytype) void {
+        writer.print("ComponentMessage: ", .{}) catch unreachable;
+        writer.print("\n\t", .{}) catch unreachable;
+        util.format.writeId(writer, self.id);
+        writer.print("\n\t", .{}) catch unreachable;
         switch (self.component) {
             .Position => |pos| {
-                try util.format.writePosition(writer, pos);
+                util.format.writePosition(writer, pos);
             },
             .Velocity => |vel| {
-                try util.format.writeVelocity(writer, vel);
+                util.format.writeVelocity(writer, vel);
             },
             .Acceleration => |acc| {
-                try util.format.writeAcceleration(writer, acc);
+                util.format.writeAcceleration(writer, acc);
             },
             .Jerk => |jerk| {
-                try util.format.writeJerk(writer, jerk);
+                util.format.writeJerk(writer, jerk);
             },
             .ShipSize => |size| {
-                try util.format.writeShipSize(writer, size);
+                util.format.writeShipSize(writer, size);
             },
         }
     }
@@ -494,19 +494,19 @@ pub const ComponentRemoveMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: ComponentRemoveMessage, writer: anytype) !void {
-        try encode.serializeId(writer, self.id);
-        try writer.writeByte(@intFromEnum(self.component));
+    fn serialize(self: ComponentRemoveMessage, writer: anytype) void {
+        encode.serializeId(writer, self.id);
+        writer.writeByte(@intFromEnum(self.component)) catch unreachable;
     }
 
-    fn deserialize(reader: anytype) !ComponentRemoveMessage {
-        const id = try decode.deserializeId(reader);
-        const type_byte = try reader.readByte();
+    fn deserialize(reader: anytype) ComponentRemoveMessage {
+        const id = decode.deserializeId(reader);
+        const type_byte = reader.readByte() catch unreachable;
         return init(id, @enumFromInt(type_byte)).ComponentRemove;
     }
 
-    pub fn write(self: ComponentRemoveMessage, writer: anytype) !void {
-        try writer.print("ComponentRemove: {}", .{self.component});
+    pub fn write(self: ComponentRemoveMessage, writer: anytype) void {
+        writer.print("ComponentRemove: {}", .{self.component}) catch unreachable;
     }
 };
 
@@ -521,22 +521,22 @@ pub const SnapshotRequestMessage = struct {
         _ = self;
     }
 
-    fn serialize(self: SnapshotRequestMessage, writer: anytype) !void {
+    fn serialize(self: SnapshotRequestMessage, writer: anytype) void {
         _ = self;
         _ = writer;
 
         return;
     }
 
-    fn deserialize(reader: anytype) !SnapshotRequestMessage {
+    fn deserialize(reader: anytype) SnapshotRequestMessage {
         _ = reader;
         return init().SnapshotRequest;
     }
 
-    pub fn write(self: SnapshotRequestMessage, writer: anytype) !void {
+    pub fn write(self: SnapshotRequestMessage, writer: anytype) void {
         _ = self;
 
-        try writer.print("SnapshotRequestMessage", .{});
+        writer.print("SnapshotRequestMessage", .{}) catch unreachable;
     }
 };
 
@@ -610,140 +610,140 @@ pub const Message = union(MessageType) {
         }
     }
 
-    pub fn serialize(self: Message, writer: anytype) !void {
-        try writer.writeByte(@intFromEnum(self));
+    pub fn serialize(self: Message, writer: anytype) void {
+        writer.writeByte(@intFromEnum(self)) catch unreachable;
         switch (self) {
             .Alpha => |alpha| {
-                try alpha.serialize(writer);
+                alpha.serialize(writer);
             },
             .Chat => |chat| {
-                try chat.serialize(writer);
+                chat.serialize(writer);
             },
             .Static => |static| {
-                try static.serialize(writer);
+                static.serialize(writer);
             },
             .Linear => |linear| {
-                try linear.serialize(writer);
+                linear.serialize(writer);
             },
             .Accelerated => |accelerated| {
-                try accelerated.serialize(writer);
+                accelerated.serialize(writer);
             },
             .Dynamic => |dynamic| {
-                try dynamic.serialize(writer);
+                dynamic.serialize(writer);
             },
             .Action => |action| {
-                try action.serialize(writer);
+                action.serialize(writer);
             },
             .Entity => |id| {
-                try id.serialize(writer);
+                id.serialize(writer);
             },
             .EntityRemove => |id| {
-                try id.serialize(writer);
+                id.serialize(writer);
             },
             .Component => |comp| {
-                try comp.serialize(writer);
+                comp.serialize(writer);
             },
             .ComponentRemove => |comp| {
-                try comp.serialize(writer);
+                comp.serialize(writer);
             },
             .SnapshotRequest => |snap| {
-                try snap.serialize(writer);
+                snap.serialize(writer);
             },
         }
     }
 
-    pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) !Message {
-        const type_byte = try reader.readByte();
+    pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) Message {
+        const type_byte = reader.readByte() catch unreachable;
         const message_type: MessageType = @enumFromInt(type_byte);
         switch (message_type) {
             .Alpha => {
-                const alpha = try AlphaMessage.deserialize(reader);
+                const alpha = AlphaMessage.deserialize(reader);
                 return Message{ .Alpha = alpha };
             },
             .Chat => {
-                const chat = try ChatMessage.deserialize(reader, allocator);
+                const chat = ChatMessage.deserialize(reader, allocator);
                 return Message{ .Chat = chat };
             },
             .Static => {
-                const pos = try StaticMessage.deserialize(reader);
+                const pos = StaticMessage.deserialize(reader);
                 return Message{ .Static = pos };
             },
             .Linear => {
-                const vel = try LinearMessage.deserialize(reader);
+                const vel = LinearMessage.deserialize(reader);
                 return Message{ .Linear = vel };
             },
             .Accelerated => {
-                const acc = try AcceleratedMessage.deserialize(reader);
+                const acc = AcceleratedMessage.deserialize(reader);
                 return Message{ .Accelerated = acc };
             },
             .Dynamic => {
-                const dyn = try DynamicMessage.deserialize(reader);
+                const dyn = DynamicMessage.deserialize(reader);
                 return Message{ .Dynamic = dyn };
             },
             .Action => {
-                const act = try ActionMessage.deserialize(reader);
+                const act = ActionMessage.deserialize(reader);
                 return Message{ .Action = act };
             },
             .Entity => {
-                const id = try EntityMessage.deserialize(reader);
+                const id = EntityMessage.deserialize(reader);
                 return Message{ .Entity = id };
             },
             .EntityRemove => {
-                const id = try EntityRemoveMessage.deserialize(reader);
+                const id = EntityRemoveMessage.deserialize(reader);
                 return Message{ .EntityRemove = id };
             },
             .Component => {
-                const comp = try ComponentMessage.deserialize(reader);
+                const comp = ComponentMessage.deserialize(reader);
                 return Message{ .Component = comp };
             },
             .ComponentRemove => {
-                const comp = try ComponentRemoveMessage.deserialize(reader);
+                const comp = ComponentRemoveMessage.deserialize(reader);
                 return Message{ .ComponentRemove = comp };
             },
             .SnapshotRequest => {
-                const snap = try SnapshotRequestMessage.deserialize(reader);
+                const snap = SnapshotRequestMessage.deserialize(reader);
                 return Message{ .SnapshotRequest = snap };
             },
         }
     }
 
-    pub fn print(self: Message, writer: anytype) !void {
+    pub fn print(self: Message, writer: anytype) void {
         switch (self) {
             .Alpha => |alpha| {
-                try alpha.write(writer);
+                alpha.write(writer);
             },
             .Chat => |chat| {
-                try chat.write(writer);
+                chat.write(writer);
             },
             .Static => |static| {
-                try static.write(writer);
+                static.write(writer);
             },
             .Linear => |linear| {
-                try linear.write(writer);
+                linear.write(writer);
             },
             .Accelerated => |accelerated| {
-                try accelerated.write(writer);
+                accelerated.write(writer);
             },
             .Dynamic => |dynamic| {
-                try dynamic.write(writer);
+                dynamic.write(writer);
             },
             .Action => |action| {
-                try action.write(writer);
+                action.write(writer);
             },
             .Entity => |id| {
-                try id.write(writer);
+                id.write(writer);
             },
             .EntityRemove => |id| {
-                try id.write(writer);
+                id.write(writer);
             },
             .Component => |comp| {
-                try comp.write(writer);
+                comp.write(writer);
             },
             .ComponentRemove => |comp| {
-                try comp.write(writer);
+                comp.write(writer);
             },
             .SnapshotRequest => |snap| {
-                try snap.write(writer);
+                snap.write(writer);
             },
         }
     }

@@ -123,8 +123,7 @@ pub const Client = struct {
         return batches;
     }
 
-    pub fn submit(self: *Client, msg: message.Message) !void {
-        try self.batch.append(msg);
-        //try primitive.sendMessage(&self.socket, msg);
+    pub fn submit(self: *Client, msg: message.Message) void {
+        self.batch.append(msg) catch unreachable;
     }
 };

@@ -72,20 +72,20 @@ pub const Batch = struct {
 
     pub fn serialize(self: *const Batch, writer: anytype) void {
         const count: u16 = @intCast(self.messages.items.len);
-        encode.serializeU16(writer, count) catch unreachable;
+        encode.serializeU16(writer, count);
 
         for (self.messages.items) |msg| {
-            msg.serialize(writer) catch unreachable;
+            msg.serialize(writer);
         }
     }
 
     pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) Batch {
-        const count = decode.deserializeU16(reader) catch unreachable;
+        const count = decode.deserializeU16(reader);
         var batch = Batch.init(allocator);
 
         var i: usize = 0;
         while (i < count) : (i += 1) {
-            const msg = message.Message.deserialize(reader, allocator) catch unreachable;
+            const msg = message.Message.deserialize(reader, allocator);
             batch.append(msg) catch unreachable;
         }
 

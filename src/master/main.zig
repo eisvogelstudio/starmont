@@ -24,9 +24,13 @@ const std = @import("std");
 
 // ---------- client ----------
 const Control = @import("control.zig").Control;
+const QuadTree = @import("quadtree.zig").QuadTree;
+const QuadNode = @import("quadtree.zig").QuadNode;
+const ServerRegistry = @import("server_registry.zig").ServerRegistry;
 // ----------------------------
 
 // ---------- shared ----------
+const ServerId = @import("shared").network.ServerId;
 const util = @import("shared").util;
 // ----------------------------
 
@@ -39,17 +43,244 @@ pub const std_options: std.Options = .{
     .logFn = util.log.logFn,
 };
 
+const canvas_width = 1920;
+const canvas_height = 1080;
+
+const xo = 800;
+const yo = 0;
+
+const raylib = @import("raylib");
+const rg = @import("raygui");
+
+var count: i32 = 0;
+
+var last_decay_time: i64 = 0;
+
+var current: *QuadNode = undefined;
+
+fn colorFromPosition(node: *QuadNode, currentN: ?*QuadNode) raylib.Color {
+    if (currentN != null and node == currentN.?) {
+        return raylib.Color.gold;
+    }
+
+    // Basisdaten
+    //const max: f32 = @as(f32, QuadNode.cells_per_axis);
+    //const fx: f32 = @as(f32, @floatFromInt(node.rectangle.x)) / max;
+    //const fy: f32 = @as(f32, @floatFromInt(node.rectangle.y)) / max;
+    //const depth_factor = @as(f32, @floatFromInt(node.depth)) / @as(f32, QuadNode.max_depth);
+
+    const bucket_size = 16; // gröbere Rasterung
+    const x_group = @divFloor(node.rectangle.x, bucket_size);
+    const y_group = @divFloor(node.rectangle.y, bucket_size);
+
+    const xg: u32 = @intCast(x_group);
+    const yg: u32 = @intCast(y_group);
+
+    const r: u8 = @intCast((xg * 97) % 200);
+    const g: u8 = @intCast((yg * 47) % 180);
+    const b: u8 = @intCast((xg * 23 + yg * 11) % 255);
+
+    return raylib.Color{ .r = r, .g = g, .b = b, .a = 255 };
+}
+
+fn lerp(a: f32, b: f32, t: f32) f32 {
+    return a + (b - a) * t;
+}
+
+fn drawNodeRecursive(node: *QuadNode, random: *std.Random) void {
+    if (node.isLeaf()) {
+        const color = colorFromPosition(node, current);
+
+        //const scale_x = @as(f32, canvas_width) / @as(f32, QuadNode.cells_per_axis);
+        //const scale_y = @as(f32, canvas_height) / @as(f32, QuadNode.cells_per_axis);
+
+        //const scaled_x: i32 = @intFromFloat((@as(f32, @floatFromInt(node.rectangle.x)) - @as(f32, @as(i32, QuadNode.cells_per_axis))) * scale_x);
+        //const scaled_y: i32 = @intFromFloat((@as(f32, @floatFromInt(node.rectangle.y)) - @as(f32, @as(i32, QuadNode.cells_per_axis))) * scale_y);
+        //const scaled_w: i32 = @intFromFloat(@as(f32, @floatFromInt(node.rectangle.width)) * scale_x);
+        //const scaled_h: i32 = @intFromFloat(@as(f32, @floatFromInt(node.rectangle.height)) * scale_y);
+
+        //raylib.drawRectangle(scaled_x, scaled_y, scaled_w * 10, scaled_h * 10, color);
+        raylib.drawRectangle(node.rectangle.x + xo, node.rectangle.y + yo, node.rectangle.width, node.rectangle.height, color);
+
+        //std.log.info("draw {} {} {} {} {}", .{ count, node.rectangle.x, node.rectangle.y, QuadNode.cells_per_axis - node.rectangle.width, QuadNode.cells_per_axis - node.rectangle.height });
+    } else if (node.children) |children| {
+        for (children) |child| {
+            drawNodeRecursive(child, random);
+        }
+    }
+}
+
+pub fn drawTree(tree: *QuadTree) void {
+    var prng = std.Random.DefaultPrng.init(0xDEADBEEF); // Konstante für deterministische Farben
+    var random = prng.random();
+    drawNodeRecursive(&tree.root, &random);
+}
+
+fn findLeafAt(node: *QuadNode, x: i32, y: i32) *QuadNode {
+    if (node.isLeaf()) return node;
+
+    if (node.children) |children| {
+        for (children) |child| {
+            const r = child.rectangle;
+            if (x >= r.x and y >= r.y and x < r.x + r.width and y < r.y + r.height) {
+                return findLeafAt(child, x, y);
+            }
+        }
+    }
+
+    return node; // fallback (kannst auch `unreachable` setzen, je nach Absicherung)
+}
+
+fn decayLoadRecursive(node: *QuadNode) void {
+    if (node.isLeaf()) {
+        if (node.pressure > 0.0) {
+            node.pressure -= 1.0;
+            if (node.pressure < 0.0) {
+                node.pressure = 0.0;
+            }
+        }
+    } else if (node.children) |children| {
+        for (children) |child| {
+            decayLoadRecursive(child);
+        }
+    }
+}
+
+pub fn decayLoad(tree: *QuadTree) void {
+    decayLoadRecursive(&tree.root);
+}
+
+pub fn test2() !void {
+    raylib.initWindow(canvas_width, canvas_height, "Tree Visualizer");
+
+    const dpiScale = raylib.getWindowScaleDPI();
+    const newWidth = @divFloor(@as(f32, canvas_width), dpiScale.x);
+    const newHeight = @divFloor(@as(f32, canvas_height), dpiScale.y);
+
+    raylib.setWindowSize(@intFromFloat(newWidth), @intFromFloat(newHeight));
+    raylib.setMouseScale(dpiScale.x, dpiScale.y);
+    raylib.setTargetFPS(60);
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var allocator = gpa.allocator();
+
+    var registry = try ServerRegistry.init(&allocator);
+    defer registry.deinit();
+
+    try registry.update(ServerId{ .id = 1 }, 5.0);
+    try registry.update(ServerId{ .id = 2 }, 3.0);
+    try registry.update(ServerId{ .id = 3 }, 7.0);
+
+    var tree = try QuadTree.init(&allocator);
+    current = &tree.root;
+    defer tree.deinit();
+
+    // Manuell Wurzel mit Kindern initialisieren (Testzweck)
+    //tree.root.split();
+    //tree.root.children.?[0].split(); // z. B. NW weiter aufspalten
+    //tree.root.children.?[1].split(); // z. B. NE weiter aufspalten
+
+    while (!raylib.windowShouldClose()) {
+        count += 1;
+        if (raylib.isMouseButtonPressed(raylib.MouseButton.left)) {
+            const mouse = raylib.getMousePosition();
+
+            // Fenster → Welt-Koordinaten zurückrechnen
+            //const world_x = @intFromFloat(mouse.x / scale_x + QuadNode.cells_per_axis);
+            //const world_y = @intFromFloat(mouse.y / scale_y + QuadNode.cells_per_axis);
+
+            const clicked_node = findLeafAt(&tree.root, @intFromFloat(mouse.x - xo), @intFromFloat(mouse.y - yo));
+
+            if (raylib.isKeyDown(raylib.KeyboardKey.left_control)) {
+                clicked_node.pressure += 15.1;
+            } else {
+                current = clicked_node;
+            }
+        } else if (raylib.isMouseButtonPressed(raylib.MouseButton.right)) {
+            current = &tree.root;
+        }
+
+        const now = std.time.timestamp();
+        if (now - last_decay_time >= 1) { // 1000 ms = 1 Sekunde
+            decayLoad(&tree);
+            last_decay_time = now;
+        }
+
+        QuadTree.tick(&tree, &registry, now);
+
+        raylib.beginDrawing();
+        raylib.clearBackground(raylib.Color.white);
+
+        drawTree(&tree);
+
+        //raylib.drawText("Strg + Left click to apply pressure", 10, 10, 20, raylib.Color.dark_gray);
+
+        var buffer: [64:0]u8 = undefined;
+        const node_load_text = try std.fmt.bufPrintZ(&buffer, "Main: {d:.2}\tCurrent: {d:.2}", .{ tree.root.pressure, current.*.pressure });
+
+        raylib.drawText(node_load_text, 10, 10, 40, raylib.Color.dark_gray);
+
+        raylib.endDrawing();
+    }
+
+    raylib.closeWindow();
+}
+
+//pub fn test2() !void {
+//    raylib.initWindow(800, 600, "Tree Visualizer");
+//
+//    const dpiScale = raylib.getWindowScaleDPI();
+//
+//    // Convert scaled width/height to integer using @divFloor
+//    const newWidth = @divFloor(@as(f32, 800), dpiScale.x);
+//    const newHeight = @divFloor(@as(f32, 600), dpiScale.y);
+//
+//    raylib.setWindowSize(@intFromFloat(newWidth), @intFromFloat(newHeight));
+//    raylib.setMouseScale(raylib.getWindowScaleDPI().x, raylib.getWindowScaleDPI().y);
+//
+//    raylib.setTargetFPS(60);
+//
+//    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+//    var allocator = gpa.allocator();
+//
+//    var nodes = std.ArrayList(Node).init(allocator);
+//
+//    try nodes.append(try createTree(&allocator, Vec2{ .x = 400, .y = 300 }, max_depth));
+//
+//    while (!raylib.windowShouldClose()) {
+//        if (raylib.isMouseButtonPressed(raylib.MouseButton.left)) {
+//            const mouse = raylib.getMousePosition();
+//            try nodes.append(try createTree(&allocator, mouse, max_depth));
+//        }
+//
+//        raylib.beginDrawing();
+//        raylib.clearBackground(raylib.Color.white);
+//
+//        for (nodes.items) |*node| {
+//            drawTree(node);
+//        }
+//
+//        raylib.drawText("Left click to grow a new tree", 10, 10, 20, raylib.Color.dark_gray);
+//        raylib.endDrawing();
+//    }
+//
+//    raylib.closeWindow();
+//}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
 
-    var allocator = gpa.allocator();
+    //var allocator = gpa.allocator();
 
-    var control = Control.init(&allocator);
+    test2() catch unreachable;
+    return;
 
-    while (!control.shouldStop()) {
-        control.update();
-    }
+    //var control = Control.init(&allocator);
 
-    control.deinit();
+    //while (!control.shouldStop()) {
+    //  control.update();
+    //}
+
+    //control.deinit();
 }

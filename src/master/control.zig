@@ -29,7 +29,7 @@ const ecs = @import("zflecs");
 
 const log = std.log.scoped(.control);
 
-const name = "editor";
+const name = "master";
 
 pub const Control = struct {
     allocator: *std.mem.Allocator,

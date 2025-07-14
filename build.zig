@@ -70,6 +70,8 @@ pub fn build(b: *std.Build) void {
     });
     master_mod.addImport("shared", shared_mod);
     master_mod.addImport("util", shared_mod);
+    master_mod.addImport("raylib", raylib.module("raylib"));
+    master_mod.addImport("raygui", raylib.module("raygui"));
 
     // ########## objects ##########
 
@@ -119,6 +121,7 @@ pub fn build(b: *std.Build) void {
         .root_module = master_mod,
     });
     master_exe.linkLibrary(shared_lib);
+    master_exe.linkLibrary(raylib.artifact("raylib"));
 
     b.installArtifact(master_exe);
 

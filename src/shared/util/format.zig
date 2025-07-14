@@ -18,26 +18,26 @@
 const core = @import("../core/root.zig");
 // ----------------------------
 
-pub fn writeId(writer: anytype, id: core.Id) !void {
-    try writer.print("Id({d})", .{id.id});
+pub fn writeId(writer: anytype, id: core.Id) void {
+    writer.print("Id({d})", .{id.id}) catch unreachable;
 }
 
-pub fn writePosition(writer: anytype, pos: core.Position) !void {
-    try writer.print("Position({any}, {any})", .{ pos.x, pos.y });
+pub fn writePosition(writer: anytype, pos: core.Position) void {
+    writer.print("Position({any}, {any})", .{ pos.x, pos.y }) catch unreachable;
 }
 
-pub fn writeVelocity(writer: anytype, vel: core.Velocity) !void {
-    try writer.print("Velocity({any}, {any})", .{ vel.x, vel.y });
+pub fn writeVelocity(writer: anytype, vel: core.Velocity) void {
+    writer.print("Velocity({any}, {any})", .{ vel.x, vel.y }) catch unreachable;
 }
 
-pub fn writeAcceleration(writer: anytype, acc: core.Acceleration) !void {
-    try writer.print("Acceleration({any}, {any})", .{ acc.x, acc.y });
+pub fn writeAcceleration(writer: anytype, acc: core.Acceleration) void {
+    writer.print("Acceleration({any}, {any})", .{ acc.x, acc.y }) catch unreachable;
 }
 
-pub fn writeJerk(writer: anytype, jerk: core.Jerk) !void {
-    try writer.print("Jerk({any}, {any})", .{ jerk.x, jerk.y });
+pub fn writeJerk(writer: anytype, jerk: core.Jerk) void {
+    writer.print("Jerk({any}, {any})", .{ jerk.x, jerk.y }) catch unreachable;
 }
 
-pub fn writeShipSize(writer: anytype, size: core.ShipSize) !void {
-    try writer.print("ShipSize({s})", .{@tagName(size)});
+pub fn writeShipSize(writer: anytype, size: core.ShipSize) void {
+    writer.print("ShipSize({s})", .{@tagName(size)}) catch unreachable;
 }

@@ -94,10 +94,7 @@ pub const Control = struct {
         }
 
         if (self.snapshotRequired) {
-            self.client.submit(network.SnapshotRequestMessage.init()) catch |err| {
-                log.err("failed to send snapshot request: {s}", .{@errorName(err)});
-                return;
-            };
+            self.client.submit(network.SnapshotRequestMessage.init());
             self.snapshotRequired = false;
         }
 
@@ -277,10 +274,7 @@ pub const Control = struct {
         if (!self.client.connected) return;
 
         for (actions.items) |a| {
-            self.client.submit(network.ActionMessage.init(a)) catch |err| {
-                log.err("failed to send action: {s}", .{@errorName(err)});
-                continue;
-            };
+            self.client.submit(network.ActionMessage.init(a));
         }
     }
 };

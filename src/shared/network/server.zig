@@ -36,6 +36,15 @@ const interval = 1000 / hz;
 const lag_ms = 200;
 const delay = lag_ms / 2;
 
+pub const ServerId = struct {
+    id: u64,
+};
+
+pub const ServerInfo = struct {
+    id: ServerId,
+    load: f32,
+};
+
 const TimedBatch = struct {
     batch: Batch,
     stamp: i64,
@@ -235,7 +244,6 @@ pub const Server = struct {
     }
 
     pub fn submit(self: *Server, client: usize, msg: message.Message) !void {
-        //log.info("{any}: {d}", .{ self.batches.contains(client), client });
-        try self.batches.getPtr(client).?.append(msg);
+        self.batches.getPtr(client).?.append(msg) catch unreachable;
     }
 };
