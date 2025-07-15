@@ -24,24 +24,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Read Zig version on Unix
-        id: zigversion_unix
-        if: runner.os != 'Windows'
-        run: |
-          echo "version=$(cat .zigversion)" >> $GITHUB_OUTPUT
-
-      - name: Read Zig version on Windows
-        id: zigversion_windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $zigversion = Get-Content .zigversion
-          "version=$zigversion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
       - name: Set up Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
-          version: ${{ steps.zigver_unix.outputs.version || steps.zigver_win.outputs.version }}
+          version: 0.14.0
 
       - name: Run Zig tests
         run: |
