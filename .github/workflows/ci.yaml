@@ -30,7 +30,7 @@ jobs:
         run: |
           echo "version=$(cat .zigversion)" >> $GITHUB_OUTPUT
 
-        - name: Read Zig version on Windows
+      - name: Read Zig version on Windows
         id: zigversion
         if: runner.os == 'Windows'
         shell: pwsh
