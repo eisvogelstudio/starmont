@@ -18,6 +18,10 @@
             .url = "git+https://github.com/eisvogelstudio/zflecs.git#ee2cd434fa2ec2454008988a1cc1201b242f030e",
             .hash = "zflecs-0.2.0-dev-1PN3yl9HNQAISm_tEMQYO7ifHXUI2q180ZXSaS1WtkSq",
         },
+        .raylib_zig = .{
+            .url = "git+https://github.com/eisvogelstudio/raylib-zig.git#fe30f6a7da9dd986c29345a985e395ae0d6443c2",
+            .hash = "raylib_zig-5.6.0-dev-KE8RENAHBQCAhIre9EkJLpzRmGY4lQGc8QD48r876jLn",
+        },
     },
 
     .paths = .{
