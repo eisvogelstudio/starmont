@@ -14,8 +14,16 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
+const std = @import("std");
+// -------------------------
+
 // ---------- root ----------
 pub const core = @import("core/root.zig");
 pub const network = @import("network/root.zig");
 pub const util = @import("util/root.zig");
 // --------------------------
+
+test {
+    std.testing.refAllDecls(@This());
+}

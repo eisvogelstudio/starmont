@@ -16,6 +16,7 @@
 
 // ---------- std ----------
 const std = @import("std");
+const testing = std.testing;
 // -------------------------
 
 // ---------- external ----------
@@ -31,7 +32,7 @@ pub const Id = struct {
 pub const Registry = struct {
     allocator: *std.mem.Allocator,
 
-    next_id: u64 = 1,
+    next_id: Id = .{ .id = 1 },
 
     id_to_entity: std.AutoHashMap(Id, ecs.entity_t),
     entity_to_id: std.AutoHashMap(ecs.entity_t, Id),
@@ -51,18 +52,18 @@ pub const Registry = struct {
 
     pub fn create(self: *Registry) Id {
         const id = self.next_id;
-        self.next_id += 1;
+        self.next_id.id += 1;
         return id;
     }
 
-    pub fn register(self: *Registry, id: Id, entity: ecs.entity_t) !void {
+    pub fn register(self: *Registry, id: Id, entity: ecs.entity_t) void {
         if (self.id_to_entity.contains(id)) {
             self.remove(id);
             log.err("entity #{d} was already registered", .{id.id});
         }
 
-        try self.id_to_entity.put(id, entity);
-        try self.entity_to_id.put(entity, id);
+        self.id_to_entity.put(id, entity) catch unreachable;
+        self.entity_to_id.put(entity, id) catch unreachable;
     }
 
     pub fn getEntity(self: *Registry, id: Id) ?ecs.entity_t {
@@ -80,3 +81,61 @@ pub const Registry = struct {
         _ = self.id_to_entity.remove(id);
     }
 };
+
+test "Registry create and register" {
+    var allocator = std.testing.allocator;
+    var registry = Registry.init(&allocator);
+    defer registry.deinit();
+
+    const id1 = registry.create();
+    try testing.expectEqual(id1, Id{ .id = 1 });
+
+    const entity1: ecs.entity_t = 42;
+    registry.register(id1, entity1);
+
+    const retrieved_entity = registry.getEntity(id1);
+    try testing.expect(retrieved_entity != null);
+    try testing.expectEqual(retrieved_entity.?, entity1);
+
+    const retrieved_id = registry.getId(entity1);
+    try testing.expect(retrieved_id != null);
+    try testing.expectEqual(retrieved_id.?.id, id1.id);
+}
+
+test "Registry register twice" {
+    var allocator = std.testing.allocator;
+    var registry = Registry.init(&allocator);
+    defer registry.deinit();
+
+    const id = registry.create();
+    registry.register(id, 1);
+    registry.register(id, 2);
+
+    try testing.expectEqual(registry.getEntity(id).?, 2);
+    try testing.expectEqual(registry.getId(2).?.id, id.id);
+    try testing.expect(registry.getId(1) == null);
+}
+
+test "Registry remove" {
+    var allocator = std.testing.allocator;
+    var registry = Registry.init(&allocator);
+    defer registry.deinit();
+
+    const id = registry.create();
+    registry.register(id, 123);
+
+    registry.remove(id);
+
+    try testing.expect(registry.getEntity(id) == null);
+    try testing.expect(registry.getId(123) == null);
+}
+
+test "Registry get unknown" {
+    var allocator = std.testing.allocator;
+    var registry = Registry.init(&allocator);
+    defer registry.deinit();
+
+    const id = Id{ .id = 9999 };
+    try testing.expect(registry.getEntity(id) == null);
+    try testing.expect(registry.getId(8888) == null);
+}
