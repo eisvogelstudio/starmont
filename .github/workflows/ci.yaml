@@ -24,10 +24,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Read Zig version
+      - name: Read Zig version on Unix
         id: zigversion
-        run: echo "version=$(cat .zigversion)" >> $GITHUB_OUTPUT
-        shell: bash
+        if: runner.os != 'Windows'
+        run: |
+          echo "version=$(cat .zigversion)" >> $GITHUB_OUTPUT
+
+        - name: Read Zig version on Windows
+        id: zigversion
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zigversion = Get-Content .zigversion
+          "version=$zigversion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Set up Zig
         uses: goto-bus-stop/setup-zig@v2
