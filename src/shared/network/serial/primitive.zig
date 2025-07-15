@@ -14,6 +14,11 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- std ----------
+const std = @import("std");
+const testing = std.testing;
+// -------------------------
+
 pub fn serializeU8(writer: anytype, uint: u8) void {
     var buf: [1]u8 = undefined;
     buf = @bitCast(uint);
