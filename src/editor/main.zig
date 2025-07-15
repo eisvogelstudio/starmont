@@ -53,3 +53,7 @@ pub fn main() !void {
 
     control.deinit();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

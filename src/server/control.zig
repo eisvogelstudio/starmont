@@ -182,9 +182,6 @@ pub const Control = struct {
                 error.WouldBlock => {
                     //nothing
                 },
-                else => {
-                    std.debug.print("receive error: {}\n", .{err});
-                },
             }
         }
 

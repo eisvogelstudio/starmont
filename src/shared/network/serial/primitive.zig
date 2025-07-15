@@ -14,16 +14,22 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- shared ----------
-const core = @import("../core/root.zig");
-// ----------------------------
-
-// ########## primitive ##########
+pub fn serializeU8(writer: anytype, uint: u8) void {
+    var buf: [1]u8 = undefined;
+    buf = @bitCast(uint);
+    writer.writeAll(&buf) catch unreachable;
+}
 
 pub fn deserializeU8(reader: anytype) u8 {
     var buf: [1]u8 = undefined;
     _ = reader.readAll(&buf) catch unreachable;
     return @bitCast(buf);
+}
+
+pub fn serializeU16(writer: anytype, uint: u16) void {
+    var buf: [2]u8 = undefined;
+    buf = @bitCast(uint);
+    writer.writeAll(&buf) catch unreachable;
 }
 
 pub fn deserializeU16(reader: anytype) u16 {
@@ -32,10 +38,22 @@ pub fn deserializeU16(reader: anytype) u16 {
     return @bitCast(buf);
 }
 
+pub fn serializeU32(writer: anytype, uint: u32) void {
+    var buf: [4]u8 = undefined;
+    buf = @bitCast(uint);
+    writer.writeAll(&buf) catch unreachable;
+}
+
 pub fn deserializeU32(reader: anytype) u32 {
     var buf: [4]u8 = undefined;
     _ = reader.readAll(&buf) catch unreachable;
     return @bitCast(buf);
+}
+
+pub fn serializeU64(writer: anytype, uint: u64) void {
+    var buf: [8]u8 = undefined;
+    buf = @bitCast(uint);
+    writer.writeAll(&buf) catch unreachable;
 }
 
 pub fn deserializeU64(reader: anytype) u64 {
@@ -44,10 +62,22 @@ pub fn deserializeU64(reader: anytype) u64 {
     return @bitCast(buf);
 }
 
+pub fn serializeF32(writer: anytype, float: f32) void {
+    var buf: [4]u8 = undefined;
+    buf = @bitCast(float);
+    writer.writeAll(&buf) catch unreachable;
+}
+
 pub fn deserializeF32(reader: anytype) f32 {
     var buf: [4]u8 = undefined;
     _ = reader.readAll(&buf) catch unreachable;
     return @bitCast(buf);
+}
+
+pub fn serializeF64(writer: anytype, float: f64) void {
+    var buf: [8]u8 = undefined;
+    buf = @bitCast(float);
+    writer.writeAll(&buf) catch unreachable;
 }
 
 pub fn deserializeF64(reader: anytype) f64 {
@@ -56,46 +86,11 @@ pub fn deserializeF64(reader: anytype) f64 {
     return @bitCast(buf);
 }
 
+pub fn serializeEnum(writer: anytype, comptime T: type, value: T) void {
+    writer.writeByte(@intFromEnum(value)) catch unreachable;
+}
+
 pub fn deserializeEnum(reader: anytype, comptime T: type) T {
     const action_byte = reader.readByte() catch unreachable;
     return @enumFromInt(action_byte);
 }
-
-// ###############################
-
-// ########## model ##########
-
-pub fn deserializeId(reader: anytype) core.Id {
-    const id = deserializeU64(reader);
-    return core.Id{ .id = id };
-}
-
-pub fn deserializePosition(reader: anytype) core.Position {
-    const x = deserializeF32(reader);
-    const y = deserializeF32(reader);
-    return core.Position{ .x = x, .y = y };
-}
-
-pub fn deserializeVelocity(reader: anytype) core.Velocity {
-    const x = deserializeF32(reader);
-    const y = deserializeF32(reader);
-    return core.Velocity{ .x = x, .y = y };
-}
-
-pub fn deserializeAcceleration(reader: anytype) core.Acceleration {
-    const x = deserializeF32(reader);
-    const y = deserializeF32(reader);
-    return core.Acceleration{ .x = x, .y = y };
-}
-
-pub fn deserializeJerk(reader: anytype) core.Jerk {
-    const x = deserializeF32(reader);
-    const y = deserializeF32(reader);
-    return core.Jerk{ .x = x, .y = y };
-}
-
-pub fn deserializeShipSize(reader: anytype) core.ShipSize {
-    return deserializeEnum(reader, core.ShipSize);
-}
-
-// ###########################

@@ -221,7 +221,7 @@ pub const Model = struct {
             self.registry.remove(id);
         }
 
-        self.registry.register(id, entity) catch unreachable;
+        self.registry.register(id, entity);
 
         _ = ecs.set(self.world, entity, component.Position, .{ .x = 0, .y = 0 });
         _ = ecs.set(self.world, entity, component.Velocity, .{ .x = 0, .y = 0 });

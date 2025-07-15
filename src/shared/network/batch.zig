@@ -21,8 +21,7 @@ const testing = std.testing;
 
 // ---------- network ----------
 const message = @import("message.zig");
-const decode = @import("decode.zig");
-const encode = @import("encode.zig");
+const serial = @import("serial.zig");
 // -----------------------------
 
 pub const Batch = struct {
@@ -72,7 +71,7 @@ pub const Batch = struct {
 
     pub fn serialize(self: *const Batch, writer: anytype) void {
         const count: u16 = @intCast(self.messages.items.len);
-        encode.serializeU16(writer, count);
+        serial.serializeU16(writer, count);
 
         for (self.messages.items) |msg| {
             msg.serialize(writer);
@@ -80,7 +79,7 @@ pub const Batch = struct {
     }
 
     pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) Batch {
-        const count = decode.deserializeU16(reader);
+        const count = serial.deserializeU16(reader);
         var batch = Batch.init(allocator);
 
         var i: usize = 0;

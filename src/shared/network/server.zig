@@ -14,6 +14,8 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+const builtin = @import("builtin");
+
 // ---------- std ----------
 const std = @import("std");
 // -------------------------
@@ -61,6 +63,18 @@ pub const Server = struct {
     last: i64 = 0,
     identifier: u64 = 0,
 
+    pub fn setNonBlocking(socket: net.Socket) !void {
+        const fd = socket.internal;
+
+        if (builtin.os.tag == .windows) {
+            const windows = @import("std").os.windows;
+            var nonblocking: c_ulong = 1;
+            if (windows.ioctlsocket(fd, windows.FIONBIO, &nonblocking) != 0) {
+                return error.SetNonBlockingFailed;
+            }
+        }
+    }
+
     pub fn init(allocator: *std.mem.Allocator) Server {
         const server = Server{
             .allocator = allocator,
@@ -91,7 +105,7 @@ pub const Server = struct {
         self.stage();
         self.send();
 
-        self.receive() catch unreachable;
+        self.receive();
     }
 
     pub fn open(self: *Server, port: u16) void {
@@ -100,6 +114,8 @@ pub const Server = struct {
         self.socket.bindToPort(port) catch unreachable;
         self.socket.setReadTimeout(100) catch unreachable; // 100ns
         self.socket.setWriteTimeout(100) catch unreachable; // 100ns
+
+        setNonBlocking(self.socket) catch unreachable;
 
         self.socket.listen() catch unreachable;
 
@@ -139,7 +155,7 @@ pub const Server = struct {
         }
     }
 
-    fn receive(self: *Server) !void {
+    fn receive(self: *Server) void {
         const now = std.time.milliTimestamp();
 
         var delete = std.ArrayList(u64).init(self.allocator.*);
@@ -155,7 +171,7 @@ pub const Server = struct {
                 } else if (err == error.WouldBlock) {
                     continue;
                 } else {
-                    return err;
+                    unreachable;
                 }
             };
 
@@ -164,7 +180,7 @@ pub const Server = struct {
 
                 const timedBatch = TimedBatch{ .batch = b.*, .stamp = now };
 
-                try self.batchesReceived.append(timedBatch);
+                self.batchesReceived.append(timedBatch) catch unreachable;
             }
         }
 
@@ -232,7 +248,7 @@ pub const Server = struct {
 
         for (self.batchesReceived.items) |*timedBatch| {
             if (now - timedBatch.*.stamp < delay) {
-                try all.append(timedBatch.*.batch.copy(self.allocator));
+                all.append(timedBatch.*.batch.copy(self.allocator)) catch unreachable;
             }
         }
 
@@ -240,7 +256,7 @@ pub const Server = struct {
             return error.WouldBlock;
         }
 
-        return all.toOwnedSlice();
+        return all.toOwnedSlice() catch unreachable;
     }
 
     pub fn submit(self: *Server, client: usize, msg: message.Message) !void {

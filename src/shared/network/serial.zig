@@ -14,46 +14,9 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- builtin ----------
-const builtin = @import("builtin");
-// -------------------------
-
 // ---------- std ----------
 const std = @import("std");
 // -------------------------
 
-// ---------- client ----------
-const Control = @import("control.zig").Control;
-// ----------------------------
-
-// ---------- shared ----------
-const util = @import("shared").util;
-// ----------------------------
-
-pub const std_options: std.Options = .{
-    .log_level = if (builtin.mode == .Debug) .debug else .info,
-    //.log_scope_levels = &.{
-    //    .{ .scope = .decimal, .level = .info },
-    //    .{ .scope = .proper, .level = .info },
-    //},
-    .logFn = util.log.logFn,
-};
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-
-    var allocator = gpa.allocator();
-
-    var control = Control.init(&allocator);
-
-    while (!control.shouldStop()) {
-        control.update();
-    }
-
-    control.deinit();
-}
-
-test {
-    std.testing.refAllDecls(@This());
-}
+pub usingnamespace @import("serial/core.zig");
+pub usingnamespace @import("serial/primitive.zig");

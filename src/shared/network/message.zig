@@ -19,8 +19,7 @@ const std = @import("std");
 // -------------------------
 
 // ---------- network ----------
-const decode = @import("decode.zig");
-const encode = @import("encode.zig");
+const serial = @import("serial.zig");
 // -----------------------------
 
 // ---------- shared ----------
@@ -44,11 +43,11 @@ pub const AlphaMessage = struct {
     }
 
     fn serialize(self: AlphaMessage, writer: anytype) void {
-        encode.serializeU64(writer, self.tick);
+        serial.serializeU64(writer, self.tick);
     }
 
     fn deserialize(reader: anytype) AlphaMessage {
-        const tick = decode.deserializeU64(reader);
+        const tick = serial.deserializeU64(reader);
         return AlphaMessage{ .tick = tick };
     }
 
@@ -111,11 +110,11 @@ pub const StaticMessage = struct {
     }
 
     fn serialize(self: StaticMessage, writer: anytype) void {
-        encode.serializePosition(writer, self.position);
+        serial.serializePosition(writer, self.position);
     }
 
     fn deserialize(reader: anytype) StaticMessage {
-        const pos = decode.deserializePosition(reader);
+        const pos = serial.deserializePosition(reader);
         return init(pos).Static;
     }
 
@@ -145,13 +144,13 @@ pub const LinearMessage = struct {
     }
 
     fn serialize(self: LinearMessage, writer: anytype) void {
-        encode.serializePosition(writer, self.position);
-        encode.serializeVelocity(writer, self.velocity);
+        serial.serializePosition(writer, self.position);
+        serial.serializeVelocity(writer, self.velocity);
     }
 
     fn deserialize(reader: anytype) LinearMessage {
-        const pos = decode.deserializePosition(reader);
-        const vel = decode.deserializeVelocity(reader);
+        const pos = serial.deserializePosition(reader);
+        const vel = serial.deserializeVelocity(reader);
         return init(pos, vel).Linear;
     }
 
@@ -185,15 +184,15 @@ pub const AcceleratedMessage = struct {
     }
 
     fn serialize(self: AcceleratedMessage, writer: anytype) void {
-        encode.serializePosition(writer, self.position);
-        encode.serializeVelocity(writer, self.velocity);
-        encode.serializeAcceleration(writer, self.acceleration);
+        serial.serializePosition(writer, self.position);
+        serial.serializeVelocity(writer, self.velocity);
+        serial.serializeAcceleration(writer, self.acceleration);
     }
 
     fn deserialize(reader: anytype) AcceleratedMessage {
-        const pos = decode.deserializePosition(reader);
-        const vel = decode.deserializeVelocity(reader);
-        const acc = decode.deserializeAcceleration(reader);
+        const pos = serial.deserializePosition(reader);
+        const vel = serial.deserializeVelocity(reader);
+        const acc = serial.deserializeAcceleration(reader);
         return init(pos, vel, acc).Accelerated;
     }
 
@@ -231,17 +230,17 @@ pub const DynamicMessage = struct {
     }
 
     fn serialize(self: DynamicMessage, writer: anytype) void {
-        encode.serializePosition(writer, self.position);
-        encode.serializeVelocity(writer, self.velocity);
-        encode.serializeAcceleration(writer, self.acceleration);
-        encode.serializeJerk(writer, self.jerk);
+        serial.serializePosition(writer, self.position);
+        serial.serializeVelocity(writer, self.velocity);
+        serial.serializeAcceleration(writer, self.acceleration);
+        serial.serializeJerk(writer, self.jerk);
     }
 
     fn deserialize(reader: anytype) DynamicMessage {
-        const pos = decode.deserializePosition(reader);
-        const vel = decode.deserializeVelocity(reader);
-        const acc = decode.deserializeAcceleration(reader);
-        const jerk = decode.deserializeJerk(reader);
+        const pos = serial.deserializePosition(reader);
+        const vel = serial.deserializeVelocity(reader);
+        const acc = serial.deserializeAcceleration(reader);
+        const jerk = serial.deserializeJerk(reader);
         return init(pos, vel, acc, jerk).Dynamic;
     }
 
@@ -304,11 +303,11 @@ pub const EntityMessage = struct {
     }
 
     fn serialize(self: EntityMessage, writer: anytype) void {
-        encode.serializeId(writer, self.id);
+        serial.serializeId(writer, self.id);
     }
 
     fn deserialize(reader: anytype) EntityMessage {
-        const id = decode.deserializeId(reader);
+        const id = serial.deserializeId(reader);
         return init(id).Entity;
     }
 
@@ -333,11 +332,11 @@ pub const EntityRemoveMessage = struct {
     }
 
     fn serialize(self: EntityRemoveMessage, writer: anytype) void {
-        encode.serializeId(writer, self.id);
+        serial.serializeId(writer, self.id);
     }
 
     fn deserialize(reader: anytype) EntityRemoveMessage {
-        const id = decode.deserializeId(reader);
+        const id = serial.deserializeId(reader);
         return init(id).EntityRemove;
     }
 
@@ -416,37 +415,37 @@ pub const ComponentMessage = struct {
     }
 
     pub fn serialize(self: ComponentMessage, writer: anytype) void {
-        encode.serializeId(writer, self.id);
+        serial.serializeId(writer, self.id);
         writer.writeByte(@intFromEnum(self.component)) catch unreachable;
         switch (self.component) {
             .Position => |pos| {
-                encode.serializePosition(writer, pos);
+                serial.serializePosition(writer, pos);
             },
             .Velocity => |vel| {
-                encode.serializeVelocity(writer, vel);
+                serial.serializeVelocity(writer, vel);
             },
             .Acceleration => |acc| {
-                encode.serializeAcceleration(writer, acc);
+                serial.serializeAcceleration(writer, acc);
             },
             .Jerk => |jerk| {
-                encode.serializeJerk(writer, jerk);
+                serial.serializeJerk(writer, jerk);
             },
             .ShipSize => |size| {
-                encode.serializeShipSize(writer, size);
+                serial.serializeShipSize(writer, size);
             },
         }
     }
 
     pub fn deserialize(reader: anytype) ComponentMessage {
-        const id = decode.deserializeId(reader);
+        const id = serial.deserializeId(reader);
         const type_byte = reader.readByte() catch unreachable;
         const comp_type: core.ComponentType = @enumFromInt(type_byte);
         const comp = switch (comp_type) {
-            .Position => Component{ .Position = decode.deserializePosition(reader) },
-            .Velocity => Component{ .Velocity = decode.deserializeVelocity(reader) },
-            .Acceleration => Component{ .Acceleration = decode.deserializeAcceleration(reader) },
-            .Jerk => Component{ .Jerk = decode.deserializeJerk(reader) },
-            .ShipSize => Component{ .ShipSize = decode.deserializeShipSize(reader) },
+            .Position => Component{ .Position = serial.deserializePosition(reader) },
+            .Velocity => Component{ .Velocity = serial.deserializeVelocity(reader) },
+            .Acceleration => Component{ .Acceleration = serial.deserializeAcceleration(reader) },
+            .Jerk => Component{ .Jerk = serial.deserializeJerk(reader) },
+            .ShipSize => Component{ .ShipSize = serial.deserializeShipSize(reader) },
         };
 
         return ComponentMessage{ .id = id, .component = comp };
@@ -495,12 +494,12 @@ pub const ComponentRemoveMessage = struct {
     }
 
     fn serialize(self: ComponentRemoveMessage, writer: anytype) void {
-        encode.serializeId(writer, self.id);
+        serial.serializeId(writer, self.id);
         writer.writeByte(@intFromEnum(self.component)) catch unreachable;
     }
 
     fn deserialize(reader: anytype) ComponentRemoveMessage {
-        const id = decode.deserializeId(reader);
+        const id = serial.deserializeId(reader);
         const type_byte = reader.readByte() catch unreachable;
         return init(id, @enumFromInt(type_byte)).ComponentRemove;
     }
