@@ -56,29 +56,38 @@ var count: i32 = 0;
 
 var last_decay_time: i64 = 0;
 
-var current: *QuadNode = undefined;
+var current: ?*QuadNode = undefined;
 
 fn colorFromPosition(node: *QuadNode, currentN: ?*QuadNode) raylib.Color {
-    if (currentN != null and node == currentN.?) {
-        return raylib.Color.gold;
+    _ = currentN;
+
+    // Mapping der quadranten_in_parent zu leichtem Farbversatz (optional)
+
+    var q_shift: f32 = 5.0;
+
+    if (node.quadrant_in_parent) |n| {
+        q_shift = switch (n) {
+            .NW => 1.0,
+            .NE => 2.0,
+            .SW => 3.0,
+            .SE => 4.0,
+        };
     }
 
-    // Basisdaten
-    //const max: f32 = @as(f32, QuadNode.cells_per_axis);
-    //const fx: f32 = @as(f32, @floatFromInt(node.rectangle.x)) / max;
-    //const fy: f32 = @as(f32, @floatFromInt(node.rectangle.y)) / max;
+    // Tiefe und Quadrant beeinflussen Grün und Blau
     //const depth_factor = @as(f32, @floatFromInt(node.depth)) / @as(f32, QuadNode.max_depth);
+    //const b: u8 = @intFromFloat(50 + (1.0 - depth_factor) * 100);
 
-    const bucket_size = 16; // gröbere Rasterung
-    const x_group = @divFloor(node.rectangle.x, bucket_size);
-    const y_group = @divFloor(node.rectangle.y, bucket_size);
+    //const b: u8 = 0; //@intFromFloat(@min(255, q_shift * 20.0));
 
-    const xg: u32 = @intCast(x_group);
-    const yg: u32 = @intCast(y_group);
+    const now = std.time.timestamp();
+    const b: u8 = @intCast(255 - @min(255, (@max(0, QuadNode.merge_time - (now - node.below_threshhold_since)) * 80)));
 
-    const r: u8 = @intCast((xg * 97) % 200);
-    const g: u8 = @intCast((yg * 47) % 180);
-    const b: u8 = @intCast((xg * 23 + yg * 11) % 255);
+    const g: u8 = @intFromFloat(@min(255, 200.0));
+
+    // Pressure auf 0–1 clampen und auf rot anwenden
+    //const clamped_pressure = std.math.clamp(node.pressure, 0.0, 1.0);
+    const r: u8 = @intFromFloat(std.math.round(std.math.clamp(node.pressure / QuadNode.split_threshhold, 0.0, 1.0) * 255));
 
     return raylib.Color{ .r = r, .g = g, .b = b, .a = 255 };
 }
@@ -101,6 +110,16 @@ fn drawNodeRecursive(node: *QuadNode, random: *std.Random) void {
 
         //raylib.drawRectangle(scaled_x, scaled_y, scaled_w * 10, scaled_h * 10, color);
         raylib.drawRectangle(node.rectangle.x + xo, node.rectangle.y + yo, node.rectangle.width, node.rectangle.height, color);
+
+        var col: raylib.Color = undefined;
+
+        if (current != null and node == current.?) {
+            col = raylib.Color.light_gray;
+        } else {
+            col = raylib.Color.black;
+        }
+
+        raylib.drawRectangleLines(node.rectangle.x + xo, node.rectangle.y + yo, node.rectangle.width, node.rectangle.height, col);
 
         //std.log.info("draw {} {} {} {} {}", .{ count, node.rectangle.x, node.rectangle.y, QuadNode.cells_per_axis - node.rectangle.width, QuadNode.cells_per_axis - node.rectangle.height });
     } else if (node.children) |children| {
@@ -133,11 +152,10 @@ fn findLeafAt(node: *QuadNode, x: i32, y: i32) *QuadNode {
 
 fn decayLoadRecursive(node: *QuadNode) void {
     if (node.isLeaf()) {
-        if (node.pressure > 0.0) {
-            node.pressure -= 1.0;
-            if (node.pressure < 0.0) {
-                node.pressure = 0.0;
-            }
+        if (node.pressure > 0) {
+            node.pressure -= (QuadNode.split_threshhold - QuadNode.merge_threshhold) / 10;
+        } else {
+            node.pressure = 0.0;
         }
     } else if (node.children) |children| {
         for (children) |child| {
@@ -192,7 +210,7 @@ pub fn test2() !void {
             const clicked_node = findLeafAt(&tree.root, @intFromFloat(mouse.x - xo), @intFromFloat(mouse.y - yo));
 
             if (raylib.isKeyDown(raylib.KeyboardKey.left_control)) {
-                clicked_node.pressure += 15.1;
+                clicked_node.pressure += 255;
             } else {
                 current = clicked_node;
             }
@@ -216,7 +234,7 @@ pub fn test2() !void {
         //raylib.drawText("Strg + Left click to apply pressure", 10, 10, 20, raylib.Color.dark_gray);
 
         var buffer: [64:0]u8 = undefined;
-        const node_load_text = try std.fmt.bufPrintZ(&buffer, "Main: {d:.2}\tCurrent: {d:.2}", .{ tree.root.pressure, current.*.pressure });
+        const node_load_text = try std.fmt.bufPrintZ(&buffer, "Main: {d:.2}\tCurrent: {d:.2}", .{ tree.root.pressure / QuadNode.split_threshhold, current.?.*.pressure / QuadNode.split_threshhold });
 
         raylib.drawText(node_load_text, 10, 10, 40, raylib.Color.dark_gray);
 

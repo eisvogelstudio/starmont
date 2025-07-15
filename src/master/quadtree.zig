@@ -95,6 +95,16 @@ const Quadrant = enum(u8) {
             .SE => dir == .North or dir == .West or dir == .NorthWest,
         };
     }
+
+    pub fn fromInt(value: u8) ?Quadrant {
+        return switch (value) {
+            0 => .NW,
+            1 => .NE,
+            2 => .SW,
+            3 => .SE,
+            else => null,
+        };
+    }
 };
 
 //TODO to utils
@@ -200,21 +210,21 @@ const Neightbours = struct {
 pub const QuadNode = struct {
     pub const max_depth = 10;
     pub const cells_per_axis: i32 = 1 << max_depth;
-    const merge_threshhold = 10;
-    const merge_cooldown = 3;
-    const split_threshhold = 15;
+    pub const merge_threshhold = 30;
+    pub const merge_time = 10;
+    pub const split_threshhold = 50;
 
     allocator: *std.mem.Allocator,
     owner: ?ServerId,
     pressure: f32,
-    depth: usize,
+    depth: u8,
     rectangle: Rect,
     parent: ?*QuadNode,
-    quadrant_in_parent: Quadrant,
+    quadrant_in_parent: ?Quadrant,
     children: ?[]*QuadNode,
-    timestamp_last_merge: i64,
+    below_threshhold_since: i64,
 
-    fn init(allocator: *std.mem.Allocator, rectangle: Rect, depth: usize) QuadNode {
+    fn init(allocator: *std.mem.Allocator, rectangle: Rect, depth: u8) QuadNode {
         return QuadNode{
             .allocator = allocator,
             .owner = null,
@@ -222,9 +232,9 @@ pub const QuadNode = struct {
             .depth = depth,
             .rectangle = rectangle,
             .parent = null,
-            .quadrant_in_parent = undefined,
+            .quadrant_in_parent = null,
             .children = null,
-            .timestamp_last_merge = std.time.timestamp(),
+            .below_threshhold_since = std.time.timestamp(),
         };
     }
 
@@ -259,13 +269,13 @@ pub const QuadNode = struct {
             child.* = QuadNode{
                 .allocator = alloc,
                 .owner = null,
-                .pressure = merge_threshhold - 1,
+                .pressure = split_threshhold - 1,
                 .depth = next_depth,
                 .rectangle = bounds[i],
                 .children = null,
-                .timestamp_last_merge = std.time.timestamp(),
+                .below_threshhold_since = std.time.timestamp(),
                 .parent = self,
-                .quadrant_in_parent = undefined, //TODO use this
+                .quadrant_in_parent = Quadrant.fromInt(@intCast(i)),
             };
             child_ptr.* = child;
         }
@@ -283,7 +293,7 @@ pub const QuadNode = struct {
         self.allocator.free(self.children.?);
         self.children = null;
         self.pressure = totalPressure;
-        self.timestamp_last_merge = std.time.timestamp();
+        self.below_threshhold_since = std.time.timestamp();
     }
 
     pub fn isLeaf(self: *QuadNode) bool {
@@ -305,7 +315,7 @@ pub const QuadNode = struct {
         } else {
             if (self.depth >= max_depth) return;
 
-            if (self.pressure > split_threshhold) {
+            if (self.pressure >= split_threshhold) {
                 self.split(); // create children
 
                 if (self.children) |children| {
@@ -314,17 +324,19 @@ pub const QuadNode = struct {
                         child.owner = chosen.id;
                     }
                 }
+            } else if (self.pressure > merge_threshhold) {
+                self.below_threshhold_since = now;
             }
         }
 
-        if (self.pressure < merge_threshhold and now - self.timestamp_last_merge > merge_cooldown) {
+        if (now - self.below_threshhold_since > merge_time) {
             if (self.children) |children| {
                 for (children) |child| {
                     if (!child.isLeaf()) {
                         return;
                     }
-                    std.log.info("time: {}", .{now - child.timestamp_last_merge});
-                    if (!(now - child.timestamp_last_merge > merge_cooldown)) {
+                    std.log.info("time: {}", .{now - child.below_threshhold_since});
+                    if (!(now - child.below_threshhold_since > merge_time)) {
                         return;
                     }
                 }
@@ -394,7 +406,7 @@ pub const QuadTree = struct {
 
         // Steige nach oben, bis ein Nachbar in die Richtung existieren könnte
         while (parent) |p| {
-            const quadrant = getQuadrantInParent(current);
+            const quadrant = p.quadrant_in_parent;
             if (quadrant.hasSiblingInDirection(dir)) {
                 const sibling = self.getSiblingInDirection(quadrant, dir);
                 return descendToSameDepth(sibling, self.depth, dir);
@@ -422,21 +434,21 @@ pub const QuadTree = struct {
         return allocator.alloc(*QuadNode, 0) catch unreachable;
     }
 
-    fn getQuadrantInParent(node: *QuadNode) Quadrant {
-        const parent = node.parent orelse unreachable;
-        const dx = node.bounds.x - parent.bounds.x * 2;
-        const dy = node.bounds.y - parent.bounds.y * 2;
-
-        if (dx == 0 and dy == 0) return .NW;
-        if (dx == 1 and dy == 0) return .NE;
-        if (dx == 0 and dy == 1) return .SW;
-        if (dx == 1 and dy == 1) return .SE;
-    }
+    //fn getQuadrantInParent(node: *QuadNode) Quadrant {
+    //    const parent = node.parent orelse unreachable;
+    //    const dx = node.bounds.x - parent.bounds.x * 2;
+    //    const dy = node.bounds.y - parent.bounds.y * 2;
+    //
+    //    if (dx == 0 and dy == 0) return .NW;
+    //    if (dx == 1 and dy == 0) return .NE;
+    //    if (dx == 0 and dy == 1) return .SW;
+    //    if (dx == 1 and dy == 1) return .SE;
+    //}
 
     fn descendToSameDepth(start: *QuadNode, target_depth: usize, dir: Direction) ?*QuadNode {
         var current = start;
         while (current.depth < target_depth) {
-            const quadrant = getQuadrantInParent(current);
+            const quadrant = current.quadrant_in_parent;
             const child_idx = dir.neighborChildQuadrant(quadrant);
             current = current.children.?[child_idx];
         }
