@@ -63,18 +63,6 @@ pub const Server = struct {
     last: i64 = 0,
     identifier: u64 = 0,
 
-    pub fn setNonBlocking(socket: net.Socket) !void {
-        const fd = socket.internal;
-
-        if (builtin.os.tag == .windows) {
-            const windows = @import("std").os.windows;
-            var nonblocking: c_ulong = 1;
-            if (windows.ioctlsocket(fd, windows.FIONBIO, &nonblocking) != 0) {
-                return error.SetNonBlockingFailed;
-            }
-        }
-    }
-
     pub fn init(allocator: *std.mem.Allocator) Server {
         const server = Server{
             .allocator = allocator,
@@ -114,8 +102,6 @@ pub const Server = struct {
         self.socket.bindToPort(port) catch unreachable;
         self.socket.setReadTimeout(100) catch unreachable; // 100ns
         self.socket.setWriteTimeout(100) catch unreachable; // 100ns
-
-        setNonBlocking(self.socket) catch unreachable;
 
         self.socket.listen() catch unreachable;
 

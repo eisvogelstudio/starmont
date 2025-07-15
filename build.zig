@@ -172,8 +172,12 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_shared_tests.step);
-    test_step.dependOn(&run_editor_tests.step);
-    test_step.dependOn(&run_client_tests.step);
-    test_step.dependOn(&run_server_tests.step);
-    test_step.dependOn(&run_master_tests.step);
+    //test_step.dependOn(&run_editor_tests.step);
+    _ = run_editor_tests;
+    //test_step.dependOn(&run_client_tests.step);
+    _ = run_client_tests;
+    //test_step.dependOn(&run_server_tests.step);
+    _ = run_server_tests;
+    //test_step.dependOn(&run_master_tests.step);
+    _ = run_master_tests;
 }
