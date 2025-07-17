@@ -79,101 +79,40 @@ pub const Control = struct {
                     //apply/apply best effort version
 
                     switch (msg) {
-                        .Alpha => |alpha| {
-                            _ = alpha;
-                        },
-                        .Chat => |chat| {
-                            _ = chat;
-                        },
-                        .Static => |static| {
-                            _ = static;
-                        },
-                        .Linear => |linear| {
-                            _ = linear;
-                        },
-                        .Accelerated => |accelerated| {
-                            _ = accelerated;
-                        },
-                        .Dynamic => |dynamic| {
-                            _ = dynamic;
-                        },
                         .Action => |action| {
-                            const id = core.Id{ .id = 0 };
                             switch (action.action) {
-                                .SpawnPlayer => {
-                                    self.model.createEntity(id);
-                                    const cmsg = network.EntityMessage.init(id);
+                                //.SpawnPlayer => {
+                                //self.model.createEntity(id);
+                                //const cmsg = network.EntityMessage.init(id);
 
-                                    var it = self.server.clients.iterator();
-                                    while (it.next()) |entry| {
-                                        self.server.submit(entry.key_ptr.*, cmsg) catch unreachable;
-                                    }
-                                },
-                                .MoveLeft => {
-                                    self.model.setComponent(id, core.Velocity, .{ .x = -100, .y = 0 });
-                                },
-                                .MoveRight => {
-                                    self.model.setComponent(id, core.Velocity, .{ .x = 100, .y = 0 });
-                                },
-                                .MoveForward => {
-                                    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = -100 });
-                                },
-                                .MoveBackward => {
-                                    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = 100 });
-                                },
-                                .Fire => {
-                                    //nothing
-                                },
-                            }
-                        },
-                        .Entity => |id| {
-                            self.model.createEntity(id.id);
-                        },
-                        .EntityRemove => |id| {
-                            self.model.removeEntity(id.id);
-                        },
-                        .Component => |comp| {
-                            switch (comp.component) {
-                                .Position => {
-                                    self.model.setComponent(comp.id, core.Position, comp.component.Position);
-                                },
-                                .Velocity => {
-                                    self.model.setComponent(comp.id, core.Velocity, comp.component.Velocity);
-                                },
-                                .Acceleration => {
-                                    self.model.setComponent(comp.id, core.Acceleration, comp.component.Acceleration);
-                                },
-                                .Jerk => {
-                                    self.model.setComponent(comp.id, core.Jerk, comp.component.Jerk);
-                                },
-                                .ShipSize => {
-                                    self.model.setComponent(comp.id, core.ShipSize, comp.component.ShipSize);
-                                },
-                            }
-                        },
-                        .ComponentRemove => |comp| {
-                            switch (comp.component) {
-                                .Position => {
-                                    self.model.removeComponent(comp.id, core.Position);
-                                },
-                                .Velocity => {
-                                    self.model.removeComponent(comp.id, core.Velocity);
-                                },
-                                .Acceleration => {
-                                    self.model.removeComponent(comp.id, core.Acceleration);
-                                },
-                                .Jerk => {
-                                    self.model.removeComponent(comp.id, core.Jerk);
-                                },
-                                .ShipSize => {
-                                    self.model.removeComponent(comp.id, core.ShipSize);
-                                },
+                                //var it = self.server.clients.iterator();
+                                //while (it.next()) |entry| {
+                                //    self.server.submit(entry.key_ptr.*, cmsg) catch unreachable;
+                                // }
+                                //},
+                                //.MoveLeft => {
+                                //    self.model.setComponent(id, core.Velocity, .{ .x = -100, .y = 0 });
+                                //},
+                                //.MoveRight => {
+                                //    self.model.setComponent(id, core.Velocity, .{ .x = 100, .y = 0 });
+                                //},
+                                //.MoveForward => {
+                                //    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = -100 });
+                                //},
+                                //.MoveBackward => {
+                                //    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = 100 });
+                                //},
+                                //.Fire => {
+                                //    //nothing
+                                //},
+                                else => @panic("received unexpected message"),
                             }
                         },
                         .SnapshotRequest => {
                             std.debug.print("requsted snapshot\n", .{});
                             self.sendSnapshot();
                         },
+                        else => @panic("received unexpected message"),
                     }
                 }
             }
@@ -205,14 +144,14 @@ pub const Control = struct {
 
         var ecsIt = ecs.query_iter(self.model.world, query);
 
-        //##### force tick
-        const tick_msg = network.AlphaMessage.init(self.model.tick);
-
-        var it = self.server.clients.iterator();
-        while (it.next()) |entry| {
-            self.server.submit(entry.key_ptr.*, tick_msg) catch unreachable;
-        }
-        //#####
+        ////##### force tick
+        //const tick_msg = network.TickMessage.init(self.model.tick);
+        //
+        //var it = self.server.clients.iterator();
+        //while (it.next()) |entry| {
+        //    self.server.submit(entry.key_ptr.*, tick_msg) catch unreachable;
+        //}
+        ////#####
 
         while (ecs.query_next(&ecsIt)) {
             const positions: []const core.Position = ecs.field(&ecsIt, core.Position, 0).?;

@@ -101,11 +101,13 @@ pub const Model = struct {
     registry: Registry,
     tick: u64 = 0,
 
+    var random = std.Random.DefaultPrng.init(0);
+
     pub fn init(allocator: *std.mem.Allocator) Model {
         var model = Model{
             .allocator = allocator,
             .world = ecs.init(),
-            .registry = Registry.init(allocator),
+            .registry = Registry.init(allocator, random.random()),
         };
 
         model.registerComponents();

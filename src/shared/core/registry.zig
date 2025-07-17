@@ -19,29 +19,31 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
+// ---------- shared ----------
+const util = @import("../util/root.zig");
+// ----------------------------
+
 // ---------- external ----------
 const ecs = @import("zflecs");
 // ------------------------------
 
 const log = std.log.scoped(.model);
 
-pub const Id = struct {
-    id: u64,
-};
+pub const Id = util.UUID4;
 
 pub const Registry = struct {
     allocator: *std.mem.Allocator,
+    random: std.Random,
 
-    next_id: Id = .{ .id = 1 },
+    id_to_entity: std.AutoHashMap(util.UUID4, ecs.entity_t),
+    entity_to_id: std.AutoHashMap(ecs.entity_t, util.UUID4),
 
-    id_to_entity: std.AutoHashMap(Id, ecs.entity_t),
-    entity_to_id: std.AutoHashMap(ecs.entity_t, Id),
-
-    pub fn init(allocator: *std.mem.Allocator) Registry {
+    pub fn init(allocator: *std.mem.Allocator, random: std.Random) Registry {
         return Registry{
             .allocator = allocator,
-            .id_to_entity = std.AutoHashMap(Id, ecs.entity_t).init(allocator.*),
-            .entity_to_id = std.AutoHashMap(ecs.entity_t, Id).init(allocator.*),
+            .random = random,
+            .id_to_entity = std.AutoHashMap(util.UUID4, ecs.entity_t).init(allocator.*),
+            .entity_to_id = std.AutoHashMap(ecs.entity_t, util.UUID4).init(allocator.*),
         };
     }
 
@@ -50,7 +52,7 @@ pub const Registry = struct {
         self.entity_to_id.deinit();
     }
 
-    pub fn create(self: *Registry) Id {
+    pub fn create(self: *Registry) util.UUID4 {
         const id = self.next_id;
         self.next_id.id += 1;
         return id;
@@ -59,7 +61,7 @@ pub const Registry = struct {
     pub fn register(self: *Registry, id: Id, entity: ecs.entity_t) void {
         if (self.id_to_entity.contains(id)) {
             self.remove(id);
-            log.err("entity #{d} was already registered", .{id.id});
+            log.err("entity #{d} was already registered", .{id.toString()});
         }
 
         self.id_to_entity.put(id, entity) catch unreachable;
