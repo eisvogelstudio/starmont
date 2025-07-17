@@ -16,10 +16,11 @@
 
 // ---------- std ----------
 const std = @import("std");
-const testing = std.testing;
 // -------------------------
 
-pub const format = @import("format.zig");
-pub const log = @import("log.zig");
+// ---------- root ----------
+// --------------------------
 
-pub const UUID4 = @import("uuid4.zig").UUID4;
+test {
+    std.testing.refAllDecls(@This());
+}

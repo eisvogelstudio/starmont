@@ -4,6 +4,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const isCI = b.option(bool, "isCI", "Enable CI-specific build configuration") orelse false;
+
     // ########## dependencies ##########
 
     const network = b.dependency("network", .{
@@ -31,6 +33,18 @@ pub fn build(b: *std.Build) void {
     shared_mod.addImport("network", network.module("network"));
     //core_mod.addImport("zphysics", zphysics.module("root"));
 
+    // view lib module
+    const view_mod = b.createModule(.{
+        .root_source_file = b.path("src/view/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    view_mod.addImport("shared", shared_mod);
+    if (!isCI) {
+        view_mod.addImport("raylib", raylib.module("raylib"));
+        view_mod.addImport("raygui", raylib.module("raygui"));
+    }
+
     // editor module
     const editor_mod = b.createModule(.{
         .root_source_file = b.path("src/editor/main.zig"),
@@ -38,8 +52,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     editor_mod.addImport("shared", shared_mod);
-    editor_mod.addImport("raylib", raylib.module("raylib"));
-    editor_mod.addImport("raygui", raylib.module("raygui"));
+    editor_mod.addImport("view", view_mod);
 
     // client module
     const client_mod = b.createModule(.{
@@ -48,8 +61,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     client_mod.addImport("shared", shared_mod);
-    client_mod.addImport("raylib", raylib.module("raylib"));
-    client_mod.addImport("raygui", raylib.module("raygui"));
+    editor_mod.addImport("view", view_mod);
     client_mod.addImport("zflecs", zflecs.module("root"));
 
     // server module
@@ -85,13 +97,25 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(shared_lib);
 
+    // view lib
+    const view_lib = b.addStaticLibrary(.{
+        .name = "starmont_view",
+        .root_module = view_mod,
+    });
+    view_lib.linkLibrary(shared_lib);
+    if (!isCI) {
+        view_lib.linkLibrary(raylib.artifact("raylib"));
+    }
+
+    b.installArtifact(shared_lib);
+
     // editor
     const editor_exe = b.addExecutable(.{
         .name = "starmont_editor",
         .root_module = editor_mod,
     });
     editor_exe.linkLibrary(shared_lib);
-    editor_exe.linkLibrary(raylib.artifact("raylib"));
+    editor_exe.linkLibrary(view_lib);
 
     b.installArtifact(editor_exe);
 
@@ -101,7 +125,7 @@ pub fn build(b: *std.Build) void {
         .root_module = client_mod,
     });
     client_exe.linkLibrary(shared_lib);
-    client_exe.linkLibrary(raylib.artifact("raylib"));
+    client_exe.linkLibrary(view_lib);
     client_exe.linkLibrary(zflecs.artifact("flecs"));
 
     b.installArtifact(client_exe);
@@ -121,7 +145,6 @@ pub fn build(b: *std.Build) void {
         .root_module = master_mod,
     });
     master_exe.linkLibrary(shared_lib);
-    master_exe.linkLibrary(raylib.artifact("raylib"));
 
     b.installArtifact(master_exe);
 
@@ -172,12 +195,8 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_shared_tests.step);
-    //test_step.dependOn(&run_editor_tests.step);
-    _ = run_editor_tests;
-    //test_step.dependOn(&run_client_tests.step);
-    _ = run_client_tests;
-    //test_step.dependOn(&run_server_tests.step);
-    _ = run_server_tests;
-    //test_step.dependOn(&run_master_tests.step);
-    _ = run_master_tests;
+    test_step.dependOn(&run_editor_tests.step);
+    test_step.dependOn(&run_client_tests.step);
+    test_step.dependOn(&run_server_tests.step);
+    test_step.dependOn(&run_master_tests.step);
 }
