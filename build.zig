@@ -12,10 +12,15 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const raylib = b.dependency("raylib", .{
-        .target = target,
-        .optimize = optimize,
-    });
+
+    var raylib: *std.Build.Dependency = undefined;
+    if (!isCI) {
+        raylib = b.dependency("raylib", .{
+            .target = target,
+            .optimize = optimize,
+        });
+    }
+
     const zflecs = b.dependency("zflecs", .{
         .target = target,
         .optimize = optimize,
