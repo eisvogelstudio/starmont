@@ -31,4 +31,4 @@ jobs:
 
       - name: Run Zig tests
         run: |
-          zig build test -Doptimize=${{ matrix.build_mode }}
+          zig build test -DisCI=true -Doptimize=${{ matrix.build_mode }}
