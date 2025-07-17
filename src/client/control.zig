@@ -29,7 +29,7 @@ const network = @import("shared").network;
 
 // ---------- external ----------
 const ecs = @import("zflecs");
-const rl = @import("raylib");
+//const rl = @import("raylib");
 // ------------------------------
 
 const log = std.log.scoped(.control);
@@ -259,13 +259,13 @@ pub const Control = struct {
     //}
 
     fn captureInput(allocator: *std.mem.Allocator) std.ArrayList(core.Action) {
-        var events = std.ArrayList(core.Action).init(allocator.*);
+        const events = std.ArrayList(core.Action).init(allocator.*);
 
-        if (rl.isKeyDown(rl.KeyboardKey.w)) events.append(core.Action.MoveForward) catch unreachable;
-        if (rl.isKeyDown(rl.KeyboardKey.a)) events.append(core.Action.MoveLeft) catch unreachable;
-        if (rl.isKeyDown(rl.KeyboardKey.s)) events.append(core.Action.MoveBackward) catch unreachable;
-        if (rl.isKeyDown(rl.KeyboardKey.d)) events.append(core.Action.MoveRight) catch unreachable;
-        if (rl.isKeyPressed(rl.KeyboardKey.space)) events.append(core.Action.SpawnPlayer) catch unreachable;
+        //if (rl.isKeyDown(rl.KeyboardKey.w)) events.append(core.Action.MoveForward) catch unreachable;
+        //if (rl.isKeyDown(rl.KeyboardKey.a)) events.append(core.Action.MoveLeft) catch unreachable;
+        //if (rl.isKeyDown(rl.KeyboardKey.s)) events.append(core.Action.MoveBackward) catch unreachable;
+        //if (rl.isKeyDown(rl.KeyboardKey.d)) events.append(core.Action.MoveRight) catch unreachable;
+        //if (rl.isKeyPressed(rl.KeyboardKey.space)) events.append(core.Action.SpawnPlayer) catch unreachable;
 
         return events; //TODO: move func to view
     }

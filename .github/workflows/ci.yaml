@@ -2,11 +2,19 @@ name: Zig CI
 
 on:
   push:
-    branches: [main, development]
-    paths: ['**.zig', '.github/workflows/ci.yml']
+    branches:
+      - main
+      - development
+    paths:
+      - '**.zig'
+      - '.github/workflows/ci.yaml'
   pull_request:
-    branches: [main, development]
-    paths: ['**.zig', '.github/workflows/ci.yml']
+    branches:
+      - main
+      - development
+    paths:
+      - '**.zig'
+      - '.github/workflows/ci.yaml'
 
 jobs:
   determine-runner:
