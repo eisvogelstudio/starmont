@@ -23,26 +23,21 @@ const core = @import("shared").core;
 const network = @import("shared").network;
 // ----------------------------
 
-// ---------- external ----------
-const ecs = @import("zflecs");
-// ------------------------------
-
 const log = std.log.scoped(.control);
 
 const name = "master";
 
 pub const Control = struct {
     allocator: *std.mem.Allocator,
-    model: core.Model,
-    client: network.Client,
-    snapshotRequired: bool = true,
+    server: network.Server,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
-        const control = Control{
+        var control = Control{
             .allocator = allocator,
-            .model = core.Model.init(allocator),
-            .client = network.Client.init(allocator),
+            .server = network.Server.init(allocator),
         };
+
+        control.server.open(11111);
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
@@ -51,13 +46,13 @@ pub const Control = struct {
     }
 
     pub fn deinit(self: *Control) void {
-        _ = self;
+        self.server.deinit();
 
         log.info("stopped sucessfully", .{});
     }
 
     pub fn update(self: *Control) void {
-        _ = self;
+        self.server.update();
     }
 
     pub fn shouldStop(self: *Control) bool {

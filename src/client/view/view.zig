@@ -24,8 +24,8 @@ const core = @import("shared").core;
 
 // ---------- external ----------
 const ecs = @import("zflecs");
-const rl = @import("raylib");
-const rg = @import("raygui");
+//const rl = @import("raylib");
+//const rg = @import("raygui");
 // ------------------------------
 
 const log = std.log.scoped(.view);
@@ -36,33 +36,24 @@ pub const View = struct {
     const screenWidth = 800;
     const screenHeight = 450;
 
-    var camera: rl.Camera2D = undefined;
-
     pub fn init(allocator: *std.mem.Allocator) View {
         const view = View{
             .allocator = allocator,
         };
 
-        rl.setTraceLogLevel(rl.TraceLogLevel.none);
-        rl.initWindow(screenWidth, screenHeight, core.name ++ " v" ++ core.version);
+        //rl.setTraceLogLevel(rl.TraceLogLevel.none);
+        //rl.initWindow(screenWidth, screenHeight, core.name ++ " v" ++ core.version);
 
         //std.log.info("{any}\n", .{rl.getWindowScaleDPI()});
         //rl.setWindowSize(@as(i32, @as(f32, screenWidth) / rl.getWindowScaleDPI().x), @as(i32, @as(f32, screenHeight) / rl.getWindowScaleDPI().y));
-        const dpiScale = rl.getWindowScaleDPI();
+        //const dpiScale = rl.getWindowScaleDPI();
 
         // Convert scaled width/height to integer using @divFloor
-        const newWidth = @divFloor(@as(f32, screenWidth), dpiScale.x);
-        const newHeight = @divFloor(@as(f32, screenHeight), dpiScale.y);
+        //const newWidth = @divFloor(@as(f32, screenWidth), dpiScale.x);
+        //const newHeight = @divFloor(@as(f32, screenHeight), dpiScale.y);
 
-        rl.setWindowSize(@intFromFloat(newWidth), @intFromFloat(newHeight));
-        rl.setMouseScale(rl.getWindowScaleDPI().x, rl.getWindowScaleDPI().y);
-
-        camera = rl.Camera2D{
-            .offset = rl.Vector2{ .x = 400, .y = 300 }, // Center the camera
-            .target = rl.Vector2{ .x = 500, .y = 500 }, // World center
-            .rotation = 0.0,
-            .zoom = 1.0,
-        };
+        //rl.setWindowSize(@intFromFloat(newWidth), @intFromFloat(newHeight));
+        //rl.setMouseScale(rl.getWindowScaleDPI().x, rl.getWindowScaleDPI().y);
 
         //rl.setTargetFPS(60);
 
@@ -71,53 +62,54 @@ pub const View = struct {
 
     pub fn deinit(self: *View) void {
         _ = self;
-        rl.closeWindow();
+        //rl.closeWindow();
     }
 
     pub fn update(self: *View, model: *core.Model) void {
-        rl.beginDrawing();
-        defer rl.endDrawing();
-        rl.clearBackground(rl.Color.white);
+        //rl.beginDrawing();
+        //defer rl.endDrawing();
+        //rl.clearBackground(rl.Color.white);
         //rl.beginMode2D(camera);
         self.renderShips(model);
         self.renderPlayers(model);
-        rl.drawFPS(100, 100);
+        //rl.drawFPS(100, 100);
         //rl.endMode2D();
 
         //const scale = @min(rl.getScreenWidth()/rl.gameScreenWidth, (float)GetScreenHeight()/gameScreenHeight);
 
-        const text = "Welcome to " ++ core.name ++ " - till the stars and far beyond";
-        const fontSize = 20;
+        //const text = "Welcome to " ++ core.name ++ " - till the stars and far beyond";
+        //const fontSize = 20;
+        //
+        //const textWidth = rl.measureText(text, fontSize);
+        //const textHeight = fontSize;
+        //const x = @divTrunc((screenWidth - textWidth), 2);
+        //const y = @divTrunc((screenHeight - textHeight), 2);
+        //
+        //rl.drawText(text, x, y, fontSize, rl.Color.light_gray);
 
-        const textWidth = rl.measureText(text, fontSize);
-        const textHeight = fontSize;
-        const x = @divTrunc((screenWidth - textWidth), 2);
-        const y = @divTrunc((screenHeight - textHeight), 2);
-
-        rl.drawText(text, x, y, fontSize, rl.Color.light_gray);
-
-        var buttonPressed = false;
-        var sliderValue: f32 = 50.0;
-
-        if (rg.guiButton(rl.Rectangle{ .x = 10, .y = 10, .width = 150, .height = 30 }, "Click Me") != 0) {
-            buttonPressed = !buttonPressed;
-        }
-        _ = rg.guiSlider(rl.Rectangle{ .x = 10, .y = 50, .width = 200, .height = 20 }, "Size", "{:.2}", &sliderValue, 0.0, 100.0);
-        if (buttonPressed) {
-            rl.drawText("Button Pressed!", 200, 10, 20, rl.Color.red);
-        }
-
-        if ((sliderValue > 80) or (sliderValue < 20)) {
-            rl.drawText("AHHHHHH!", 300, 60, 20, rl.Color.red);
-            //const other = model.createPlayer();
-            //_ = ecs.set(model.world, other, core.Acceleration, .{ .x = -20, .y = 20 });
-        }
+        //var buttonPressed = false;
+        //var sliderValue: f32 = 50.0;
+        //
+        //if (rg.guiButton(rl.Rectangle{ .x = 10, .y = 10, .width = 150, .height = 30 }, "Click Me") != 0) {
+        //    buttonPressed = !buttonPressed;
+        //}
+        //_ = rg.guiSlider(rl.Rectangle{ .x = 10, .y = 50, .width = 200, .height = 20 }, "Size", "{:.2}", &sliderValue, 0.0, 100.0);
+        //if (buttonPressed) {
+        //    rl.drawText("Button Pressed!", 200, 10, 20, rl.Color.red);
+        //}
+        //
+        //if ((sliderValue > 80) or (sliderValue < 20)) {
+        //    rl.drawText("AHHHHHH!", 300, 60, 20, rl.Color.red);
+        //    //const other = model.createPlayer();
+        //    //_ = ecs.set(model.world, other, core.Acceleration, .{ .x = -20, .y = 20 });
+        //}
     }
 
     pub fn shouldStop(self: *View) bool {
         _ = self;
 
-        return rl.windowShouldClose();
+        return true;
+        //rl.windowShouldClose();
     }
 
     fn renderShips(self: *View, model: *core.Model) void {
@@ -155,7 +147,10 @@ pub const View = struct {
                     .Capital => 8,
                 };
 
-                rl.drawCircle(@intFromFloat(@mod(ships[i].x, screenWidth * 1.1)), @intFromFloat(@mod(ships[i].y, screenHeight * 1.1)), 5 * size, rl.Color.sky_blue);
+                _ = ships;
+                _ = size;
+
+                //rl.drawCircle(@intFromFloat(@mod(ships[i].x, screenWidth * 1.1)), @intFromFloat(@mod(ships[i].y, screenHeight * 1.1)), 5 * size, rl.Color.sky_blue);
             }
         }
     }
@@ -183,10 +178,10 @@ pub const View = struct {
             for (0..it.count()) |i| {
                 const entity = it.entities()[i];
                 _ = entity;
-                const color: rl.Color = rl.Color.green;
+                //const color: rl.Color = rl.Color.green;
                 _ = self;
-
-                rl.drawCircle(@intFromFloat(@mod(positions[i].x, screenWidth)), @intFromFloat(@mod(positions[i].y, screenHeight)), 10, color);
+                _ = positions;
+                //rl.drawCircle(@intFromFloat(@mod(positions[i].x, screenWidth)), @intFromFloat(@mod(positions[i].y, screenHeight)), 10, color);
             }
         }
     }
