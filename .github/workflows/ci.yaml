@@ -2,10 +2,16 @@ name: Zig Tests
 
 on:
   push:
+    branches:
+      - main
+      - develop
     paths:
       - '**.zig'
       - '.github/workflows/ci.yaml'
   pull_request:
+    branches:
+      - main
+      - develop
     paths:
       - '**.zig'
       - '.github/workflows/ci.yaml'
