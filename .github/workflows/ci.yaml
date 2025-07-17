@@ -1,5 +1,4 @@
-name: Zig Tests
-
+name: Build
 on:
   push:
     branches:
