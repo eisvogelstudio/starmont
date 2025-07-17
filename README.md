@@ -1,7 +1,17 @@
 # Starmont
 
-[![Build](https://github.com/eisvogelstudio/starmont/actions/workflows/ci.yaml/badge.svg)](https://github.com/eisvogelstudio/starmont/actions/workflows/ci.yaml)
+<p align="center">
+   <img alt="" src="resources/logo.png" width="512" />
+</p>
+<br>
+<p align="center">
+    <a href="https://github.com/eisvogelstudio/starmont/actions/workflows/ci.yaml">
+        <img src=https://github.com/eisvogelstudio/starmont/actions/workflows/ci.yaml/badge.svg"
+             alt="Build Status">
+    </a>
+</p>
+<br>
 
-<img src="resources/logo.png" alt="Starmont Icon" width="100" />
-
-**Starmont** is a space game in *very early development*
+<p align="center">
+Starmont - till the stars and far beyond
+</p>
