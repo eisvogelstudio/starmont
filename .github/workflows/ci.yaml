@@ -11,24 +11,57 @@ on:
       - '.github/workflows/ci.yaml'
 
 jobs:
-  test:
-    name: Test on ${{ matrix.os }} / ${{ matrix.build_mode }}
-    runs-on: ${{ matrix.os }}
+  linux:
+    name: Linux Zig Test / ${{ matrix.build_mode }}
+    runs-on: [self-hosted, linux]
+    continue-on-error: true
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
         build_mode: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Zig
-        uses: goto-bus-stop/setup-zig@v2
+      - uses: actions/checkout@v4
+      - uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.14.0
+      - run: zig build test -DisCI=true -Doptimize=${{ matrix.build_mode }}
 
-      - name: Run Zig tests
-        run: |
-          zig build test -Doptimize=${{ matrix.build_mode }}
+  fallback-linux:
+    name: Fallback Linux Test / ${{ matrix.build_mode }}
+    needs: linux
+    if: failure()
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build_mode: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0
+      - run: zig build test -DisCI=true -Doptimize=${{ matrix.build_mode }}
+      
+  macos:
+    name: MacOS Test / ${{ matrix.build_mode }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        build_mode: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0
+      - run: zig build test -DisCI=true -Doptimize=${{ matrix.build_mode }}
+
+  windows:
+    name: Windows Test / ${{ matrix.build_mode }}
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build_mode: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0
+      - run: zig build test -DisCI=true -Doptimize=${{ matrix.build_mode }}
