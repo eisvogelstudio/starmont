@@ -114,27 +114,6 @@ pub const Control = struct {
                 //std.io.getStdOut().writer().print("\n", .{}) catch unreachable;
                 for (b.messages.items) |message| {
                     switch (message) {
-                        .Alpha => |alpha| {
-                            self.model.tick = alpha.tick;
-                        },
-                        .Chat => |chat| {
-                            _ = chat;
-                        },
-                        .Static => |static| {
-                            _ = static;
-                        },
-                        .Linear => |linear| {
-                            _ = linear;
-                        },
-                        .Accelerated => |accelerated| {
-                            _ = accelerated;
-                        },
-                        .Dynamic => |dynamic| {
-                            _ = dynamic;
-                        },
-                        .Action => |action| {
-                            _ = action;
-                        },
                         .Entity => |id| {
                             self.model.createEntity(id.id);
                         },
@@ -179,7 +158,7 @@ pub const Control = struct {
                                 },
                             }
                         },
-                        .SnapshotRequest => {},
+                        else => @panic("received unexpected message"),
                     }
                 }
             }

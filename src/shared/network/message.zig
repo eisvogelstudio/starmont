@@ -27,70 +27,950 @@ const core = @import("../core/root.zig");
 const util = @import("../util/root.zig");
 // ----------------------------
 
-pub const AlphaMessage = struct {
-    tick: u64,
+pub const AssignMessage = struct {
+    quad: u64,
 
-    pub fn init(tick: u64) Message {
+    pub fn init(quad: u64) Message {
+        const assign = AssignMessage{
+            .quad = quad,
+        };
+
+        return Message{ .Assign = assign };
+    }
+
+    fn deinit(self: AssignMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: AssignMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.quad);
+    }
+
+    fn deserialize(reader: anytype) AssignMessage {
+        const quad = serial.deserializeU64(reader);
+        return init(quad).Assign;
+    }
+
+    pub fn write(self: AssignMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const UnassignMessage = struct {
+    quad: u64,
+
+    pub fn init(quad: u64) Message {
+        const unassign = UnassignMessage{ .quad = quad };
+
+        return Message{ .Unassign = unassign };
+    }
+
+    fn deinit(self: UnassignMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: UnassignMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.quad);
+    }
+
+    fn deserialize(reader: anytype) UnassignMessage {
+        const quad = serial.deserializeU64(reader);
+        return init(quad).Unassign;
+    }
+
+    pub fn write(self: UnassignMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const NeighbourMessage = struct {
+    quad: u64,
+    //neighbours: []const util.UUID4,
+
+    pub fn init(quad: u64) Message {
+        const neighbour = NeighbourMessage{ .quad = quad };
+
+        return Message{ .Neighbour = neighbour };
+    }
+
+    fn deinit(self: NeighbourMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: NeighbourMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.quad);
+        //serial.serializeU16(writer, @intCast(u16, self.neighbours.len));
+        //for (self.neighbours) |n| n.serialize(writer);
+    }
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) NeighbourMessage {
+        _ = allocator;
+        const id = serial.deserializeU64(reader);
+        //const len = serial.deserializeU16(reader);
+        //const arr = allocator.alloc(util.UUID4, len) catch unreachable;
+        //for (arr) |*n| n.* = util.UUID4.deserialize(reader);
+        return init(id).Neighbour;
+    }
+
+    pub fn write(self: NeighbourMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const MasterInfoMessage = struct {
+    pub fn init() Message {
+        const info = MasterInfoMessage{};
+        return Message{ .MasterInfo = info };
+    }
+
+    fn deinit(self: MasterInfoMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: MasterInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+
+    fn deserialize(reader: anytype) MasterInfoMessage {
+        _ = reader;
+        return init().MasterInfo;
+    }
+
+    pub fn write(self: MasterInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const MasterDebugMessage = struct {
+    pub fn init() Message {
+        const debug = MasterDebugMessage{};
+
+        return Message{ .MasterDebug = debug };
+    }
+
+    fn deinit(self: MasterDebugMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: MasterDebugMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+
+    fn deserialize(reader: anytype) MasterDebugMessage {
+        _ = reader;
+        return init().MasterDebug;
+    }
+
+    pub fn write(self: MasterDebugMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const RegisterMessage = struct {
+    pub fn init() Message {
+        const register = RegisterMessage{};
+
+        return Message{ .Register = register };
+    }
+
+    fn deinit(self: RegisterMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: RegisterMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+    fn deserialize(reader: anytype) RegisterMessage {
+        _ = reader;
+        return init().Register;
+    }
+
+    pub fn write(self: RegisterMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const UnregisterMessage = struct {
+    pub fn init() Message {
+        const unregister = UnregisterMessage{};
+
+        return Message{ .Unregister = unregister };
+    }
+
+    fn deinit(self: UnregisterMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: UnregisterMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+    fn deserialize(reader: anytype) UnregisterMessage {
+        _ = reader;
+        return init().Unregister;
+    }
+
+    pub fn write(self: UnregisterMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const HeartbeatMessage = struct {
+    load: f32,
+
+    pub fn init(load: f32) Message {
+        const beat = HeartbeatMessage{ .load = load };
+
+        return Message{ .Heartbeat = beat };
+    }
+
+    fn deinit(self: HeartbeatMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: HeartbeatMessage, writer: anytype) void {
+        serial.serializeF32(writer, self.load);
+    }
+
+    fn deserialize(reader: anytype) HeartbeatMessage {
+        const load = serial.deserializeF32(reader);
+        return init(load).Heartbeat;
+    }
+
+    pub fn write(self: HeartbeatMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const QuadInfoMessage = struct {
+    quad: u64,
+    pressure: f32,
+
+    pub fn init(quad: u64, pressure: f32) Message {
+        const msg = QuadInfoMessage{ .quad = quad, .pressure = pressure };
+        return Message{ .QuadInfo = msg };
+    }
+
+    fn deinit(self: QuadInfoMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: QuadInfoMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.id);
+        serial.serializeF32(writer, self.pressure);
+    }
+    fn deserialize(reader: anytype) QuadInfoMessage {
+        const id = serial.deserializeU64(reader);
+        const pressure = serial.deserializeF32(reader);
+        return init(id, pressure).QuadInfo;
+    }
+
+    pub fn write(self: QuadInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const EntityHandoverMessage = struct {
+    id: util.UUID4,
+
+    pub fn init(entity_id: util.UUID4) Message {
+        const msg = EntityHandoverMessage{
+            .id = entity_id,
+        };
+
+        return Message{ .EntityHandover = msg };
+    }
+
+    fn deinit(self: EntityHandoverMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: EntityHandoverMessage, writer: anytype) void {
+        self.id.serialize(writer);
+    }
+
+    fn deserialize(reader: anytype) EntityHandoverMessage {
+        const id = util.UUID4.deserialize(reader);
+        return init(id).EntityHandover;
+    }
+
+    pub fn write(self: EntityHandoverMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const EntityClaimMessage = struct {
+    id: util.UUID4,
+
+    pub fn init(id: util.UUID4) Message {
+        const msg = EntityClaimMessage{
+            .id = id,
+        };
+
+        return Message{ .EntityClaim = msg };
+    }
+
+    fn deinit(self: EntityClaimMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: EntityClaimMessage, writer: anytype) void {
+        self.id.serialize(writer);
+    }
+
+    fn deserialize(reader: anytype) EntityClaimMessage {
+        const id = util.UUID4.deserialize(reader);
+        return init(id).EntityClaim;
+    }
+
+    pub fn write(self: EntityClaimMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const EntityFailoverMessage = struct {
+    id: util.UUID4,
+
+    pub fn init(entity_id: util.UUID4) Message {
+        const msg = EntityFailoverMessage{
+            .id = entity_id,
+        };
+        return Message{ .EntityFailover = msg };
+    }
+
+    fn deinit(self: EntityFailoverMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: EntityFailoverMessage, writer: anytype) void {
+        self.id.serialize(writer);
+    }
+
+    fn deserialize(reader: anytype) EntityFailoverMessage {
+        const id = util.UUID4.deserialize(reader);
+        return init(id).EntityFailover;
+    }
+
+    pub fn write(self: EntityFailoverMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const ServerInfoMessage = struct {
+    pub fn init() Message {
+        const info = ServerInfoMessage{};
+        return Message{ .ServerInfo = info };
+    }
+
+    fn deinit(self: ServerInfoMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: ServerInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+
+    fn deserialize(reader: anytype) ServerInfoMessage {
+        _ = reader;
+        return init().ServerInfo;
+    }
+
+    pub fn write(self: ServerInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const ServerDebugMessage = struct {
+    pub fn init() Message {
+        const info = ServerDebugMessage{};
+        return Message{ .ServerDebug = info };
+    }
+
+    fn deinit(self: ServerDebugMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: ServerDebugMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+
+    fn deserialize(reader: anytype) ServerDebugMessage {
+        _ = reader;
+        return init().ServerDebug;
+    }
+
+    pub fn write(self: ServerDebugMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const ClientInfoMessage = struct {
+    pub fn init() Message {
+        const info = ClientInfoMessage{};
+        return Message{ .ClientInfo = info };
+    }
+
+    fn deinit(self: ClientInfoMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: ClientInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+
+    fn deserialize(reader: anytype) ClientInfoMessage {
+        _ = reader;
+        return init().ClientInfo;
+    }
+
+    pub fn write(self: ClientInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const EditorInfoMessage = struct {
+    pub fn init() Message {
+        const info = EditorInfoMessage{};
+        return Message{ .EditorInfo = info };
+    }
+
+    fn deinit(self: EditorInfoMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: EditorInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+
+    fn deserialize(reader: anytype) EditorInfoMessage {
+        _ = reader;
+        return init().EditorInfo;
+    }
+
+    pub fn write(self: EditorInfoMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const CommandMessage = struct {
+    command: []const u8,
+
+    pub fn init(command: []const u8) Message {
+        const cmd = CommandMessage{ .command = command };
+        return Message{ .Command = cmd };
+    }
+
+    fn deinit(self: CommandMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: CommandMessage, writer: anytype) void {
+        serial.serializeText(writer, self.command);
+    }
+
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) CommandMessage {
+        const cmd = serial.deserializeText(reader, allocator);
+        return init(cmd).Command;
+    }
+
+    pub fn write(self: CommandMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const NoticeMessage = struct {
+    allocator: *std.mem.Allocator,
+    duration: i64,
+    message: []const u8,
+
+    pub fn init(allocator: *std.mem.Allocator, duration: i64, message: []const u8) Message {
+        const dup_message = allocator.dupe(u8, message) catch unreachable;
+
+        const note = NoticeMessage{
+            .allocator = allocator,
+            .duration = duration,
+            .message = dup_message,
+        };
+
+        return Message{ .Notice = note };
+    }
+
+    fn deinit(self: NoticeMessage) void {
+        self.allocator.free(self.message);
+    }
+
+    fn serialize(self: NoticeMessage, writer: anytype) void {
+        serial.serializeI64(writer, self.duration);
+        serial.serializeText(writer, self.message);
+    }
+
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) NoticeMessage {
+        const until = serial.deserializeI64(reader);
+        const message = serial.deserializeText(reader, allocator);
+        return init(allocator, until, message).Notice;
+    }
+
+    pub fn write(self: NoticeMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("VersionResult: {d}", .{self.match}) catch unreachable;
+    }
+};
+
+pub const ForwardMessage = struct {
+    allocator: *std.mem.Allocator,
+    serverId: util.UUID4,
+    ip: []const u8,
+    port: u16,
+
+    pub fn init(allocator: *std.mem.Allocator, serverId: util.UUID4, ip: []const u8, port: u16) Message {
+        const forward = ForwardMessage{
+            .allocator = allocator,
+            .serverId = serverId,
+            .ip = ip,
+            .port = port,
+        };
+
+        return Message{ .Forward = forward };
+    }
+
+    fn deinit(self: ForwardMessage) void {
+        self.allocator.free(self.ip);
+    }
+
+    fn serialize(self: ForwardMessage, writer: anytype) void {
+        self.serverId.serialize(writer);
+        serial.serializeText(writer, self.ip);
+        serial.serializeU16(writer, self.port);
+    }
+
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) ForwardMessage {
+        const serverId = util.UUID4.deserialize(reader);
+        const ip = serial.deserializeText(reader, allocator);
+        const port = serial.deserializeU16(reader);
+        return init(allocator, serverId, ip, port).Forward;
+    }
+
+    pub fn write(self: ForwardMessage, writer: anytype) void {
+        //writer.print("Alpha: {d}", .{self.tick}) catch unreachable;
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const AlphaMessage = struct {
+    allocator: *std.mem.Allocator,
+    ephemeral: util.UUID4,
+    name: []const u8,
+
+    pub fn init(allocator: *std.mem.Allocator, ephemeral: util.UUID4, name: []const u8) Message {
         const alpha = AlphaMessage{
-            .tick = tick,
+            .allocator = allocator,
+            .ephemeral = ephemeral,
+            .name = name,
         };
 
         return Message{ .Alpha = alpha };
     }
 
     fn deinit(self: AlphaMessage) void {
-        _ = self;
+        self.allocator.free(self.name);
     }
 
     fn serialize(self: AlphaMessage, writer: anytype) void {
-        serial.serializeU64(writer, self.tick);
+        self.ephemeral.serialize(writer);
+        serial.serializeText(writer, self.name);
     }
 
-    fn deserialize(reader: anytype) AlphaMessage {
-        const tick = serial.deserializeU64(reader);
-        return AlphaMessage{ .tick = tick };
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) AlphaMessage {
+        const ephemeral = util.UUID4.deserialize(reader);
+        const name = serial.deserializeText(reader, allocator);
+        return init(allocator, ephemeral, name).Alpha;
     }
 
     pub fn write(self: AlphaMessage, writer: anytype) void {
-        writer.print("Alpha: {d}", .{self.tick}) catch unreachable;
+        //writer.print("Alpha: {d}", .{self.tick}) catch unreachable;
+        _ = self;
+        _ = writer;
     }
 };
 
-pub const ChatMessage = struct {
+pub const OmegaMessage = struct {
     allocator: *std.mem.Allocator,
-    text: []const u8,
+    message: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, text: []const u8) Message {
-        const dup = allocator.dupe(u8, text) catch unreachable;
-        const chat = ChatMessage{
-            .text = dup,
+    pub fn init(allocator: *std.mem.Allocator, message: []const u8) Message {
+        const omega = OmegaMessage{
+            .allocator = allocator,
+            .message = message,
         };
 
-        return Message{ .Chat = chat };
+        return Message{ .Omega = omega };
     }
 
-    fn deinit(self: ChatMessage) void {
-        self.allocator.free(self.text);
+    fn deinit(self: OmegaMessage) void {
+        self.allocator.free(self.message);
     }
 
-    fn serialize(self: ChatMessage, writer: anytype) void {
-        const len: u16 = @intCast(self.text.len);
-        const buf: [2]u8 = @bitCast(len);
-        writer.writeAll(&buf) catch unreachable;
-        writer.writeAll(self.text) catch unreachable;
+    fn serialize(self: OmegaMessage, writer: anytype) void {
+        serial.serializeText(writer, self.message);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) ChatMessage {
-        var len_buf: [2]u8 = undefined;
-        _ = reader.readAll(&len_buf) catch unreachable;
-        const len: u16 = @bitCast(len_buf);
-        const text = allocator.alloc(u8, len) catch unreachable;
-        _ = reader.readAll(text) catch unreachable;
-        return ChatMessage{ .allocator = allocator, .text = text };
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) OmegaMessage {
+        const message = serial.deserializeText(reader, allocator);
+        return init(allocator, message).Omega;
     }
 
-    pub fn write(self: ChatMessage, writer: anytype) void {
-        writer.print("Chat: {s}", .{self.text}) catch unreachable;
+    pub fn write(self: OmegaMessage, writer: anytype) void {
+        //writer.print("Alpha: {d}", .{self.tick}) catch unreachable;
+        _ = self;
+        _ = writer;
+    }
+};
+
+pub const KickMessage = struct {
+    allocator: *std.mem.Allocator,
+    duration: i64,
+    message: []const u8,
+
+    pub fn init(allocator: *std.mem.Allocator, duration: i64, message: []const u8) Message {
+        const dup_message = allocator.dupe(u8, message) catch unreachable;
+
+        const kick = KickMessage{
+            .allocator = allocator,
+            .duration = duration,
+            .message = dup_message,
+        };
+
+        return Message{ .Kick = kick };
+    }
+
+    fn deinit(self: KickMessage) void {
+        self.allocator.free(self.message);
+    }
+
+    fn serialize(self: KickMessage, writer: anytype) void {
+        serial.serializeI64(writer, self.duration);
+        serial.serializeText(writer, self.message);
+    }
+
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) KickMessage {
+        const until = serial.deserializeI64(reader);
+        const message = serial.deserializeText(reader, allocator);
+        return init(allocator, until, message).Kick;
+    }
+
+    pub fn write(self: KickMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("VersionResult: {d}", .{self.match}) catch unreachable;
+    }
+};
+
+pub const PingMessage = struct {
+    nonce: u64,
+    time: i64,
+
+    pub fn init(nonce: u64, time: i64) Message {
+        const ping = PingMessage{
+            .nonce = nonce,
+            .time = time,
+        };
+
+        return Message{ .Ping = ping };
+    }
+
+    fn deinit(self: PingMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: PingMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.nonce);
+        serial.serializeI64(writer, self.time);
+    }
+
+    fn deserialize(reader: anytype) PingMessage {
+        const nonce = serial.deserializeU64(reader);
+        const time = serial.deserializeI64(reader);
+        return init(nonce, time).Ping;
+    }
+
+    pub fn write(self: PingMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("AuthChallenge: {d}", .{self.auth_id}) catch unreachable;
+    }
+};
+
+pub const PongMessage = struct {
+    nonce: u64,
+    time: i64,
+
+    pub fn init(nonce: u64, time: i64) Message {
+        const pong = PongMessage{
+            .nonce = nonce,
+            .time = time,
+        };
+
+        return Message{ .Pong = pong };
+    }
+
+    fn deinit(self: PongMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: PongMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.nonce);
+        serial.serializeI64(writer, self.time);
+    }
+
+    fn deserialize(reader: anytype) PongMessage {
+        const nonce = serial.deserializeU64(reader);
+        const time = serial.deserializeI64(reader);
+        return init(nonce, time).Pong;
+    }
+
+    pub fn write(self: PongMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("AuthChallenge: {d}", .{self.auth_id}) catch unreachable;
+    }
+};
+
+pub const VersionCheckMessage = struct {
+    allocator: *std.mem.Allocator,
+    version: []const u8,
+
+    pub fn init(allocator: *std.mem.Allocator, version: []const u8) Message {
+        const dup_version = allocator.dupe(u8, version) catch unreachable;
+
+        const vers = VersionCheckMessage{
+            .allocator = allocator,
+            .version = dup_version,
+        };
+
+        return Message{ .VersionCheck = vers };
+    }
+
+    fn deinit(self: VersionCheckMessage) void {
+        self.allocator.free(self.version);
+    }
+
+    fn serialize(self: VersionCheckMessage, writer: anytype) void {
+        serial.serializeText(writer, self.version);
+    }
+
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) VersionCheckMessage {
+        const version = serial.deserializeText(reader, allocator);
+        return init(allocator, version).VersionCheck;
+    }
+
+    pub fn write(self: VersionCheckMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("VersionResult: {d}", .{self.match}) catch unreachable;
+    }
+};
+
+pub const VersionResultMessage = struct {
+    allocator: *std.mem.Allocator,
+    match: bool,
+    version: []const u8,
+    message: []const u8,
+
+    pub fn init(allocator: *std.mem.Allocator, match: bool, version: []const u8, message: []const u8) Message {
+        const dup_version = allocator.dupe(u8, version) catch unreachable;
+        const dup_message = allocator.dupe(u8, message) catch unreachable;
+
+        const vers = VersionResultMessage{
+            .allocator = allocator,
+            .match = match,
+            .version = dup_version,
+            .message = dup_message,
+        };
+
+        return Message{ .VersionResult = vers };
+    }
+
+    fn deinit(self: VersionResultMessage) void {
+        self.allocator.free(self.version);
+        self.allocator.free(self.message);
+    }
+
+    fn serialize(self: VersionResultMessage, writer: anytype) void {
+        serial.serializeBool(writer, self.match);
+        serial.serializeText(writer, self.version);
+        serial.serializeText(writer, self.message);
+    }
+
+    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) VersionResultMessage {
+        const match = serial.deserializeBool(reader);
+        const version = serial.deserializeText(reader, allocator);
+        const message = serial.deserializeText(reader, allocator);
+        return init(allocator, match, version, message).VersionResult;
+    }
+
+    pub fn write(self: VersionResultMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("VersionResult: {d}", .{self.match}) catch unreachable;
+    }
+};
+
+pub const AuthChallengeMessage = struct {
+    auth_id: u64,
+    //TODO
+
+    pub fn init(auth_id: u64) Message {
+        const auth = AuthChallengeMessage{
+            .auth_id = auth_id,
+        };
+
+        return Message{ .AuthChallenge = auth };
+    }
+
+    fn deinit(self: AuthChallengeMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: AuthChallengeMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.success);
+    }
+
+    fn deserialize(reader: anytype) AuthChallengeMessage {
+        const auth_id = serial.deserializeU64(reader);
+        return init(auth_id).AuthChallenge;
+    }
+
+    pub fn write(self: AuthChallengeMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("AuthChallenge: {d}", .{self.auth_id}) catch unreachable;
+    }
+};
+
+pub const AuthResultMessage = struct {
+    auth_id: u64,
+    //TODO
+
+    pub fn init(auth_id: u64) Message {
+        const auth = AuthResultMessage{
+            .auth_id = auth_id,
+        };
+
+        return Message{ .AuthResult = auth };
+    }
+
+    fn deinit(self: AuthResultMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: AuthResultMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.auth_id);
+    }
+
+    fn deserialize(reader: anytype) AuthResultMessage {
+        const auth_id = serial.deserializeU64(reader);
+        return init(auth_id).AuthResult;
+    }
+
+    pub fn write(self: AuthResultMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("AuthResult: {d}", .{self.auth_id}) catch unreachable;
+    }
+};
+
+pub const AuthResponseMessage = struct {
+    auth_id: u64,
+    success: bool,
+
+    pub fn init(auth_id: u64, success: bool) Message {
+        const auth = AuthResponseMessage{
+            .auth_id = auth_id,
+            .success = success,
+        };
+
+        return Message{ .AuthResponse = auth };
+    }
+
+    fn deinit(self: AuthResponseMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: AuthResponseMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.auth_id);
+        serial.serializeBool(writer, self.success);
+    }
+
+    fn deserialize(reader: anytype) AuthResponseMessage {
+        const auth_id = serial.deserializeU64(reader);
+        const success = serial.deserializeBool(reader);
+        return init(auth_id, success).AuthResponse;
+    }
+
+    pub fn write(self: AuthResponseMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("AuthResponse: {d}", .{self.success}) catch unreachable;
+    }
+};
+
+pub const TickMessage = struct {
+    tick: u64,
+    time: i64,
+
+    pub fn init(tick: u64, time: i64) Message {
+        const tickmsg = TickMessage{
+            .tick = tick,
+            .time = time,
+        };
+
+        return Message{ .Tick = tickmsg };
+    }
+
+    fn deinit(self: TickMessage) void {
+        _ = self;
+    }
+
+    fn serialize(self: TickMessage, writer: anytype) void {
+        serial.serializeU64(writer, self.tick);
+        serial.serializeI64(writer, self.time);
+    }
+
+    fn deserialize(reader: anytype) TickMessage {
+        const tick = serial.deserializeU64(reader);
+        const time = serial.deserializeI64(reader);
+        return init(tick, time).Tick;
+    }
+
+    pub fn write(self: TickMessage, writer: anytype) void {
+        _ = self;
+        _ = writer;
+        //writer.print("Tick: {d}", .{self.tick}) catch unreachable;
     }
 };
 
@@ -288,9 +1168,9 @@ pub const ActionMessage = struct {
 };
 
 pub const EntityMessage = struct {
-    id: core.Id,
+    id: util.UUID4,
 
-    pub fn init(id: core.Id) Message {
+    pub fn init(id: util.UUID4) Message {
         const msg = EntityMessage{
             .id = id,
         };
@@ -303,11 +1183,11 @@ pub const EntityMessage = struct {
     }
 
     fn serialize(self: EntityMessage, writer: anytype) void {
-        serial.serializeId(writer, self.id);
+        self.id.serialize(writer);
     }
 
     fn deserialize(reader: anytype) EntityMessage {
-        const id = serial.deserializeId(reader);
+        const id = util.UUID4.deserialize(reader);
         return init(id).Entity;
     }
 
@@ -317,9 +1197,9 @@ pub const EntityMessage = struct {
 };
 
 pub const EntityRemoveMessage = struct {
-    id: core.Id,
+    id: util.UUID4,
 
-    pub fn init(id: core.Id) Message {
+    pub fn init(id: util.UUID4) Message {
         const msg = EntityRemoveMessage{
             .id = id,
         };
@@ -332,11 +1212,11 @@ pub const EntityRemoveMessage = struct {
     }
 
     fn serialize(self: EntityRemoveMessage, writer: anytype) void {
-        serial.serializeId(writer, self.id);
+        self.id.serialize(writer);
     }
 
     fn deserialize(reader: anytype) EntityRemoveMessage {
-        const id = serial.deserializeId(reader);
+        const id = util.UUID4.deserialize(reader);
         return init(id).EntityRemove;
     }
 
@@ -346,7 +1226,7 @@ pub const EntityRemoveMessage = struct {
 };
 
 pub const ComponentMessage = struct {
-    id: core.Id,
+    id: util.UUID4,
     component: Component,
 
     pub const Component = union(core.ComponentType) {
@@ -357,7 +1237,7 @@ pub const ComponentMessage = struct {
         ShipSize: core.ShipSize,
     };
 
-    pub fn fromPosition(id: core.Id, pos: core.Position) Message {
+    pub fn fromPosition(id: util.UUID4, pos: core.Position) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{ .Position = pos },
@@ -366,7 +1246,7 @@ pub const ComponentMessage = struct {
         return Message{ .Component = comp };
     }
 
-    pub fn fromVelocity(id: core.Id, vel: core.Velocity) Message {
+    pub fn fromVelocity(id: util.UUID4, vel: core.Velocity) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{
@@ -377,7 +1257,7 @@ pub const ComponentMessage = struct {
         return Message{ .Component = comp };
     }
 
-    pub fn fromAcceleration(id: core.Id, acc: core.Acceleration) Message {
+    pub fn fromAcceleration(id: util.UUID4, acc: core.Acceleration) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{
@@ -388,7 +1268,7 @@ pub const ComponentMessage = struct {
         return Message{ .Component = comp };
     }
 
-    pub fn fromJerk(id: core.Id, jerk: core.Id) Message {
+    pub fn fromJerk(id: util.UUID4, jerk: core.Jerk) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{
@@ -399,7 +1279,7 @@ pub const ComponentMessage = struct {
         return Message{ .Component = comp };
     }
 
-    pub fn fromShipSize(id: core.Id, size: core.ShipSize) Message {
+    pub fn fromShipSize(id: util.UUID4, size: core.ShipSize) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{
@@ -415,7 +1295,7 @@ pub const ComponentMessage = struct {
     }
 
     pub fn serialize(self: ComponentMessage, writer: anytype) void {
-        serial.serializeId(writer, self.id);
+        self.id.serialize(writer);
         writer.writeByte(@intFromEnum(self.component)) catch unreachable;
         switch (self.component) {
             .Position => |pos| {
@@ -437,7 +1317,7 @@ pub const ComponentMessage = struct {
     }
 
     pub fn deserialize(reader: anytype) ComponentMessage {
-        const id = serial.deserializeId(reader);
+        const id = util.UUID4.deserialize(reader);
         const type_byte = reader.readByte() catch unreachable;
         const comp_type: core.ComponentType = @enumFromInt(type_byte);
         const comp = switch (comp_type) {
@@ -477,10 +1357,10 @@ pub const ComponentMessage = struct {
 };
 
 pub const ComponentRemoveMessage = struct {
-    id: core.Id,
+    id: util.UUID4,
     component: core.ComponentType,
 
-    pub fn init(id: core.Id, comp: core.ComponentType) Message {
+    pub fn init(id: util.UUID4, comp: core.ComponentType) Message {
         const msg = ComponentRemoveMessage{
             .id = id,
             .component = comp,
@@ -494,12 +1374,12 @@ pub const ComponentRemoveMessage = struct {
     }
 
     fn serialize(self: ComponentRemoveMessage, writer: anytype) void {
-        serial.serializeId(writer, self.id);
+        self.id.serialize(writer);
         writer.writeByte(@intFromEnum(self.component)) catch unreachable;
     }
 
     fn deserialize(reader: anytype) ComponentRemoveMessage {
-        const id = serial.deserializeId(reader);
+        const id = util.UUID4.deserialize(reader);
         const type_byte = reader.readByte() catch unreachable;
         return init(id, @enumFromInt(type_byte)).ComponentRemove;
     }
@@ -540,8 +1420,56 @@ pub const SnapshotRequestMessage = struct {
 };
 
 pub const MessageType = enum(u8) {
+    // ##### master #####
+    // => server
+    Assign,
+    Unassign, // flush-request
+    Neighbour,
+    // => client
+    MasterInfo,
+    // => editor
+    MasterDebug,
+
+    // ##### server #####
+    // => master
+    Register,
+    Unregister,
+    Heartbeat,
+    QuadInfo,
+    // => server
+    EntityHandover,
+    EntityClaim, //mit dringlichkeit, bzw rattenschwanzlänge
+    EntityFailover, //nur wenn Claim
+    // => client
+    ServerInfo,
+    // => editor
+    ServerDebug,
+
+    // ##### client #####
+    // => server
+    ClientInfo,
+
+    // ##### editor #####
+    // => server
+    EditorInfo,
+    Command,
+
+    // ##### meta #####
+    Notice,
+    Forward, //durch server und master
     Alpha,
-    Chat,
+    Omega, // Leaving und ConnectionClosed
+    Kick,
+    Ping,
+    Pong,
+    VersionCheck,
+    VersionResult,
+    AuthChallenge,
+    AuthResult,
+    AuthResponse,
+
+    // ##### core #####
+    Tick,
     Static,
     Linear,
     Accelerated,
@@ -555,8 +1483,36 @@ pub const MessageType = enum(u8) {
 };
 
 pub const Message = union(MessageType) {
+    Assign: AssignMessage,
+    Unassign: UnassignMessage,
+    Neighbour: NeighbourMessage,
+    MasterInfo: MasterInfoMessage,
+    MasterDebug: MasterDebugMessage,
+    Register: RegisterMessage,
+    Unregister: UnregisterMessage,
+    Heartbeat: HeartbeatMessage,
+    QuadInfo: QuadInfoMessage,
+    EntityHandover: EntityHandoverMessage,
+    EntityClaim: EntityClaimMessage,
+    EntityFailover: EntityFailoverMessage,
+    ServerInfo: ServerInfoMessage,
+    ServerDebug: ServerDebugMessage,
+    ClientInfo: ClientInfoMessage,
+    EditorInfo: EditorInfoMessage,
+    Command: CommandMessage,
+    Notice: NoticeMessage,
+    Forward: ForwardMessage,
     Alpha: AlphaMessage,
-    Chat: ChatMessage,
+    Omega: OmegaMessage,
+    Kick: KickMessage,
+    Ping: PingMessage,
+    Pong: PongMessage,
+    VersionCheck: VersionCheckMessage,
+    VersionResult: VersionResultMessage,
+    AuthChallenge: AuthChallengeMessage,
+    AuthResult: AuthResultMessage,
+    AuthResponse: AuthResponseMessage,
+    Tick: TickMessage,
     Static: StaticMessage,
     Linear: LinearMessage,
     Accelerated: AcceleratedMessage,
@@ -570,11 +1526,95 @@ pub const Message = union(MessageType) {
 
     pub fn deinit(self: Message) void {
         switch (self) {
+            .Assign => |assign| {
+                assign.deinit();
+            },
+            .Unassign => |unassign| {
+                unassign.deinit();
+            },
+            .Neighbour => |neighbour| {
+                neighbour.deinit();
+            },
+            .MasterInfo => |info| {
+                info.deinit();
+            },
+            .MasterDebug => |debug| {
+                debug.deinit();
+            },
+            .Register => |register| {
+                register.deinit();
+            },
+            .Unregister => |unregister| {
+                unregister.deinit();
+            },
+            .Heartbeat => |beat| {
+                beat.deinit();
+            },
+            .QuadInfo => |info| {
+                info.deinit();
+            },
+            .EntityHandover => |id| {
+                id.deinit();
+            },
+            .EntityClaim => |id| {
+                id.deinit();
+            },
+            .EntityFailover => |id| {
+                id.deinit();
+            },
+            .ServerInfo => |info| {
+                info.deinit();
+            },
+            .ServerDebug => |debug| {
+                debug.deinit();
+            },
+            .ClientInfo => |info| {
+                info.deinit();
+            },
+            .EditorInfo => |info| {
+                info.deinit();
+            },
+            .Command => |cmd| {
+                cmd.deinit();
+            },
+            .Notice => |note| {
+                note.deinit();
+            },
+            .Forward => |forward| {
+                forward.deinit();
+            },
             .Alpha => |alpha| {
                 alpha.deinit();
             },
-            .Chat => |chat| {
-                chat.deinit();
+            .Omega => |omega| {
+                omega.deinit();
+            },
+            .Kick => |kick| {
+                kick.deinit();
+            },
+            .Ping => |ping| {
+                ping.deinit();
+            },
+            .Pong => |pong| {
+                pong.deinit();
+            },
+            .VersionCheck => |vers| {
+                vers.deinit();
+            },
+            .VersionResult => |vers| {
+                vers.deinit();
+            },
+            .AuthChallenge => |auth| {
+                auth.deinit();
+            },
+            .AuthResult => |auth| {
+                auth.deinit();
+            },
+            .AuthResponse => |auth| {
+                auth.deinit();
+            },
+            .Tick => |tick| {
+                tick.deinit();
             },
             .Static => |static| {
                 static.deinit();
@@ -591,11 +1631,11 @@ pub const Message = union(MessageType) {
             .Action => |action| {
                 action.deinit();
             },
-            .Entity => |id| {
-                id.deinit();
+            .Entity => |entity| {
+                entity.deinit();
             },
-            .EntityRemove => |id| {
-                id.deinit();
+            .EntityRemove => |entity| {
+                entity.deinit();
             },
             .Component => |comp| {
                 comp.deinit();
@@ -612,11 +1652,95 @@ pub const Message = union(MessageType) {
     pub fn serialize(self: Message, writer: anytype) void {
         writer.writeByte(@intFromEnum(self)) catch unreachable;
         switch (self) {
-            .Alpha => |alpha| {
-                alpha.serialize(writer);
+            .Assign => |assign| {
+                assign.deinit();
             },
-            .Chat => |chat| {
-                chat.serialize(writer);
+            .Unassign => |unassign| {
+                unassign.deinit();
+            },
+            .Neighbour => |neighbour| {
+                neighbour.deinit();
+            },
+            .MasterInfo => |info| {
+                info.deinit();
+            },
+            .MasterDebug => |debug| {
+                debug.deinit();
+            },
+            .Register => |register| {
+                register.deinit();
+            },
+            .Unregister => |unregister| {
+                unregister.deinit();
+            },
+            .Heartbeat => |beat| {
+                beat.deinit();
+            },
+            .QuadInfo => |info| {
+                info.deinit();
+            },
+            .EntityHandover => |id| {
+                id.deinit();
+            },
+            .EntityClaim => |id| {
+                id.deinit();
+            },
+            .EntityFailover => |id| {
+                id.deinit();
+            },
+            .ServerInfo => |info| {
+                info.deinit();
+            },
+            .ServerDebug => |debug| {
+                debug.deinit();
+            },
+            .ClientInfo => |info| {
+                info.deinit();
+            },
+            .EditorInfo => |info| {
+                info.deinit();
+            },
+            .Command => |cmd| {
+                cmd.deinit();
+            },
+            .Notice => |note| {
+                note.deinit();
+            },
+            .Forward => |forward| {
+                forward.deinit();
+            },
+            .Alpha => |alpha| {
+                alpha.deinit();
+            },
+            .Omega => |omega| {
+                omega.deinit();
+            },
+            .Kick => |kick| {
+                kick.deinit();
+            },
+            .Ping => |ping| {
+                ping.deinit();
+            },
+            .Pong => |pong| {
+                pong.deinit();
+            },
+            .VersionCheck => |vers| {
+                vers.deinit();
+            },
+            .VersionResult => |vers| {
+                vers.deinit();
+            },
+            .AuthChallenge => |auth| {
+                auth.deinit();
+            },
+            .AuthResult => |auth| {
+                auth.deinit();
+            },
+            .AuthResponse => |auth| {
+                auth.deinit();
+            },
+            .Tick => |tick| {
+                tick.serialize(writer);
             },
             .Static => |static| {
                 static.serialize(writer);
@@ -655,13 +1779,125 @@ pub const Message = union(MessageType) {
         const type_byte = reader.readByte() catch unreachable;
         const message_type: MessageType = @enumFromInt(type_byte);
         switch (message_type) {
+            .Assign => {
+                const assign = AssignMessage.deserialize(reader);
+                return Message{ .Assign = assign };
+            },
+            .Unassign => {
+                const unassign = UnassignMessage.deserialize(reader);
+                return Message{ .Unassign = unassign };
+            },
+            .Neighbour => {
+                const neighbour = NeighbourMessage.deserialize(reader, allocator);
+                return Message{ .Neighbour = neighbour };
+            },
+            .MasterInfo => {
+                const info = MasterInfoMessage.deserialize(reader);
+                return Message{ .MasterInfo = info };
+            },
+            .MasterDebug => {
+                const debug = MasterDebugMessage.deserialize(reader);
+                return Message{ .MasterDebug = debug };
+            },
+            .Register => {
+                const register = RegisterMessage.deserialize(reader);
+                return Message{ .Register = register };
+            },
+            .Unregister => {
+                const unregister = UnregisterMessage.deserialize(reader);
+                return Message{ .Unregister = unregister };
+            },
+            .Heartbeat => {
+                const beat = HeartbeatMessage.deserialize(reader);
+                return Message{ .Heartbeat = beat };
+            },
+            .QuadInfo => {
+                const info = QuadInfoMessage.deserialize(reader);
+                return Message{ .QuadInfo = info };
+            },
+            .EntityHandover => {
+                const id = EntityHandoverMessage.deserialize(reader);
+                return Message{ .EntityHandover = id };
+            },
+            .EntityClaim => {
+                const id = EntityClaimMessage.deserialize(reader);
+                return Message{ .EntityClaim = id };
+            },
+            .EntityFailover => {
+                const id = EntityFailoverMessage.deserialize(reader);
+                return Message{ .EntityFailover = id };
+            },
+            .ServerInfo => {
+                const info = ServerInfoMessage.deserialize(reader);
+                return Message{ .ServerInfo = info };
+            },
+            .ServerDebug => {
+                const debug = ServerDebugMessage.deserialize(reader);
+                return Message{ .ServerDebug = debug };
+            },
+            .ClientInfo => {
+                const info = ClientInfoMessage.deserialize(reader);
+                return Message{ .ClientInfo = info };
+            },
+            .EditorInfo => {
+                const info = EditorInfoMessage.deserialize(reader);
+                return Message{ .EditorInfo = info };
+            },
+            .Command => {
+                const cmd = CommandMessage.deserialize(reader, allocator);
+                return Message{ .Command = cmd };
+            },
+            .Notice => {
+                const note = NoticeMessage.deserialize(reader, allocator);
+                return Message{ .Notice = note };
+            },
+            .Forward => {
+                const forward = ForwardMessage.deserialize(reader, allocator);
+                return Message{ .Forward = forward };
+            },
             .Alpha => {
-                const alpha = AlphaMessage.deserialize(reader);
+                const alpha = AlphaMessage.deserialize(reader, allocator);
                 return Message{ .Alpha = alpha };
             },
-            .Chat => {
-                const chat = ChatMessage.deserialize(reader, allocator);
-                return Message{ .Chat = chat };
+            .Omega => {
+                const omega = OmegaMessage.deserialize(reader, allocator);
+                return Message{ .Omega = omega };
+            },
+            .Kick => {
+                const kick = KickMessage.deserialize(reader, allocator);
+                return Message{ .Kick = kick };
+            },
+            .Ping => {
+                const ping = PingMessage.deserialize(reader);
+                return Message{ .Ping = ping };
+            },
+            .Pong => {
+                const pong = PongMessage.deserialize(reader);
+                return Message{ .Pong = pong };
+            },
+            .VersionCheck => {
+                const vers = VersionCheckMessage.deserialize(reader, allocator);
+                return Message{ .VersionCheck = vers };
+            },
+            .VersionResult => {
+                const vers = VersionResultMessage.deserialize(reader, allocator);
+                return Message{ .VersionResult = vers };
+            },
+            .AuthChallenge => {
+                const auth = AuthChallengeMessage.deserialize(reader);
+                return Message{ .AuthChallenge = auth };
+            },
+            .AuthResult => {
+                const auth = AuthResultMessage.deserialize(reader);
+                return Message{ .AuthResult = auth };
+            },
+            .AuthResponse => {
+                const auth = AuthResponseMessage.deserialize(reader);
+                return Message{ .AuthResponse = auth };
+            },
+            .Tick => {
+                const tick = TickMessage.deserialize(reader);
+                return Message{ .Tick = tick };
             },
             .Static => {
                 const pos = StaticMessage.deserialize(reader);
@@ -708,11 +1944,98 @@ pub const Message = union(MessageType) {
 
     pub fn print(self: Message, writer: anytype) void {
         switch (self) {
+            .Assign => |assign| {
+                assign.write(writer);
+            },
+            .Unassign => |unassign| {
+                unassign.write(writer);
+            },
+            .Neighbour => |neighbour| {
+                neighbour.write(writer);
+            },
+            .MasterInfo => |info| {
+                info.write(writer);
+            },
+            .MasterDebug => |debug| {
+                debug.write(writer);
+            },
+            .Register => |register| {
+                register.write(writer);
+            },
+            .Unregister => |unregister| {
+                unregister.write(writer);
+            },
+            .Heartbeat => |beat| {
+                beat.write(writer);
+            },
+            .QuadInfo => |info| {
+                info.write(writer);
+            },
+            .EntityHandover => |id| {
+                id.write(writer);
+            },
+            .EntityHandover => |id| {
+                id.write(writer);
+            },
+            .EntityClaim => |id| {
+                id.write(writer);
+            },
+            .EntityFailover => |id| {
+                id.write(writer);
+            },
+            .ServerInfo => |info| {
+                info.write(writer);
+            },
+            .ServerDebug => |debug| {
+                debug.write(writer);
+            },
+            .ClientInfo => |info| {
+                info.write(writer);
+            },
+            .EditorInfo => |info| {
+                info.write(writer);
+            },
+            .Command => |cmd| {
+                cmd.write(writer);
+            },
+            .Notice => |note| {
+                note.write(writer);
+            },
+            .Forward => |forward| {
+                forward.write(writer);
+            },
             .Alpha => |alpha| {
                 alpha.write(writer);
             },
-            .Chat => |chat| {
-                chat.write(writer);
+            .Omega => |omega| {
+                omega.write(writer);
+            },
+            .Kick => |kick| {
+                kick.write(writer);
+            },
+            .Ping => |ping| {
+                ping.write(writer);
+            },
+            .Pong => |pong| {
+                pong.write(writer);
+            },
+            .VersionCheck => |vers| {
+                vers.write(writer);
+            },
+            .VersionResult => |vers| {
+                vers.write(writer);
+            },
+            .AuthChallenge => |auth| {
+                auth.write(writer);
+            },
+            .AuthResult => |auth| {
+                auth.write(writer);
+            },
+            .AuthResponse => |auth| {
+                auth.write(writer);
+            },
+            .Tick => |tick| {
+                tick.write(writer);
             },
             .Static => |static| {
                 static.write(writer);

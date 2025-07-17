@@ -16,7 +16,6 @@
 
 pub const Client = @import("client.zig").Client;
 
-pub const ServerId = @import("server.zig").ServerId;
 pub const ServerInfo = @import("server.zig").ServerInfo;
 pub const Server = @import("server.zig").Server;
 

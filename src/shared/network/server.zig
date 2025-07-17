@@ -14,8 +14,6 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-const builtin = @import("builtin");
-
 // ---------- std ----------
 const std = @import("std");
 // -------------------------
@@ -25,6 +23,10 @@ const Batch = @import("batch.zig").Batch;
 const message = @import("message.zig");
 const primitive = @import("primitive.zig");
 // -----------------------------
+
+// ---------- shared ----------
+const util = @import("../util/root.zig");
+// ----------------------------
 
 // ---------- external ----------
 const net = @import("network");
@@ -38,12 +40,8 @@ const interval = 1000 / hz;
 const lag_ms = 200;
 const delay = lag_ms / 2;
 
-pub const ServerId = struct {
-    id: u64,
-};
-
 pub const ServerInfo = struct {
-    id: ServerId,
+    uuid: util.UUID4,
     load: f32,
 };
 
