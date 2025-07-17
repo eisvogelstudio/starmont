@@ -4,14 +4,14 @@ on:
   push:
     branches:
       - main
-      - develop
+      - development
     paths:
       - '**.zig'
       - '.github/workflows/ci.yaml'
   pull_request:
     branches:
       - main
-      - develop
+      - development
     paths:
       - '**.zig'
       - '.github/workflows/ci.yaml'
