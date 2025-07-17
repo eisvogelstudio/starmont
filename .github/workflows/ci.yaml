@@ -14,7 +14,7 @@ jobs:
   linux:
     name: Linux Zig Test / ${{ matrix.build_mode }}
     runs-on: [self-hosted, linux]
-    timeout-minutes: 5
+    timeout-minutes: 1
     continue-on-error: true
     strategy:
       matrix:
