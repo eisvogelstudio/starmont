@@ -87,8 +87,6 @@ pub fn build(b: *std.Build) void {
     });
     master_mod.addImport("shared", shared_mod);
     master_mod.addImport("util", shared_mod);
-    master_mod.addImport("raylib", raylib.module("raylib"));
-    master_mod.addImport("raygui", raylib.module("raygui"));
 
     // ########## objects ##########
 
