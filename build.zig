@@ -4,7 +4,10 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const isCI = b.option(bool, "isCI", "Enable CI-specific build configuration") orelse false;
+    const hasRenderer = b.option(bool, "hasRenderer", "Enable CI-specific build configuration") orelse true;
+
+    const build_options = b.addOptions();
+    build_options.addOption(bool, "hasRenderer", hasRenderer);
 
     // ########## dependencies ##########
 
@@ -14,7 +17,7 @@ pub fn build(b: *std.Build) void {
     });
 
     var raylib: *std.Build.Dependency = undefined;
-    if (!isCI) {
+    if (hasRenderer) {
         raylib = b.dependency("raylib", .{
             .target = target,
             .optimize = optimize,
@@ -45,10 +48,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     view_mod.addImport("shared", shared_mod);
-    if (!isCI) {
+    if (hasRenderer) {
         view_mod.addImport("raylib", raylib.module("raylib"));
         view_mod.addImport("raygui", raylib.module("raygui"));
     }
+    view_mod.addOptions("build_options", build_options);
 
     // editor module
     const editor_mod = b.createModule(.{
@@ -66,7 +70,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     client_mod.addImport("shared", shared_mod);
-    editor_mod.addImport("view", view_mod);
+    client_mod.addImport("view", view_mod);
     client_mod.addImport("zflecs", zflecs.module("root"));
 
     // server module
@@ -106,7 +110,7 @@ pub fn build(b: *std.Build) void {
         .root_module = view_mod,
     });
     view_lib.linkLibrary(shared_lib);
-    if (!isCI) {
+    if (hasRenderer) {
         view_lib.linkLibrary(raylib.artifact("raylib"));
     }
 

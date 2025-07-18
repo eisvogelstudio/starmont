@@ -22,10 +22,13 @@ const std = @import("std");
 const core = @import("shared").core;
 // ----------------------------
 
+// ---------- shared ----------
+const render = @import("view").r;
+const Window = @import("view").Window;
+// ----------------------------
+
 // ---------- external ----------
 const ecs = @import("zflecs");
-//const rl = @import("raylib");
-//const rg = @import("raygui");
 // ------------------------------
 
 const log = std.log.scoped(.view);
@@ -57,12 +60,15 @@ pub const View = struct {
 
         //rl.setTargetFPS(60);
 
+        Window.open("hello", screenWidth, screenHeight);
+
         return view;
     }
 
     pub fn deinit(self: *View) void {
         _ = self;
-        //rl.closeWindow();
+
+        Window.close();
     }
 
     pub fn update(self: *View, model: *core.Model) void {
@@ -70,8 +76,15 @@ pub const View = struct {
         //defer rl.endDrawing();
         //rl.clearBackground(rl.Color.white);
         //rl.beginMode2D(camera);
-        self.renderShips(model);
-        self.renderPlayers(model);
+        Window.update();
+        Window.beginFrame();
+
+        Window.endFrame();
+
+        _ = self;
+        _ = model;
+        //self.renderShips(model);
+        //self.renderPlayers(model);
         //rl.drawFPS(100, 100);
         //rl.endMode2D();
 
@@ -108,8 +121,7 @@ pub const View = struct {
     pub fn shouldStop(self: *View) bool {
         _ = self;
 
-        return true;
-        //rl.windowShouldClose();
+        return Window.shouldClose();
     }
 
     fn renderShips(self: *View, model: *core.Model) void {
