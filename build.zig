@@ -4,7 +4,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const isCI = b.option(bool, "isCI", "Enable CI-specific build configuration") orelse false;
+    //const isCI = b.option(bool, "isCI", "Enable CI-specific build configuration") orelse false;
 
     // ########## dependencies ##########
 
@@ -14,12 +14,11 @@ pub fn build(b: *std.Build) void {
     });
 
     var raylib: *std.Build.Dependency = undefined;
-    if (!isCI) {
-        raylib = b.dependency("raylib", .{
-            .target = target,
-            .optimize = optimize,
-        });
-    }
+    raylib = b.dependency("raylib", .{
+        .target = target,
+        .optimize = optimize,
+        .linux_display_backend = .X11,
+    });
 
     const zflecs = b.dependency("zflecs", .{
         .target = target,
@@ -45,10 +44,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     view_mod.addImport("shared", shared_mod);
-    if (!isCI) {
-        view_mod.addImport("raylib", raylib.module("raylib"));
-        view_mod.addImport("raygui", raylib.module("raygui"));
-    }
+    view_mod.addImport("raylib", raylib.module("raylib"));
+    view_mod.addImport("raygui", raylib.module("raygui"));
 
     // editor module
     const editor_mod = b.createModule(.{
@@ -106,9 +103,7 @@ pub fn build(b: *std.Build) void {
         .root_module = view_mod,
     });
     view_lib.linkLibrary(shared_lib);
-    if (!isCI) {
-        view_lib.linkLibrary(raylib.artifact("raylib"));
-    }
+    view_lib.linkLibrary(raylib.artifact("raylib"));
 
     b.installArtifact(shared_lib);
 
