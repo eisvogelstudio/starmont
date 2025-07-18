@@ -1,41 +1,52 @@
-name: Zig Tests
+name: Tests
 
 on:
   push:
-    branches:
-      - main
-      - development
+    branches: [main, development]
     paths:
       - '**.zig'
       - '.github/workflows/ci.yaml'
   pull_request:
-    branches:
-      - main
-      - development
+    branches: [main, development]
     paths:
       - '**.zig'
       - '.github/workflows/ci.yaml'
 
 jobs:
+  fmt:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0
+
+      - name: Check formatting
+        run: zig fmt --check .
+
   test:
-    name: Test on ${{ matrix.os }} / ${{ matrix.build_mode }}
+    needs: fmt
+    name: Tests on ${{ matrix.os }} / ${{ matrix.build_mode }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         build_mode: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Zig
+      - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.14.0
 
-      - name: Install Linux-only dependencies (Wayland etc.)
+      - name: Install Dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -44,6 +55,12 @@ jobs:
             libxinerama-dev libxcursor-dev libwayland-dev \
             wayland-protocols wayland-scanner++
 
-      - name: Run Zig tests
+      - name: Build
+        run: |
+          zig build -Doptimize=${{ matrix.build_mode }}
+
+      - name: Run Test
         run: |
           zig build test -Doptimize=${{ matrix.build_mode }}
+
+  
