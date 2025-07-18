@@ -4,8 +4,6 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    //const isCI = b.option(bool, "isCI", "Enable CI-specific build configuration") orelse false;
-
     // ########## dependencies ##########
 
     const network = b.dependency("network", .{
@@ -13,11 +11,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    var raylib: *std.Build.Dependency = undefined;
-    raylib = b.dependency("raylib", .{
+    const raylib = b.dependency("raylib", .{
         .target = target,
         .optimize = optimize,
-        .linux_display_backend = .X11,
     });
 
     const zflecs = b.dependency("zflecs", .{
@@ -35,7 +31,6 @@ pub fn build(b: *std.Build) void {
     });
     shared_mod.addImport("zflecs", zflecs.module("root"));
     shared_mod.addImport("network", network.module("network"));
-    //core_mod.addImport("zphysics", zphysics.module("root"));
 
     // view lib module
     const view_mod = b.createModule(.{
@@ -63,7 +58,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     client_mod.addImport("shared", shared_mod);
-    editor_mod.addImport("view", view_mod);
+    client_mod.addImport("view", view_mod);
     client_mod.addImport("zflecs", zflecs.module("root"));
 
     // server module
@@ -93,7 +88,6 @@ pub fn build(b: *std.Build) void {
         .root_module = shared_mod,
     });
     shared_lib.linkLibrary(zflecs.artifact("flecs"));
-    //core_lib.linkLibrary(zphysics.artifact("joltc"));
 
     b.installArtifact(shared_lib);
 
