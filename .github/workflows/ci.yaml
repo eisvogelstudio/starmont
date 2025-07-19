@@ -12,11 +12,6 @@ on:
       - '**.zig'
       - '.github/workflows/ci.yaml'
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
-
-
 jobs:
   fmt:
     name: Format
@@ -50,6 +45,15 @@ jobs:
         with:
           version: 0.14.0
 
+      - name: Install Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-dev libx11-dev libxrandr-dev libxi-dev \
+            libxinerama-dev libxcursor-dev libwayland-dev \
+            wayland-protocols wayland-scanner++
+
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -77,6 +81,15 @@ jobs:
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.14.0
+
+      - name: Install Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-dev libx11-dev libxrandr-dev libxi-dev \
+            libxinerama-dev libxcursor-dev libwayland-dev \
+            wayland-protocols wayland-scanner++
 
       - name: Restore Cache
         uses: actions/cache@v4
