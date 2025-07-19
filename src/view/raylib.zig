@@ -1,6 +1,44 @@
 pub const ConfigFlags = u32;
 pub const Image = struct {};
 
+pub const Vector2 = extern struct {
+    x: f32,
+    y: f32,
+};
+
+pub fn getScreenWidth() i32 {
+    return 1;
+}
+
+pub fn getScreenHeight() i32 {
+    return 1;
+}
+
+pub fn getRenderWidth() i32 {
+    return 1;
+}
+
+pub fn getRenderHeight() i32 {
+    return 1;
+}
+
+pub fn setMouseScale(scaleX: f32, scaleY: f32) void {
+    _ = scaleX;
+    _ = scaleY;
+}
+
+pub fn getWindowScaleDPI() Vector2 {
+    return Vector2{ .x = 1, .y = 1 };
+}
+
+pub fn setTargetFPS(fps: i32) void {
+    _ = fps;
+}
+
+pub fn beginDrawing() void {}
+
+pub fn endDrawing() void {}
+
 pub fn initWindow(_: i32, _: i32, _: [:0]const u8) void {}
 
 pub fn closeWindow() void {}

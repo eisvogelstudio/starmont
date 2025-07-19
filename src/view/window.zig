@@ -9,12 +9,12 @@ pub const Window = struct {
     pub fn open(title: []const u8, width: i32, height: i32) void {
         _ = title;
         rl.initWindow(width, height, "todo");
-        //rl.setTargetFPS(60);
+        rl.setTargetFPS(60);
         applyScale();
     }
 
     pub fn update() void {
-        //applyScale();
+        applyScale();
     }
 
     pub fn close() void {
@@ -46,12 +46,12 @@ pub const Window = struct {
     }
 
     fn applyScale() void {
-        //const dpiScale = rl.getWindowScaleDPI();
-        //const newWidth = @divFloor(@as(f32, @floatFromInt(rl.getScreenWidth())), dpiScale.x);
-        //const newHeight = @divFloor(@as(f32, @floatFromInt(rl.getScreenHeight())), dpiScale.y);
+        const dpiScale = rl.getWindowScaleDPI();
+        const newWidth = @divFloor(@as(f32, @floatFromInt(rl.getScreenWidth())), dpiScale.x);
+        const newHeight = @divFloor(@as(f32, @floatFromInt(rl.getScreenHeight())), dpiScale.y);
 
-        //rl.setWindowSize(@intFromFloat(newWidth), @intFromFloat(newHeight));
-        //rl.setMouseScale(dpiScale.x, dpiScale.y);
+        rl.setWindowSize(@intFromFloat(newWidth), @intFromFloat(newHeight));
+        rl.setMouseScale(dpiScale.x, dpiScale.y);
     }
 };
 
