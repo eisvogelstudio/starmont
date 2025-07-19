@@ -12,6 +12,10 @@ on:
       - '**.zig'
       - '.github/workflows/ci.yaml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   fmt:
     name: Format
