@@ -19,13 +19,15 @@ const std = @import("std");
 // -------------------------
 
 // ---------- client ----------
-const View = @import("view/view.zig").View;
+const View = @import("view2/view.zig").View;
 // ----------------------------
 
 // ---------- shared ----------
 const core = @import("shared").core;
 const network = @import("shared").network;
 // ----------------------------
+
+const v = @import("view");
 
 // ---------- external ----------
 const ecs = @import("zflecs");
@@ -50,6 +52,8 @@ pub const Control = struct {
             .view = View.init(allocator),
             .client = network.Client.init(allocator),
         };
+
+        //v.r.drawSpaceship(.{ .x = 0, .y = 0 }, 100);
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});

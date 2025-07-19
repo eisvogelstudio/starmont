@@ -4,6 +4,11 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const hasRenderer = b.option(bool, "hasRenderer", "Enable CI-specific build configuration") orelse true;
+
+    const build_options = b.addOptions();
+    build_options.addOption(bool, "hasRenderer", hasRenderer);
+
     // ########## dependencies ##########
 
     const network = b.dependency("network", .{
@@ -41,6 +46,7 @@ pub fn build(b: *std.Build) void {
     view_mod.addImport("shared", shared_mod);
     view_mod.addImport("raylib", raylib.module("raylib"));
     view_mod.addImport("raygui", raylib.module("raygui"));
+    view_mod.addOptions("build_options", build_options);
 
     // editor module
     const editor_mod = b.createModule(.{

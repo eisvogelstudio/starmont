@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, development,'**']
+    branches: [main, development,'feat/**']
     paths:
       - '**.zig'
       - '.github/workflows/ci.yaml'
@@ -55,7 +55,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libgl1-mesa-dev libx11-dev libxrandr-dev libxi-dev \
-            libxinerama-dev libxcursor-dev libwayland-dev \
+            libxinerama-dev libxcursor-dev libwayland-dev libxkbcommon-dev \
             wayland-protocols wayland-scanner++
 
       - name: Cache Build
@@ -67,10 +67,10 @@ jobs:
           key: zig-${{ runner.os }}-${{ matrix.build_mode }}
 
       - name: Build
-        run: zig build -Doptimize=${{ matrix.build_mode }}
+        run: zig build -Doptimize=${{ matrix.build_mode }} -DhasRenderer=false
 
   test:
-    name: Test on ${{ matrix.os }} / ${{ matrix.build_mode }}
+    name: Test
     needs: build
     runs-on: ${{ matrix.os }}
     strategy:
@@ -92,7 +92,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libgl1-mesa-dev libx11-dev libxrandr-dev libxi-dev \
-            libxinerama-dev libxcursor-dev libwayland-dev \
+            libxinerama-dev libxcursor-dev libwayland-dev libxkbcommon-dev \
             wayland-protocols wayland-scanner++
 
       - name: Restore Cache
