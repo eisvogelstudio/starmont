@@ -16,13 +16,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    var raylib: *std.Build.Dependency = undefined;
-    if (hasRenderer) {
-        raylib = b.dependency("raylib", .{
-            .target = target,
-            .optimize = optimize,
-        });
-    }
+    const raylib = b.dependency("raylib", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const zflecs = b.dependency("zflecs", .{
         .target = target,
@@ -39,7 +36,6 @@ pub fn build(b: *std.Build) void {
     });
     shared_mod.addImport("zflecs", zflecs.module("root"));
     shared_mod.addImport("network", network.module("network"));
-    //core_mod.addImport("zphysics", zphysics.module("root"));
 
     // view lib module
     const view_mod = b.createModule(.{
@@ -48,10 +44,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     view_mod.addImport("shared", shared_mod);
-    if (hasRenderer) {
-        view_mod.addImport("raylib", raylib.module("raylib"));
-        view_mod.addImport("raygui", raylib.module("raygui"));
-    }
+    view_mod.addImport("raylib", raylib.module("raylib"));
+    view_mod.addImport("raygui", raylib.module("raygui"));
     view_mod.addOptions("build_options", build_options);
 
     // editor module
@@ -100,7 +94,6 @@ pub fn build(b: *std.Build) void {
         .root_module = shared_mod,
     });
     shared_lib.linkLibrary(zflecs.artifact("flecs"));
-    //core_lib.linkLibrary(zphysics.artifact("joltc"));
 
     b.installArtifact(shared_lib);
 
@@ -110,9 +103,7 @@ pub fn build(b: *std.Build) void {
         .root_module = view_mod,
     });
     view_lib.linkLibrary(shared_lib);
-    if (hasRenderer) {
-        view_lib.linkLibrary(raylib.artifact("raylib"));
-    }
+    view_lib.linkLibrary(raylib.artifact("raylib"));
 
     b.installArtifact(shared_lib);
 
