@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, development,'**']
+    branches: [main, development,'feat/**']
     paths:
       - '**.zig'
       - '.github/workflows/ci.yaml'
@@ -70,7 +70,7 @@ jobs:
         run: zig build -Doptimize=${{ matrix.build_mode }} -DhasRenderer=false
 
   test:
-    name: Test on ${{ matrix.os }} / ${{ matrix.build_mode }}
+    name: Test
     needs: build
     runs-on: ${{ matrix.os }}
     strategy:
