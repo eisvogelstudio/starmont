@@ -23,14 +23,49 @@ const core = @import("shared").core;
 const network = @import("shared").network;
 // ----------------------------
 
+// ---------- shared ----------
+const view = @import("view");
+const Window = view.Window;
+const rl = view.rl;
+// ----------------------------
+
 // ---------- external ----------
 const ecs = @import("zflecs");
-//const rl = @import("raylib");
 // ------------------------------
 
 const log = std.log.scoped(.control);
 
 const name = "editor";
+
+const Vec2 = struct {
+    x: f32,
+    y: f32,
+
+    pub fn distance(a: Vec2, b: Vec2) f32 {
+        return @sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+    }
+
+    pub fn toRayVec(self: Vec2) rl.Vector2 {
+        return rl.Vector2{ .x = self.x, .y = self.y };
+    }
+};
+
+const Collider = struct {
+    points: []Vec2,
+};
+
+const HandleState = struct {
+    dragging: bool = false,
+    selected_index: usize = 0,
+};
+
+const screenWidth = 800;
+const screenHeight = 600;
+
+var collider: Collider = undefined;
+var handle_state = HandleState{};
+const handle_radius: f32 = 8.0;
+var dragging_offset = Vec2{ .x = 0, .y = 0 };
 
 pub const Control = struct {
     allocator: *std.mem.Allocator,
@@ -45,27 +80,88 @@ pub const Control = struct {
             .client = network.Client.init(allocator),
         };
 
+        Window.open("editor", screenWidth, screenHeight);
+
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
+
+        collider = Collider{
+            .points = allocator.alloc(Vec2, 4) catch unreachable,
+        };
+        collider.points[0] = .{ .x = 200, .y = 200 };
+        collider.points[1] = .{ .x = 300, .y = 200 };
+        collider.points[2] = .{ .x = 300, .y = 300 };
+        collider.points[3] = .{ .x = 200, .y = 300 };
 
         return control;
     }
 
     pub fn deinit(self: *Control) void {
-        _ = self;
+        //_ = self;
+
+        Window.close();
 
         log.info("stopped sucessfully", .{});
+
+        self.allocator.free(collider.points);
     }
 
     pub fn update(self: *Control) void {
         const actions = captureInput(self.allocator);
         actions.deinit();
+
+        Window.update();
+
+        const mouse = rl.getMousePosition();
+        const mouse_vec = Vec2{ .x = mouse.x, .y = mouse.y };
+
+        // --- Input Handling ---
+        if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
+            for (collider.points, 0..) |p, i| {
+                if (Vec2.distance(mouse_vec, p) < handle_radius * 1.5) {
+                    handle_state.dragging = true;
+                    handle_state.selected_index = i;
+                    dragging_offset = Vec2{ .x = p.x - mouse.x, .y = p.y - mouse.y };
+                    break;
+                }
+            }
+        }
+
+        if (rl.isMouseButtonReleased(rl.MouseButton.left)) {
+            handle_state.dragging = false;
+        }
+
+        if (handle_state.dragging) {
+            collider.points[handle_state.selected_index] = Vec2{
+                .x = mouse.x + dragging_offset.x,
+                .y = mouse.y + dragging_offset.y,
+            };
+        }
+
+        // --- Drawing ---
+        rl.beginDrawing();
+        rl.clearBackground(rl.Color.ray_white);
+
+        rl.drawText("Starmont Editor", 10, 10, 20, rl.Color.dark_gray);
+
+        // Linien des Colliders
+        for (collider.points, 0..) |p, i| {
+            const next = collider.points[(i + 1) % collider.points.len];
+            rl.drawLineV(p.toRayVec(), next.toRayVec(), rl.Color.black);
+        }
+
+        // Punkte (Handles)
+        for (collider.points) |p| {
+            rl.drawCircleV(p.toRayVec(), handle_radius, rl.Color.red);
+        }
+
+        rl.endDrawing();
     }
 
     pub fn shouldStop(self: *Control) bool {
-        //return self.view.shouldStop();
         _ = self;
-        return false;
+
+        return Window.shouldClose();
     }
 
     fn captureInput(allocator: *std.mem.Allocator) std.ArrayList(core.Action) {
