@@ -21,6 +21,9 @@ const std = @import("std");
 // ---------- root ----------
 pub const r = @import("render.zig");
 pub const Window = @import("window.zig").Window;
+
+//temp
+pub const rl = @import("raylib");
 // --------------------------
 
 test {
