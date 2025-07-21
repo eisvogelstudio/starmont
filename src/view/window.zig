@@ -5,12 +5,19 @@ const hasRenderer = build_options.hasRenderer;
 
 const rl = if (hasRenderer) @import("raylib") else @import("raylib.zig");
 
+var _width: i32 = undefined;
+var _height: i32 = undefined;
+
 pub const Window = struct {
     pub fn open(title: []const u8, width: i32, height: i32) void {
         _ = title;
+        _width = width;
+        _height = height;
+
         rl.initWindow(width, height, "todo");
         rl.setTargetFPS(60);
-        applyScale();
+
+        update();
     }
 
     pub fn update() void {
@@ -47,14 +54,10 @@ pub const Window = struct {
 
     fn applyScale() void {
         const dpiScale = rl.getWindowScaleDPI();
-        const newWidth = @divFloor(@as(f32, @floatFromInt(rl.getScreenWidth())), dpiScale.x);
-        const newHeight = @divFloor(@as(f32, @floatFromInt(rl.getScreenHeight())), dpiScale.y);
+        const newWidth = @divFloor(@as(f32, @floatFromInt(_width)), dpiScale.x);
+        const newHeight = @divFloor(@as(f32, @floatFromInt(_height)), dpiScale.y);
 
         rl.setWindowSize(@intFromFloat(newWidth), @intFromFloat(newHeight));
         rl.setMouseScale(dpiScale.x, dpiScale.y);
     }
 };
-
-//see: https://gist.github.com/JeffM2501/00cf5653f41337d8c9e8db40deb25656
-
-//https://github.com/raysan5/raylib/issues/2566
