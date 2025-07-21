@@ -25,7 +25,6 @@ const rl = @import("raylib");
 const GameObject = struct {
     position: rl.Vector2,
     rotation: f32,
-    scale: f32,
 };
 
 const Ship = struct {

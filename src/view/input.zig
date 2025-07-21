@@ -18,9 +18,9 @@
 const std = @import("std");
 // -------------------------
 
-// ---------- special -----------
+// ---------- external -----------
 const rl = @import("raylib");
-// ------------------------------
+// -------------------------------
 
 pub const Input = struct {
     pub const KeyboardKey = rl.KeyboardKey;
