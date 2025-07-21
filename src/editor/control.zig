@@ -36,14 +36,7 @@ const name = "editor";
 const rl = view.rl;
 const TextureCache = view.TextureCache;
 
-const Vec2 = struct {
-    x: f32,
-    y: f32,
-
-    pub fn distance(a: Vec2, b: Vec2) f32 {
-        return @sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
-    }
-};
+const Vec2 = rl.Vector2;
 
 const Prefab = struct {
     name: []const u8,
@@ -176,9 +169,10 @@ const SelectionState = struct {
 
 const TransformState = struct {
     dragging: bool,
-    origin: Vec2,
+    //origin: Vec2,
     start_mouse: Vec2,
-    mode: enum { Move, Scale, Rotate },
+    start_position: Vec2,
+    //mode: enum { Move, Scale, Rotate },
 };
 
 //const Camera2D = extern struct {
@@ -193,6 +187,7 @@ const EditorState = struct {
 
     selection: SelectionState,
     mode: EditorMode,
+    transform: ?TransformState,
 
     camera: rl.Camera2D, // für Pan/Zoom
     // mouse: MouseState,
@@ -203,6 +198,7 @@ const EditorState = struct {
         return EditorState{
             .selection = .{},
             .mode = .Idle,
+            .transform = null,
             .camera = rl.Camera2D{
                 .offset = rl.Vector2{ .x = screen_width / 2.0, .y = screen_height / 2.0 },
                 .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
@@ -488,25 +484,55 @@ pub const Control = struct {
     }
 
     pub fn handleDragging(self: *Control) void {
-        if (rl.isMouseButtonDown(rl.MouseButton.left)) {
+        if (rl.isMouseButtonPressed(rl.MouseButton.left) and rl.isKeyDown(rl.KeyboardKey.left_alt)) {
             const mouse_world = rl.getScreenToWorld2D(rl.getMousePosition(), self.editor.camera);
 
             if (self.current) |*cur| {
                 if (self.editor.selection.selected_part) |i| {
-                    var part = &cur.parts_list.items[i];
-
-                    const snapping = !rl.isKeyDown(rl.KeyboardKey.left_shift);
-                    const snap: f32 = if (snapping) 200.0 else 1.0;
-
-                    // Snapping anwenden
-                    const snapped = Vec2{
-                        .x = @round(mouse_world.x / snap) * snap,
-                        .y = @round(mouse_world.y / snap) * snap,
+                    const part = cur.parts_list.items[i];
+                    self.editor.transform = TransformState{
+                        .dragging = true,
+                        .start_mouse = mouse_world,
+                        .start_position = part.position,
                     };
-
-                    part.position = snapped;
-                    self.editor.is_dirty = true;
                 }
+            }
+        }
+
+        if (rl.isMouseButtonDown(rl.MouseButton.left)) {
+            if (self.editor.transform) |t| {
+                if (t.dragging) {
+                    if (self.current) |*cur| {
+                        if (self.editor.selection.selected_part) |i| {
+                            var part = &cur.parts_list.items[i];
+
+                            const mouse_world = rl.getScreenToWorld2D(rl.getMousePosition(), self.editor.camera);
+                            const delta = Vec2{
+                                .x = mouse_world.x - t.start_mouse.x,
+                                .y = mouse_world.y - t.start_mouse.y,
+                            };
+
+                            const snapping = !rl.isKeyDown(rl.KeyboardKey.left_shift);
+                            const snap: f32 = if (snapping) 400.0 else 1.0;
+
+                            const new_pos = Vec2{
+                                .x = t.start_position.x + delta.x,
+                                .y = t.start_position.y + delta.y,
+                            };
+
+                            part.position = Vec2{
+                                .x = @round(new_pos.x / snap) * snap,
+                                .y = @round(new_pos.y / snap) * snap,
+                            };
+
+                            self.editor.is_dirty = true;
+                        }
+                    }
+                }
+            }
+        } else {
+            if (self.editor.transform) |*t| {
+                t.dragging = false;
             }
         }
     }
