@@ -14,9 +14,9 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- special -----------
+// ---------- external -----------
 const rl = @import("raylib");
-// ------------------------------
+// -------------------------------
 
 var _width: i32 = undefined;
 var _height: i32 = undefined;
@@ -28,7 +28,7 @@ pub const Window = struct {
         _height = height;
 
         rl.initWindow(width, height, "todo");
-        rl.setTargetFPS(60);
+        //rl.setTargetFPS(60);
 
         update();
     }

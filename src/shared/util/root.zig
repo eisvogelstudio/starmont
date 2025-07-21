@@ -14,11 +14,6 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
-
 pub const format = @import("format.zig");
 pub const log = @import("log.zig");
 pub const ziggy = @import("ziggy.zig");
