@@ -1,9 +1,27 @@
-const builtin = @import("builtin");
+// ─────────────────────────────────────────────────────────────────────
+//  Starmont - Version 0.1.0
+//  Copyright (C) 2025 Eisvogel Studio
+//  Contact: eisvogelstudio@protonmail.com
+//  Repository: https://github.com/eisvogelstudio/starmont
+//
+//  Author: Felix Koppe (fkoppe@web.de)
+//
+//  All rights reserved. This source code is publicly accessible for
+//  reference purposes. Forking and cloning for personal, non-commercial
+//  use is permitted, but modification, redistribution, or commercial
+//  use without explicit written permission is strictly prohibited.
+//
+//  See LICENSE for details.
+// ─────────────────────────────────────────────────────────────────────
 
+// ---------- options ----------
 const build_options = @import("build_options");
 const hasRenderer = build_options.hasRenderer;
+// -----------------------------
 
+// ---------- special -----------
 const rl = if (hasRenderer) @import("raylib") else @import("raylib.zig");
+// ------------------------------
 
 var _width: i32 = undefined;
 var _height: i32 = undefined;

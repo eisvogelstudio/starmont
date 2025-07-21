@@ -20,18 +20,14 @@ const std = @import("std");
 
 // ---------- shared ----------
 const core = @import("shared").core;
-const network = @import("shared").network;
+const util = @import("shared").util;
 // ----------------------------
 
 // ---------- shared ----------
 const view = @import("view");
-const Window = view.Window;
 const rl = view.rl;
+const Window = view.Window;
 // ----------------------------
-
-// ---------- external ----------
-const ecs = @import("zflecs");
-// ------------------------------
 
 const log = std.log.scoped(.control);
 
@@ -70,14 +66,14 @@ var dragging_offset = Vec2{ .x = 0, .y = 0 };
 pub const Control = struct {
     allocator: *std.mem.Allocator,
     model: core.Model,
-    client: network.Client,
     snapshotRequired: bool = true,
 
+    arena_allocator: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+
     pub fn init(allocator: *std.mem.Allocator) Control {
-        const control = Control{
+        var control = Control{
             .allocator = allocator,
             .model = core.Model.init(allocator),
-            .client = network.Client.init(allocator),
         };
 
         Window.open("editor", screenWidth, screenHeight);
@@ -93,6 +89,10 @@ pub const Control = struct {
         collider.points[2] = .{ .x = 300, .y = 300 };
         collider.points[3] = .{ .x = 200, .y = 300 };
 
+        util.asset.loadAsset(&control.arena_allocator) catch |err| {
+            std.debug.print("error: {s}\n", .{@errorName(err)});
+        };
+
         return control;
     }
 
@@ -104,6 +104,8 @@ pub const Control = struct {
         log.info("stopped sucessfully", .{});
 
         self.allocator.free(collider.points);
+
+        self.arena_allocator.deinit();
     }
 
     pub fn update(self: *Control) void {

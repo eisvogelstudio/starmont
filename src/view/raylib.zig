@@ -1,10 +1,22 @@
-pub const ConfigFlags = u32;
-pub const Image = struct {};
+// ─────────────────────────────────────────────────────────────────────
+//  Starmont - Version 0.1.0
+//  Copyright (C) 2025 Eisvogel Studio
+//  Contact: eisvogelstudio@protonmail.com
+//  Repository: https://github.com/eisvogelstudio/starmont
+//
+//  Author: Felix Koppe (fkoppe@web.de)
+//
+//  All rights reserved. This source code is publicly accessible for
+//  reference purposes. Forking and cloning for personal, non-commercial
+//  use is permitted, but modification, redistribution, or commercial
+//  use without explicit written permission is strictly prohibited.
+//
+//  See LICENSE for details.
+// ─────────────────────────────────────────────────────────────────────
 
-pub const Vector2 = extern struct {
-    x: f32,
-    y: f32,
-};
+// ---------- external ----------
+const rl = @import("raylib");
+// ------------------------------
 
 pub fn getScreenWidth() i32 {
     return 1;
@@ -27,8 +39,8 @@ pub fn setMouseScale(scaleX: f32, scaleY: f32) void {
     _ = scaleY;
 }
 
-pub fn getWindowScaleDPI() Vector2 {
-    return Vector2{ .x = 1, .y = 1 };
+pub fn getWindowScaleDPI() rl.Vector2 {
+    return rl.Vector2{ .x = 1, .y = 1 };
 }
 
 pub fn setTargetFPS(fps: i32) void {
@@ -75,13 +87,13 @@ pub fn isWindowResized() bool {
     return false;
 }
 
-pub fn isWindowState(_: ConfigFlags) bool {
+pub fn isWindowState(_: rl.ConfigFlags) bool {
     return false;
 }
 
-pub fn setWindowState(_: ConfigFlags) void {}
+pub fn setWindowState(_: rl.ConfigFlags) void {}
 
-pub fn clearWindowState(_: ConfigFlags) void {}
+pub fn clearWindowState(_: rl.ConfigFlags) void {}
 
 pub fn toggleFullscreen() void {}
 
@@ -93,7 +105,7 @@ pub fn minimizeWindow() void {}
 
 pub fn restoreWindow() void {}
 
-pub fn setWindowIcon(_: Image) void {}
+pub fn setWindowIcon(_: rl.Image) void {}
 
 pub fn setWindowTitle(_: [:0]const u8) void {}
 
