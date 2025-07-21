@@ -33,35 +33,164 @@ const log = std.log.scoped(.control);
 
 const name = "editor";
 
-//const Vec2 = struct {
-//    x: f32,
-//    y: f32,
-//
-//    pub fn distance(a: Vec2, b: Vec2) f32 {
-//        return @sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
-//    }
-//
-//    pub fn toRayVec(self: Vec2) rl.Vector2 {
-//        return rl.Vector2{ .x = self.x, .y = self.y };
-//    }
-//};
+const rl = view.rl;
+const TextureCache = view.TextureCache;
 
-//const Collider = struct {
-//    points: []Vec2,
-//};
+const Vec2 = struct {
+    x: f32,
+    y: f32,
 
-const HandleState = struct {
-    dragging: bool = false,
-    selected_index: usize = 0,
+    pub fn distance(a: Vec2, b: Vec2) f32 {
+        return @sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+    }
 };
 
-const screenWidth = 800;
-const screenHeight = 600;
+const Prefab = struct {
+    name: []const u8,
+
+    // Visual components: individual PNG parts with transform
+    parts: []const Part,
+
+    // Optional physics colliders
+    colliders: []const Collider,
+};
+
+const Part = struct {
+    image_path: []const u8, // path to PNG
+    position: Vec2,
+    rotation: f32 = 0.0, // in degrees or radians (your call)
+    scale: Vec2 = .{ .x = 1.0, .y = 1.0 }, // uniform or non-uniform
+    pivot: Vec2 = .{ .x = 0.5, .y = 0.5 }, // normalized, relative to image
+};
+
+const Collider = struct {
+    kind: ColliderKind,
+    // Shape data depending on kind
+    data: ColliderData,
+    offset: Vec2 = .{ .x = 0.0, .y = 0.0 }, // local offset
+};
+
+const ColliderKind = enum {
+    Box,
+    Circle,
+    Polygon,
+};
+
+const ColliderData = union(ColliderKind) {
+    Box: BoxCollider,
+    Circle: CircleCollider,
+    Polygon: PolygonCollider,
+};
+
+const BoxCollider = struct {
+    size: Vec2,
+};
+
+const CircleCollider = struct {
+    radius: f32,
+};
+
+const PolygonCollider = struct {
+    points: []const Vec2, // must form a convex polygon or whatever rule you enforce
+};
+
+const EditorMode = enum {
+    Idle,
+    Select,
+    Move,
+    Scale,
+    Rotate,
+    AddPart,
+    AddCollider,
+    EditCollider,
+    PanView,
+    PlacePivot,
+};
+
+const SelectionState = struct {
+    selected_part: ?usize = null,
+    selected_collider: ?usize = null,
+
+    selected_point_index: ?usize = null, // z. B. bei Polygon
+};
+
+const TransformState = struct {
+    dragging: bool,
+    origin: Vec2,
+    start_mouse: Vec2,
+    mode: enum { Move, Scale, Rotate },
+};
+
+//const Camera2D = extern struct {
+//    offset: rl.Vector2,
+//    target: rl.Vector2,
+//    rotation: f32,
+//    zoom: f32,
+//};
+
+const EditorState = struct {
+    // prefab: Prefab,
+
+    selection: SelectionState,
+    mode: EditorMode,
+
+    camera: rl.Camera2D, // für Pan/Zoom
+    // mouse: MouseState,
+
+    is_dirty: bool, // ungespeicherte Änderungen?
+
+    pub fn init(screen_width: f32, screen_height: f32) EditorState {
+        return EditorState{
+            .selection = .{},
+            .mode = .Idle,
+            .camera = rl.Camera2D{
+                .offset = rl.Vector2{ .x = screen_width / 2.0, .y = screen_height / 2.0 },
+                .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
+                .rotation = 0.0,
+                .zoom = 1.0,
+            },
+            .is_dirty = false,
+        };
+    }
+};
+
+const screenWidth = 1920 / 2;
+const screenHeight = 1080 / 2;
 
 //var collider: Collider = undefined;
 //var handle_state = HandleState{};
 //const handle_radius: f32 = 8.0;
 //var dragging_offset = Vec2{ .x = 0, .y = 0 };
+
+pub fn renderPrefab(prefab: *const Prefab, tex_cache: *TextureCache, allocator: std.mem.Allocator) !void {
+    for (prefab.parts) |part| {
+        const tex = try tex_cache.get(allocator, part.image_path);
+
+        const origin = rl.Vector2{
+            .x = @as(f32, @floatFromInt(tex.width)) * part.pivot.x,
+            .y = @as(f32, @floatFromInt(tex.height)) * part.pivot.y,
+        };
+
+        const dest_size = rl.Vector2{
+            .x = @as(f32, @floatFromInt(tex.width)) * part.scale.x,
+            .y = @as(f32, @floatFromInt(tex.height)) * part.scale.y,
+        };
+
+        rl.drawTexturePro(
+            tex,
+            rl.Rectangle{ .x = 0, .y = 0, .width = @floatFromInt(tex.width), .height = @floatFromInt(tex.height) },
+            rl.Rectangle{
+                .x = part.position.x,
+                .y = part.position.y,
+                .width = dest_size.x,
+                .height = dest_size.y,
+            },
+            origin,
+            part.rotation,
+            rl.Color.white,
+        );
+    }
+}
 
 pub const Control = struct {
     allocator: *std.mem.Allocator,
@@ -70,10 +199,18 @@ pub const Control = struct {
 
     arena_allocator: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(std.heap.page_allocator),
 
+    cache: TextureCache,
+
+    current: ?Prefab = null,
+
+    editor: EditorState,
+
     pub fn init(allocator: *std.mem.Allocator) Control {
         var control = Control{
             .allocator = allocator,
             .model = core.Model.init(allocator),
+            .cache = TextureCache.init(allocator.*),
+            .editor = EditorState.init(screenWidth, screenHeight),
         };
 
         Window.open("editor", screenWidth, screenHeight);
@@ -81,29 +218,21 @@ pub const Control = struct {
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
 
-        //collider = Collider{
-        //    .points = allocator.alloc(Vec2, 4) catch unreachable,
-        //};
-        //collider.points[0] = .{ .x = 200, .y = 200 };
-        //collider.points[1] = .{ .x = 300, .y = 200 };
-        //collider.points[2] = .{ .x = 300, .y = 300 };
-        //collider.points[3] = .{ .x = 200, .y = 300 };
-
-        util.asset.loadAsset(&control.arena_allocator) catch |err| {
-            std.debug.print("error: {s}\n", .{@errorName(err)});
-        };
+        control.current = util.ziggy.load(control.arena_allocator.allocator(), "prefab.ziggy", Prefab) catch unreachable;
 
         return control;
     }
 
     pub fn deinit(self: *Control) void {
-        //_ = self;
+        if (self.current) |cur| {
+            util.ziggy.save(self.arena_allocator.allocator(), "prefab.ziggy", cur) catch unreachable;
+        }
 
         Window.close();
 
         log.info("stopped sucessfully", .{});
 
-        //self.allocator.free(collider.points);
+        self.cache.deinit();
 
         self.arena_allocator.deinit();
     }
@@ -111,10 +240,8 @@ pub const Control = struct {
     pub fn update(self: *Control) void {
         //const actions = captureInput(self.allocator);
         //actions.deinit();
-        _ = self;
 
         Window.update();
-
         //const mouse = rl.getMousePosition();
         //const mouse_vec = Vec2{ .x = mouse.x, .y = mouse.y };
 
@@ -140,9 +267,31 @@ pub const Control = struct {
         //        .y = mouse.y + dragging_offset.y,
         //    };
         //}
+        const wheel = rl.getMouseWheelMove(); // +1 or -1 per notch
+        if (wheel != 0) {
+            const zoomFactor = 1.1;
+            if (wheel > 0) {
+                self.editor.camera.zoom *= zoomFactor;
+            } else {
+                self.editor.camera.zoom /= zoomFactor;
+            }
+
+            // Clamp zoom to avoid inversion or nan
+            if (self.editor.camera.zoom < 0.1) self.editor.camera.zoom = 0.1;
+            if (self.editor.camera.zoom > 10.0) self.editor.camera.zoom = 10.0;
+        }
 
         // --- Drawing ---
         Window.beginFrame();
+        //rl.clearBackground(rl.DARKGRAY);
+        rl.clearBackground(rl.Color.dark_brown);
+
+        rl.beginMode2D(self.editor.camera);
+        // Render your prefab here
+        if (self.current) |cur| {
+            renderPrefab(&cur, &self.cache, self.allocator.*) catch unreachable;
+        }
+        rl.endMode2D();
 
         //rl.clearBackground(rl.Color.ray_white);
 

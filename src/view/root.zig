@@ -23,6 +23,11 @@ pub const render = @import("render.zig");
 
 pub const Input = @import("input.zig").Input;
 pub const Window = @import("window.zig").Window;
+
+pub const TextureEntry = @import("texture.zig").TextureEntry;
+pub const TextureCache = @import("texture.zig").TextureCache;
+
+pub const rl = @import("raylib");
 // --------------------------
 
 test {

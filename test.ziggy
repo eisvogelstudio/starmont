@@ -1,4 +1,0 @@
-{
-    .foo = "Zig's New Relationship with LLVM",
-    .bar = false,
-}
