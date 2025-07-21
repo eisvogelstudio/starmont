@@ -26,6 +26,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const ziggy = b.dependency("ziggy", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // ########## modules ##########
 
     // shared lib module
@@ -34,8 +39,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    shared_mod.addImport("zflecs", zflecs.module("root"));
     shared_mod.addImport("network", network.module("network"));
+    shared_mod.addImport("zflecs", zflecs.module("root"));
+    shared_mod.addImport("ziggy", ziggy.module("ziggy"));
 
     // view lib module
     const view_mod = b.createModule(.{
@@ -74,7 +80,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     server_mod.addImport("shared", shared_mod);
-    server_mod.addImport("util", shared_mod);
     server_mod.addImport("zflecs", zflecs.module("root"));
 
     // master module
@@ -84,7 +89,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     master_mod.addImport("shared", shared_mod);
-    master_mod.addImport("util", shared_mod);
 
     // ########## objects ##########
 

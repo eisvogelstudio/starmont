@@ -1,7 +1,41 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
-    "configurations": []
+    "configurations": [
+        {
+			"name": "Debug Client",
+			"type": "lldb",
+			"request": "launch",
+			"program": "${workspaceFolder}/zig-out/bin/starmont_client",
+			"preLaunchTask": "build",
+			"args": [],
+     		"cwd": "${workspaceFolder}",
+		},
+        {
+			"name": "Debug Server",
+			"type": "lldb",
+			"request": "launch",
+			"program": "${workspaceFolder}/zig-out/bin/starmont_server",
+			"preLaunchTask": "build",
+			"args": [],
+     		"cwd": "${workspaceFolder}",
+		},
+        {
+			"name": "Debug Master",
+			"type": "lldb",
+			"request": "launch",
+			"program": "${workspaceFolder}/zig-out/bin/starmont_master",
+			"preLaunchTask": "build",
+			"args": [],
+     		"cwd": "${workspaceFolder}",
+		},
+        {
+			"name": "Debug Editor",
+			"type": "lldb",
+			"request": "launch",
+			"program": "${workspaceFolder}/zig-out/bin/starmont_editor",
+			"preLaunchTask": "build",
+			"args": [],
+     		"cwd": "${workspaceFolder}",
+		},
+    ]
 }

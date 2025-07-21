@@ -19,6 +19,7 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
+pub const asset = @import("asset.zig");
 pub const format = @import("format.zig");
 pub const log = @import("log.zig");
 
