@@ -18,4 +18,27 @@
 const std = @import("std");
 // -------------------------
 
-//TODO
+// ---------- special -----------
+const rl = @import("raylib");
+// ------------------------------
+
+pub const Input = struct {
+    pub const KeyboardKey = rl.KeyboardKey;
+    pub const MouseButton = rl.MouseButton;
+    pub const Vector2 = rl.Vector2; //TODO use own vec2
+
+    pub const isKeyDown = rl.isKeyDown;
+    pub const isKeyUp = rl.isKeyUp;
+    pub const isKeyPressed = rl.isKeyPressed;
+    pub const isKeyReleased = rl.isKeyReleased;
+
+    pub const isMouseButtonDown = rl.isMouseButtonDown;
+    pub const isMouseButtonUp = rl.isMouseButtonUp;
+    pub const isMouseButtonPressed = rl.isMouseButtonPressed;
+    pub const isMouseButtonReleased = rl.isMouseButtonReleased;
+
+    pub const getMousePosition = rl.getMousePosition;
+    pub const getMouseDelta = rl.getMouseDelta;
+    pub const getMouseWheelMove = rl.getMouseWheelMove;
+    pub const getMouseWheelMoveV = rl.getMouseWheelMoveV;
+};

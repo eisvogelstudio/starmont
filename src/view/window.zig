@@ -14,13 +14,8 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- options ----------
-const build_options = @import("build_options");
-const hasRenderer = build_options.hasRenderer;
-// -----------------------------
-
 // ---------- special -----------
-const rl = if (hasRenderer) @import("raylib") else @import("raylib.zig");
+const rl = @import("raylib");
 // ------------------------------
 
 var _width: i32 = undefined;

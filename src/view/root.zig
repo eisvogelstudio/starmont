@@ -14,20 +14,15 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- options ----------
-const build_options = @import("build_options");
-const hasRenderer = build_options.hasRenderer;
-// -----------------------------
-
 // ---------- std ----------
 const std = @import("std");
 // -------------------------
 
 // ---------- root ----------
 pub const render = @import("render.zig");
-pub const Window = @import("window.zig").Window;
 
-pub const rl = if (hasRenderer) @import("raylib") else @import("raylib.zig");
+pub const Input = @import("input.zig").Input;
+pub const Window = @import("window.zig").Window;
 // --------------------------
 
 test {
