@@ -26,6 +26,10 @@
             .url = "git+https://github.com/eisvogelstudio/ziggy.git#3de840f7c7ec1d4c384c5c69fe9715eb8bb72763",
             .hash = "ziggy-0.1.0-kTg8v1w9BgAZhBJDEsqjU7eC_duvfDUdJTcAsvKSc35x",
         },
+        .zchip2d = .{
+            .url = "git+https://github.com/eisvogelstudio/zchip2d.git#9322f6ef5307d37708c34e9b76f29bd5bfd02f12",
+            .hash = "zchip2d-0.1.0-dev-ljkIETyIIgAmJcJ0PLF2lLBkesZnSZ2kE6xw4z_7-Gmf",
+        },
     },
 
     .paths = .{
