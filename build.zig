@@ -21,6 +21,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const zchip2d = b.dependency("zchip2d", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const zflecs = b.dependency("zflecs", .{
         .target = target,
         .optimize = optimize,
@@ -40,6 +45,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     shared_mod.addImport("network", network.module("network"));
+    shared_mod.addImport("zchip2d", zchip2d.module("zchip2d"));
     shared_mod.addImport("zflecs", zflecs.module("root"));
     shared_mod.addImport("ziggy", ziggy.module("ziggy"));
 

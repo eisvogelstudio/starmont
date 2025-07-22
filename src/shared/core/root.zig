@@ -20,15 +20,19 @@ pub const version = "0.1.0-dev";
 const action = @import("action.zig");
 pub const Action = action.Action;
 
+const collider = @import("collider.zig");
+
 const identity = @import("identity.zig");
 pub const Identity = identity.Identity;
+
+const model = @import("model.zig");
+pub const Model = model.Model;
 
 const registry = @import("registry.zig");
 pub const Id = registry.Id;
 pub const Registry = registry.Registry;
 
-const model = @import("model.zig");
-pub const Model = model.Model;
+const tilemap = @import("tilemap.zig");
 
 pub usingnamespace @import("component.zig");
 pub usingnamespace @import("tag.zig");

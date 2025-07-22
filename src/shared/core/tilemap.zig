@@ -14,12 +14,39 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-pub const format = @import("format.zig");
-pub const log = @import("log.zig");
-pub const ziggy = @import("ziggy.zig");
+// ---------- shared ----------
+const util = @import("shared").util;
+// ----------------------------
 
-pub const UUID4 = @import("uuid4.zig").UUID4;
+// ---------- core ----------
+const Collider = @import("collider.zig").Collider;
+// --------------------------
 
-pub const Vec2 = @import("geometry/vec2.zig").Vec2;
-pub const Vec2u = @import("geometry/vec2u.zig").Vec2u;
-pub const Angle = @import("geometry/angle.zig").Angle;
+const TileKind = enum {
+    Empty,
+    Floor,
+    Wall,
+    Glass,
+    Door,
+    Terminal,
+    Spawnpoint,
+};
+
+const Tile = struct {
+    kind: TileKind,
+};
+
+pub const tile_size = util.Vec2u.init(32, 32);
+
+const Tilemap = struct {
+    size: util.Vec2u,
+    tiles: []Tile,
+    colliders: []Collider,
+    //markers: []Marker,
+};
+
+const TilemapEntity = struct {
+    tilemap: *const Tilemap,
+    position: util.Vec2,
+    rotation: util.Angle,
+};

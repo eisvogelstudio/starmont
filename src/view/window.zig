@@ -28,7 +28,6 @@ pub const Window = struct {
         _height = height;
 
         rl.initWindow(width, height, "todo");
-        //rl.setTargetFPS(60);
 
         update();
     }

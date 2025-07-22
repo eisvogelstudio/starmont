@@ -41,7 +41,7 @@ pub const UUID4 = struct {
         };
     }
 
-    pub fn eql(a: UUID4, b: UUID4) bool {
+    pub fn equals(a: UUID4, b: UUID4) bool {
         return std.mem.eql(u8, &a.bytes, &b.bytes);
     }
 
@@ -63,8 +63,8 @@ test "UUID4 generation, string conversion, equality" {
     const uuid1 = UUID4.generate(random);
     const uuid2 = UUID4.generate(random);
 
-    try std.testing.expect(!UUID4.eql(uuid1, uuid2));
-    try std.testing.expect(UUID4.eql(uuid1, uuid1));
+    try std.testing.expect(!UUID4.equals(uuid1, uuid2));
+    try std.testing.expect(UUID4.equals(uuid1, uuid1));
 
     const str1 = uuid1.toString();
     const str2 = uuid2.toString();
@@ -93,5 +93,5 @@ test "UUID4 serialize and deserialize" {
     const reader = stream.reader();
     const deserialized = UUID4.deserialize(reader);
 
-    try std.testing.expect(UUID4.eql(uuid, deserialized));
+    try std.testing.expect(UUID4.equals(uuid, deserialized));
 }

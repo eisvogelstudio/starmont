@@ -14,12 +14,27 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-pub const format = @import("format.zig");
-pub const log = @import("log.zig");
-pub const ziggy = @import("ziggy.zig");
+// ---------- std ----------
+const std = @import("std");
+// -------------------------
 
-pub const UUID4 = @import("uuid4.zig").UUID4;
+// ---------- util/geometry ----------
+const Vec2 = @import("vec2.zig").Vec2;
+// -----------------------------------
 
-pub const Vec2 = @import("geometry/vec2.zig").Vec2;
-pub const Vec2u = @import("geometry/vec2u.zig").Vec2u;
-pub const Angle = @import("geometry/angle.zig").Angle;
+const Vec2u = struct {
+    x: u32,
+    y: u32,
+
+    pub fn init(x: u32, y: u32) Vec2u {
+        return .{ .x = x, .y = y };
+    }
+
+    pub fn add(self: Vec2u, other: Vec2u) Vec2u {
+        return .{ .x = self.x + other.x, .y = self.y + other.y };
+    }
+
+    pub fn toVec2(self: Vec2u) Vec2 {
+        return .{ .x = @floatFromInt(self.x), .y = @floatFromInt(self.y) };
+    }
+};
