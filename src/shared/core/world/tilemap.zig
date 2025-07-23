@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────
 
 // ---------- local ----------
-const util = @import("../../util/root.zig");
+const util = @import("../../util/util.zig");
 const Collider = @import("../physics/collider.zig").Collider;
 // --------------------------
 

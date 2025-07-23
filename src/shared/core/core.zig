@@ -14,6 +14,7 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ╔══════════════════════════════ pack ══════════════════════════════╗
 pub const name = "starmont";
 pub const version = "0.1.0-dev";
 
@@ -36,3 +37,8 @@ const tilemap = @import("world/tilemap.zig");
 
 pub usingnamespace @import("component.zig");
 pub usingnamespace @import("tag.zig");
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// ╔══════════════════════════════ test ══════════════════════════════╗
+//TODO[TEST] import all pack files
+// ╚══════════════════════════════════════════════════════════════════╝

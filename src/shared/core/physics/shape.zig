@@ -19,7 +19,7 @@ const std = @import("std");
 // -------------------------
 
 // ---------- local ----------
-const util = @import("../../util/root.zig");
+const util = @import("../../util/util.zig");
 // ---------------------------
 
 // ┌──────────────────── ShapeType ────────────────────┐

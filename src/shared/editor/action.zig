@@ -14,12 +14,32 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-pub const format = @import("format.zig");
-pub const log = @import("log.zig");
-pub const ziggy = @import("ziggy.zig");
+// ---------- shared ----------
+const core = @import("../core/core.zig");
+const util = @import("../util/util.zig");
+// ----------------------------
 
-pub const UUID4 = @import("uuid4.zig").UUID4;
+pub const Tool = enum {
+    Select,
+    Move,
+    Rotate,
+    Scale,
+    Paint,
+    Collider,
+    Pivot,
+};
 
-pub const Vec2 = @import("geometry/vec2.zig").Vec2;
-pub const Vec2u = @import("geometry/vec2u.zig").Vec2u;
-pub const Angle = @import("geometry/angle.zig").Angle;
+pub const Action = union(enum) {
+    SelectPart: u32,
+    DeleteSelected,
+    DuplicateSelected,
+    CreatePart,
+    CreateCollider,
+    PlacePivot,
+    ToggleColliderView,
+    ToggleSnapToGrid,
+    ChangeTool: Tool,
+    FileOpen: []const u8,
+    FileSave,
+    FileSaveAs: []const u8,
+};

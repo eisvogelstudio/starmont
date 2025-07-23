@@ -1,11 +1,21 @@
-### TODO Tagging Convention
+# Codestyle Guidelines
+
+## Use zig fmt
+
+## Naming
+
+See: <https://ziglang.org/documentation/0.14.1/#Style-Guide>
+
+## TODO Tagging Convention
 
 All TODO comments should be annotated using a structured tag in the following format:
+
 ```zig
 // TODO[TAG]: Optional explanation
 ```
 
 Use the following standardized tags:
+
 - TODO[BUG]            - A known bug that causes incorrect behavior
 - TODO[FIXME]          - A critical issue that must be fixed urgently
 - TODO[SECURITY]       - Security risk or input validation concern
@@ -22,6 +32,7 @@ Use the following standardized tags:
 - TODO[DEBUG]          - Temporary debug code or logging to be removed
 
 Additional context should be added after the tag when appropriate:
+
 ```zig
 // TODO[BUG]: Collision detection fails for fast-moving objects
 ```

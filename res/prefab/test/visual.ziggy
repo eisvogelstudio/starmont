@@ -1,0 +1,3 @@
+.name = "crumbling_bridge",
+.parts = [{ .image_path = "res/image/traktor.png", .position = { .x = 2.9e2, .y = 8e0 }, .rotation = 3.58e2, .scale = { .x = 1e0, .y = 1e0 }, .pivot = { .x = 5e-1, .y = 5e-1 } }, { .image_path = "res/image/flower.jpg", .position = { .x = -1.47e2, .y = 2e1 }, .rotation = 2e1, .scale = { .x = 1e0, .y = 1e0 }, .pivot = { .x = 5e-1, .y = 5e-1 } }],
+.colliders = [{ .kind = "Box", .data = Box { .size = { .x = 2e0, .y = 5e-1 } }, .offset = { .x = 0e0, .y = -2e-1 } }],

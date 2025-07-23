@@ -23,7 +23,7 @@ const Angle = @import("angle.zig").Angle;
 // -----------------------------------
 
 // ---------- shared ----------
-const network = @import("../../network/root.zig");
+const network = @import("../../network/network.zig");
 // ----------------------------
 
 pub const Vec2 = struct {

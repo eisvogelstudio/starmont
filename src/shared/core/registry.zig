@@ -20,7 +20,7 @@ const testing = std.testing;
 // -------------------------
 
 // ---------- local ----------
-const util = @import("../util/root.zig");
+const util = @import("../util/util.zig");
 // ---------------------------
 
 // ---------- external ----------

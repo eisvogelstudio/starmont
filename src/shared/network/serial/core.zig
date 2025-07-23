@@ -20,8 +20,8 @@ const testing = std.testing;
 // -------------------------
 
 // ---------- local ----------
-const core = @import("../../core/root.zig");
-const util = @import("../../util/root.zig");
+const core = @import("../../core/core.zig");
+const util = @import("../../util/util.zig");
 // ---------------------------
 
 // ---------- network/serial ----------

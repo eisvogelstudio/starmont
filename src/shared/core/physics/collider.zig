@@ -21,7 +21,7 @@ const std = @import("std");
 // ---------- local ----------
 const ShapeType = @import("shape.zig").ShapeType;
 const Shape = @import("shape.zig").Shape;
-const util = @import("../../util/root.zig");
+const util = @import("../../util/util.zig");
 // ---------------------------
 
 // ---------- external ----------

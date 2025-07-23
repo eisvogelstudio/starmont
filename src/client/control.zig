@@ -43,8 +43,8 @@ const name = "client";
 
 // ┌──────────────────── State ────────────────────┐
 const State = struct {
-    stop: bool = false,
-    snapshotRequired: bool = true,
+    should_stop: bool = false,
+    should_request_snapshot: bool = true,
 };
 // └───────────────────────────────────────────────┘
 
@@ -54,11 +54,7 @@ pub const Control = struct {
     model: core.Model,
     view: View,
     client: network.Client,
-<<<<<<< HEAD
     state: State,
-=======
-    should_request_snapshot: bool = true,
->>>>>>> development
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
@@ -91,7 +87,7 @@ pub const Control = struct {
         self.model.update();
         self.view.update(&self.model);
 
-        if (!self.client.connected) {
+        if (!self.client.is_connected) {
             self.client.connect("127.0.0.1", 11111) catch |err| {
                 switch (err) {
                     error.Cooldown => {
@@ -104,13 +100,13 @@ pub const Control = struct {
             };
         }
 
-        if (!self.client.connected) {
+        if (!self.client.is_connected) {
             return;
         }
 
-        if (self.should_request_snapshot) {
+        if (self.state.should_request_snapshot) {
             self.client.submit(network.SnapshotRequestMessage.init());
-            self.should_request_snapshot = false;
+            self.state.should_request_snapshot = false;
         }
 
         // Receive messages
@@ -167,7 +163,7 @@ pub const Control = struct {
     }
 
     pub fn shouldStop(self: *Control) bool {
-        return self.state.stop;
+        return self.state.should_stop;
     }
 
     fn processFrontEvents(self: *Control) void {
@@ -179,7 +175,7 @@ pub const Control = struct {
     }
 
     fn sendActions(self: *Control) void {
-        if (!self.client.connected) return;
+        if (!self.client.is_connected) return;
 
         //for (actions.items) |a| {
         //    self.client.submit(network.ActionMessage.init(a));

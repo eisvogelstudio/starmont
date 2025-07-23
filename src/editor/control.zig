@@ -18,134 +18,107 @@
 const std = @import("std");
 // -------------------------
 
+// ---------- local ----------
+const View = @import("view/view.zig").View;
+// ----------------------------
+
 // ---------- shared ----------
 const core = @import("shared").core;
 const util = @import("shared").util;
+const FrontEvent = @import("frontend").FrontEvent;
 // ----------------------------
 
-// ---------- shared ----------
-const frontend = @import("frontend");
-const Input = frontend.Input;
-const Window = frontend.Window;
-// ----------------------------
-
+// ╔══════════════════════════════ init ══════════════════════════════╗
 const log = std.log.scoped(.control);
 
 const name = "editor";
+// ╚══════════════════════════════════════════════════════════════════╝
 
-const rl = frontend.rl;
-const TextureCache = frontend.TextureCache;
-
-const Vec2 = rl.Vector2;
-
-const Prefab = struct {
-    name: []const u8,
-    parts: []const Part,
-    colliders: []const Collider,
+// ┌──────────────────── State ────────────────────┐
+const State = struct {
+    should_stop: bool = false,
 };
+// └───────────────────────────────────────────────┘
 
-const PrefabData = struct {
-    prefab: Prefab,
-    parts_list: std.ArrayList(Part),
-    colliders_list: std.ArrayList(Collider),
+//const Prefab = struct {
+//    name: []const u8,
+//    parts: []const Part,
+//    colliders: []const Collider,
+//};
 
-    pub fn init(allocator: std.mem.Allocator) !PrefabData {
-        return PrefabData{
-            .prefab = Prefab{
-                .name = "unnamed",
-                .parts = &[_]Part{},
-                .colliders = &[_]Collider{},
-            },
-            .parts_list = try std.ArrayList(Part).init(allocator),
-            .colliders_list = try std.ArrayList(Collider).init(allocator),
-        };
-    }
+//const PrefabData = struct {
+//    prefab: Prefab,
+//    parts_list: std.ArrayList(Part),
+//    colliders_list: std.ArrayList(Collider),
+//
+//    pub fn init(allocator: std.mem.Allocator) !PrefabData {
+//        return PrefabData{
+//            .prefab = Prefab{
+//                .name = "unnamed",
+//                .parts = &[_]Part{},
+//                .colliders = &[_]Collider{},
+//            },
+//            .parts_list = try std.ArrayList(Part).init(allocator),
+//            .colliders_list = try std.ArrayList(Collider).init(allocator),
+//        };
+//    }
+//
+//    pub fn appendPart(self: *PrefabData, part: Part) !void {
+//        try self.parts_list.append(part);
+//        self.prefab.parts = self.parts_list.items;
+//    }
+//
+//    pub fn appendCollider(self: *PrefabData, collider: Collider) !void {
+//        try self.colliders_list.append(collider);
+//        self.prefab.colliders = self.colliders_list.items;
+//    }
+//
+//    pub fn deinit(self: *PrefabData) void {
+//        self.parts_list.deinit();
+//        self.colliders_list.deinit();
+//    }
+//
+//    pub fn from(allocator: std.mem.Allocator, p: ?Prefab) ?PrefabData {
+//        if (p) |prefab| {
+//            var parts = std.ArrayList(Part).init(allocator);
+//            parts.appendSlice(prefab.parts) catch unreachable;
+//
+//            var colliders = std.ArrayList(Collider).init(allocator);
+//            colliders.appendSlice(prefab.colliders) catch unreachable;
+//
+//            return PrefabData{
+//                .prefab = Prefab{
+//                    .name = prefab.name,
+//                    .parts = parts.items,
+//                    .colliders = colliders.items,
+//                },
+//                .parts_list = parts,
+//                .colliders_list = colliders,
+//            };
+//        } else {
+//            return null;
+//        }
+//    }
+//
+//    /// Converts the dynamic PrefabData back into a static Prefab (e.g. for serialization)
+//    pub fn to(self: *PrefabData) Prefab {
+//        return Prefab{
+//            .name = self.prefab.name,
+//            .parts = self.parts_list.items,
+//            .colliders = self.colliders_list.items,
+//        };
+//    }
+//};
 
-    pub fn appendPart(self: *PrefabData, part: Part) !void {
-        try self.parts_list.append(part);
-        self.prefab.parts = self.parts_list.items;
-    }
-
-    pub fn appendCollider(self: *PrefabData, collider: Collider) !void {
-        try self.colliders_list.append(collider);
-        self.prefab.colliders = self.colliders_list.items;
-    }
-
-    pub fn deinit(self: *PrefabData) void {
-        self.parts_list.deinit();
-        self.colliders_list.deinit();
-    }
-
-    pub fn from(allocator: std.mem.Allocator, p: ?Prefab) ?PrefabData {
-        if (p) |prefab| {
-            var parts = std.ArrayList(Part).init(allocator);
-            parts.appendSlice(prefab.parts) catch unreachable;
-
-            var colliders = std.ArrayList(Collider).init(allocator);
-            colliders.appendSlice(prefab.colliders) catch unreachable;
-
-            return PrefabData{
-                .prefab = Prefab{
-                    .name = prefab.name,
-                    .parts = parts.items,
-                    .colliders = colliders.items,
-                },
-                .parts_list = parts,
-                .colliders_list = colliders,
-            };
-        } else {
-            return null;
-        }
-    }
-
-    /// Converts the dynamic PrefabData back into a static Prefab (e.g. for serialization)
-    pub fn to(self: *PrefabData) Prefab {
-        return Prefab{
-            .name = self.prefab.name,
-            .parts = self.parts_list.items,
-            .colliders = self.colliders_list.items,
-        };
-    }
-};
-
-const Part = struct {
-    image_path: []const u8, // path to PNG
-    position: Vec2,
-    rotation: f32 = 0.0, // in degrees or radians (your call)
-    scale: Vec2 = .{ .x = 1.0, .y = 1.0 }, // uniform or non-uniform
-    pivot: Vec2 = .{ .x = 0.5, .y = 0.5 }, // normalized, relative to image
-};
-
-const Collider = struct {
-    kind: ColliderKind,
-    // Shape data depending on kind
-    data: ColliderData,
-    offset: Vec2 = .{ .x = 0.0, .y = 0.0 }, // local offset
-};
-
-const ColliderKind = enum {
-    Box,
-    Circle,
-    Polygon,
-};
-
-const ColliderData = union(ColliderKind) {
-    Box: BoxCollider,
-    Circle: CircleCollider,
-    Polygon: PolygonCollider,
-};
-
-const BoxCollider = struct {
-    size: Vec2,
-};
-
-const CircleCollider = struct {
-    radius: f32,
-};
-
-const PolygonCollider = struct {
-    points: []const Vec2, // must form a convex polygon or whatever rule you enforce
-};
+//const Part = struct {
+//    image_path: []const u8, // path to PNG
+//    position: Vec2,
+//    rotation: f32 = 0.0, // in degrees or radians (your call)
+//    scale: Vec2 = .{ .x = 1.0, .y = 1.0 }, // uniform or non-uniform
+//    pivot: Vec2 = .{ .x = 0.5, .y = 0.5 }, // normalized, relative to image
+//};
+//    points: []const Vec2, // must form a convex polygon or whatever rule you enforce
+//};
 
 const EditorMode = enum {
     Idle,
@@ -170,8 +143,8 @@ const SelectionState = struct {
 const TransformState = struct {
     is_dragging: bool,
     //origin: Vec2,
-    start_mouse: Vec2,
-    start_position: Vec2,
+    start_mouse: util.Vec2,
+    start_position: util.Vec2,
     //mode: enum { Move, Scale, Rotate },
 };
 
@@ -182,33 +155,33 @@ const TransformState = struct {
 //    zoom: f32,
 //};
 
-const EditorState = struct {
-    // prefab: Prefab,
-
-    selection: SelectionState,
-    mode: EditorMode,
-    transform: ?TransformState,
-
-    camera: rl.Camera2D, // für Pan/Zoom
-    // mouse: MouseState,
-
-    is_dirty: bool, // ungespeicherte Änderungen?
-
-    pub fn init(screen_width: f32, screen_height: f32) EditorState {
-        return EditorState{
-            .selection = .{},
-            .mode = .Idle,
-            .transform = null,
-            .camera = rl.Camera2D{
-                .offset = rl.Vector2{ .x = screen_width / 2.0, .y = screen_height / 2.0 },
-                .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
-                .rotation = 0.0,
-                .zoom = 1.0,
-            },
-            .is_dirty = false,
-        };
-    }
-};
+//const EditorState = struct {
+//    // prefab: Prefab,
+//
+//    selection: SelectionState,
+//    mode: EditorMode,
+//    transform: ?TransformState,
+//
+//    //camera: rl.Camera2D, // für Pan/Zoom
+//    // mouse: MouseState,
+//
+//    is_dirty: bool, // ungespeicherte Änderungen?
+//
+//    //pub fn init(screen_width: f32, screen_height: f32) EditorState {
+//    //    return EditorState{
+//    //        .selection = .{},
+//    //        .mode = .Idle,
+//    //        .transform = null,
+//    //        //.camera = rl.Camera2D{
+//    //        //    .offset = rl.Vector2{ .x = screen_width / 2.0, .y = screen_height / 2.0 },
+//    //        //    .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
+//    //        //    .rotation = 0.0,
+//    //        //    .zoom = 1.0,
+//    //        //},
+//    //        .is_dirty = false,
+//    //    };
+//    //}
+//};
 
 const screenWidth = 1920 / 2;
 const screenHeight = 1080 / 2;
@@ -218,122 +191,114 @@ const screenHeight = 1080 / 2;
 //const handle_radius: f32 = 8.0;
 //var dragging_offset = Vec2{ .x = 0, .y = 0 };
 
-pub fn renderPrefab(prefab: *const Prefab, tex_cache: *TextureCache, allocator: std.mem.Allocator, selected: ?usize) !void {
-    _ = allocator;
-    for (prefab.parts, 0..) |part, i| {
-        const tex = try tex_cache.get(part.image_path);
-
-        const origin = rl.Vector2{
-            .x = @as(f32, @floatFromInt(tex.width)) * part.pivot.x,
-            .y = @as(f32, @floatFromInt(tex.height)) * part.pivot.y,
-        };
-
-        const dest_size = rl.Vector2{
-            .x = @as(f32, @floatFromInt(tex.width)) * part.scale.x,
-            .y = @as(f32, @floatFromInt(tex.height)) * part.scale.y,
-        };
-
-        rl.drawTexturePro(
-            tex,
-            rl.Rectangle{ .x = 0, .y = 0, .width = @floatFromInt(tex.width), .height = @floatFromInt(tex.height) },
-            rl.Rectangle{
-                .x = part.position.x,
-                .y = part.position.y,
-                .width = dest_size.x,
-                .height = dest_size.y,
-            },
-            origin,
-            part.rotation,
-            rl.Color.white,
-        );
-
-        if (selected != null and selected.? == i) {
-            const half_size = rl.Vector2{
-                .x = dest_size.x * 0.5,
-                .y = dest_size.y * 0.5,
-            };
-
-            // Punkte im lokalen Raum (relativ zur Mitte)
-            const corners = [_]rl.Vector2{
-                .{ .x = -half_size.x, .y = -half_size.y },
-                .{ .x = half_size.x, .y = -half_size.y },
-                .{ .x = half_size.x, .y = half_size.y },
-                .{ .x = -half_size.x, .y = half_size.y },
-            };
-
-            // Rotation in Grad → Bogenmaß
-            const rad = part.rotation * std.math.pi / 180.0;
-
-            // vorberechnete Sinus/Cosinus
-            const cos_theta = @cos(rad);
-            const sin_theta = @sin(rad);
-
-            // Transformierte Punkte
-            var transformed: [4]rl.Vector2 = undefined;
-            for (corners, 0..) |corner, j| {
-                const rotated = rl.Vector2{
-                    .x = corner.x * cos_theta - corner.y * sin_theta,
-                    .y = corner.x * sin_theta + corner.y * cos_theta,
-                };
-                transformed[j] = rl.Vector2{
-                    .x = part.position.x + rotated.x,
-                    .y = part.position.y + rotated.y,
-                };
-            }
-
-            // Linien zeichnen
-            for (transformed, 0..) |p, j| {
-                const next = transformed[(j + 1) % 4];
-                rl.drawLineEx(p, next, 4.0, rl.Color.yellow);
-            }
-        }
-    }
-}
+//pub fn renderPrefab(prefab: *const Prefab, tex_cache: *TextureCache, allocator: std.mem.Allocator, selected: ?usize) !void {
+//    _ = allocator;
+//    for (prefab.parts, 0..) |part, i| {
+//        const tex = try tex_cache.get(part.image_path);
+//
+//        const origin = rl.Vector2{
+//            .x = @as(f32, @floatFromInt(tex.width)) * part.pivot.x,
+//            .y = @as(f32, @floatFromInt(tex.height)) * part.pivot.y,
+//        };
+//
+//        const dest_size = rl.Vector2{
+//            .x = @as(f32, @floatFromInt(tex.width)) * part.scale.x,
+//            .y = @as(f32, @floatFromInt(tex.height)) * part.scale.y,
+//        };
+//
+//        rl.drawTexturePro(
+//            tex,
+//            rl.Rectangle{ .x = 0, .y = 0, .width = @floatFromInt(tex.width), .height = @floatFromInt(tex.height) },
+//            rl.Rectangle{
+//                .x = part.position.x,
+//                .y = part.position.y,
+//                .width = dest_size.x,
+//                .height = dest_size.y,
+//            },
+//            origin,
+//            part.rotation,
+//            rl.Color.white,
+//        );
+//
+//        if (selected != null and selected.? == i) {
+//            const half_size = rl.Vector2{
+//                .x = dest_size.x * 0.5,
+//                .y = dest_size.y * 0.5,
+//            };
+//
+//            // Punkte im lokalen Raum (relativ zur Mitte)
+//            const corners = [_]rl.Vector2{
+//                .{ .x = -half_size.x, .y = -half_size.y },
+//                .{ .x = half_size.x, .y = -half_size.y },
+//                .{ .x = half_size.x, .y = half_size.y },
+//                .{ .x = -half_size.x, .y = half_size.y },
+//            };
+//
+//            // Rotation in Grad → Bogenmaß
+//            const rad = part.rotation * std.math.pi / 180.0;
+//
+//            // vorberechnete Sinus/Cosinus
+//            const cos_theta = @cos(rad);
+//            const sin_theta = @sin(rad);
+//
+//            // Transformierte Punkte
+//            var transformed: [4]rl.Vector2 = undefined;
+//            for (corners, 0..) |corner, j| {
+//                const rotated = rl.Vector2{
+//                    .x = corner.x * cos_theta - corner.y * sin_theta,
+//                    .y = corner.x * sin_theta + corner.y * cos_theta,
+//                };
+//                transformed[j] = rl.Vector2{
+//                    .x = part.position.x + rotated.x,
+//                    .y = part.position.y + rotated.y,
+//                };
+//            }
+//
+//            // Linien zeichnen
+//            for (transformed, 0..) |p, j| {
+//                const next = transformed[(j + 1) % 4];
+//                rl.drawLineEx(p, next, 4.0, rl.Color.yellow);
+//            }
+//        }
+//    }
+//}
 
 pub const Control = struct {
     allocator: *std.mem.Allocator,
-    model: core.Model,
+    state: State,
+
     should_request_snapshot: bool = true,
 
     arena_allocator: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(std.heap.page_allocator),
 
-    cache: TextureCache,
+    //current: ?PrefabData = null,
 
-    current: ?PrefabData = null,
-
-    editor: EditorState,
+    //editor: EditorState,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         var control = Control{
             .allocator = allocator,
-            .model = core.Model.init(allocator),
-            .cache = TextureCache.init(allocator.*),
-            .editor = EditorState.init(screenWidth, screenHeight),
+            .state = State{},
+            //.editor = EditorState.init(screenWidth, screenHeight),
         };
-
-        Window.open("editor", screenWidth, screenHeight);
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
 
-        const temp = util.ziggy.load(control.arena_allocator.allocator(), "ressources/prefab.ziggy", Prefab) catch unreachable;
-        control.current = PrefabData.from(allocator.*, temp);
-
+        //const temp = util.ziggy.load(control.arena_allocator.allocator(), "res/prefab/test/visual.ziggy", Prefab) catch unreachable;
+        //control.current = PrefabData.from(allocator.*, temp);
+        control = control;
         return control;
     }
 
     pub fn deinit(self: *Control) void {
-        if (self.current) |*cur| {
-            util.ziggy.save(self.arena_allocator.allocator(), "prefab.ziggy", cur.to()) catch unreachable;
-        }
-
-        self.cache.deinit();
-
-        Window.close();
+        //if (self.current) |*cur| {
+        //    util.ziggy.save(self.arena_allocator.allocator(), "res/prefab/test/visual.ziggy", cur.to()) catch unreachable;
+        //}
 
         log.info("stopped sucessfully", .{});
 
-        self.current.?.deinit();
+        //self.current.?.deinit();
 
         self.arena_allocator.deinit();
     }
@@ -342,7 +307,7 @@ pub const Control = struct {
         //const actions = captureInput(self.allocator);
         //actions.deinit();
 
-        Window.update();
+        //Window.update();
         //const mouse = rl.getMousePosition();
         //const mouse_vec = Vec2{ .x = mouse.x, .y = mouse.y };
 
@@ -371,29 +336,29 @@ pub const Control = struct {
         self.handleSelection();
         self.handleDragging();
 
-        const wheel = frontend.Input.getMouseWheelMove();
-
-        if (Input.isKeyDown(Input.KeyboardKey.left_control) and Input.isKeyDown(Input.KeyboardKey.left_shift)) {
-            if (self.current) |*cur| {
-                if (self.editor.selection.selected_part) |val| {
-                    cur.parts_list.items[val].rotation = @mod(std.math.round(cur.parts_list.items[val].rotation + wheel), 360);
-                }
-            }
-        } else {
-            self.handleZoom(wheel);
-        }
+        //const wheel = frontend.Input.getMouseWheelMove();
+        //
+        //if (Input.isKeyDown(Input.KeyboardKey.left_control) and Input.isKeyDown(Input.KeyboardKey.left_shift)) {
+        //    if (self.current) |*cur| {
+        //        if (self.editor.selection.selected_part) |val| {
+        //            cur.parts_list.items[val].rotation = @mod(std.math.round(cur.parts_list.items[val].rotation + wheel), 360);
+        //        }
+        //    }
+        //} else {
+        //    self.handleZoom(wheel);
+        //}
 
         // --- Drawing ---
-        Window.beginFrame();
-        //rl.clearBackground(rl.DARKGRAY);
-        rl.clearBackground(rl.Color.dark_brown);
-
-        rl.beginMode2D(self.editor.camera);
-        // Render your prefab here
-        if (self.current) |*cur| {
-            renderPrefab(&cur.to(), &self.cache, self.allocator.*, self.editor.selection.selected_part) catch unreachable;
-        }
-        rl.endMode2D();
+        //Window.beginFrame();
+        ////rl.clearBackground(rl.DARKGRAY);
+        //rl.clearBackground(rl.Color.dark_brown);
+        //
+        //rl.beginMode2D(self.editor.camera);
+        //// Render your prefab here
+        //if (self.current) |*cur| {
+        //    renderPrefab(&cur.to(), &self.cache, self.allocator.*, self.editor.selection.selected_part) catch unreachable;
+        //}
+        //rl.endMode2D();
 
         //rl.clearBackground(rl.Color.ray_white);
 
@@ -410,7 +375,11 @@ pub const Control = struct {
         //    rl.drawCircleV(p.toRayVec(), handle_radius, rl.Color.red);
         //}
 
-        Window.endFrame();
+        //Window.endFrame();
+    }
+
+    pub fn shouldStop(self: *Control) bool {
+        return self.state.should_stop;
     }
 
     pub fn handleZoom(self: *Control, wheel: f32) void {
@@ -429,117 +398,113 @@ pub const Control = struct {
     }
 
     pub fn handleSelection(self: *Control) void {
-        if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
-            const mouse_world = rl.getScreenToWorld2D(rl.getMousePosition(), self.editor.camera);
-
-            if (self.current) |*cur| {
-                var selected: ?usize = null;
-
-                select: for (0..cur.parts_list.items.len) |rev_index| {
-                    const i = cur.parts_list.items.len - 1 - rev_index;
-                    const part = cur.parts_list.items[i];
-
-                    const tex = self.cache.get(part.image_path) catch continue;
-
-                    const tex_size = rl.Vector2{
-                        .x = @as(f32, @floatFromInt(tex.width)) * part.scale.x,
-                        .y = @as(f32, @floatFromInt(tex.height)) * part.scale.y,
-                    };
-
-                    const half = rl.Vector2{
-                        .x = tex_size.x * 0.5,
-                        .y = tex_size.y * 0.5,
-                    };
-
-                    const rad = part.rotation * std.math.pi / 180.0;
-                    const cos_theta = @cos(rad);
-                    const sin_theta = @sin(rad);
-
-                    const rel = rl.Vector2{
-                        .x = mouse_world.x - part.position.x,
-                        .y = mouse_world.y - part.position.y,
-                    };
-
-                    const local = rl.Vector2{
-                        .x = rel.x * cos_theta + rel.y * sin_theta,
-                        .y = -rel.x * sin_theta + rel.y * cos_theta,
-                    };
-
-                    const local_with_pivot = rl.Vector2{
-                        .x = local.x + tex_size.x * (part.pivot.x - 0.5),
-                        .y = local.y + tex_size.y * (part.pivot.y - 0.5),
-                    };
-
-                    if (local_with_pivot.x >= -half.x and local_with_pivot.x <= half.x and
-                        local_with_pivot.y >= -half.y and local_with_pivot.y <= half.y)
-                    {
-                        selected = i;
-                        break :select;
-                    }
-                }
-
-                self.editor.selection.selected_part = selected;
-            }
-        }
+        _ = self;
+        //if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
+        //    const mouse_world = rl.getScreenToWorld2D(rl.getMousePosition(), self.editor.camera);
+        //
+        //    if (self.current) |*cur| {
+        //        var selected: ?usize = null;
+        //
+        //        select: for (0..cur.parts_list.items.len) |rev_index| {
+        //            const i = cur.parts_list.items.len - 1 - rev_index;
+        //            const part = cur.parts_list.items[i];
+        //
+        //            const tex = self.cache.get(part.image_path) catch continue;
+        //
+        //            const tex_size = rl.Vector2{
+        //                .x = @as(f32, @floatFromInt(tex.width)) * part.scale.x,
+        //                .y = @as(f32, @floatFromInt(tex.height)) * part.scale.y,
+        //            };
+        //
+        //            const half = rl.Vector2{
+        //                .x = tex_size.x * 0.5,
+        //                .y = tex_size.y * 0.5,
+        //            };
+        //
+        //            const rad = part.rotation * std.math.pi / 180.0;
+        //            const cos_theta = @cos(rad);
+        //            const sin_theta = @sin(rad);
+        //
+        //            const rel = rl.Vector2{
+        //                .x = mouse_world.x - part.position.x,
+        //                .y = mouse_world.y - part.position.y,
+        //            };
+        //
+        //            const local = rl.Vector2{
+        //                .x = rel.x * cos_theta + rel.y * sin_theta,
+        //                .y = -rel.x * sin_theta + rel.y * cos_theta,
+        //            };
+        //
+        //            const local_with_pivot = rl.Vector2{
+        //                .x = local.x + tex_size.x * (part.pivot.x - 0.5),
+        //                .y = local.y + tex_size.y * (part.pivot.y - 0.5),
+        //            };
+        //
+        //            if (local_with_pivot.x >= -half.x and local_with_pivot.x <= half.x and
+        //                local_with_pivot.y >= -half.y and local_with_pivot.y <= half.y)
+        //            {
+        //                selected = i;
+        //                break :select;
+        //            }
+        //        }
+        //
+        //        self.editor.selection.selected_part = selected;
+        //    }
+        //}
     }
 
     pub fn handleDragging(self: *Control) void {
-        if (rl.isMouseButtonPressed(rl.MouseButton.left) and rl.isKeyDown(rl.KeyboardKey.left_alt)) {
-            const mouse_world = rl.getScreenToWorld2D(rl.getMousePosition(), self.editor.camera);
-
-            if (self.current) |*cur| {
-                if (self.editor.selection.selected_part) |i| {
-                    const part = cur.parts_list.items[i];
-                    self.editor.transform = TransformState{
-                        .is_dragging = true,
-                        .start_mouse = mouse_world,
-                        .start_position = part.position,
-                    };
-                }
-            }
-        }
-
-        if (rl.isMouseButtonDown(rl.MouseButton.left)) {
-            if (self.editor.transform) |t| {
-                if (t.is_dragging) {
-                    if (self.current) |*cur| {
-                        if (self.editor.selection.selected_part) |i| {
-                            var part = &cur.parts_list.items[i];
-
-                            const mouse_world = rl.getScreenToWorld2D(rl.getMousePosition(), self.editor.camera);
-                            const delta = Vec2{
-                                .x = mouse_world.x - t.start_mouse.x,
-                                .y = mouse_world.y - t.start_mouse.y,
-                            };
-
-                            const snapping = !rl.isKeyDown(rl.KeyboardKey.left_shift);
-                            const snap: f32 = if (snapping) 400.0 else 1.0;
-
-                            const new_pos = Vec2{
-                                .x = t.start_position.x + delta.x,
-                                .y = t.start_position.y + delta.y,
-                            };
-
-                            part.position = Vec2{
-                                .x = @round(new_pos.x / snap) * snap,
-                                .y = @round(new_pos.y / snap) * snap,
-                            };
-
-                            self.editor.is_dirty = true;
-                        }
-                    }
-                }
-            }
-        } else {
-            if (self.editor.transform) |*t| {
-                t.is_dragging = false;
-            }
-        }
-    }
-
-    pub fn shouldStop(self: *Control) bool {
         _ = self;
-
-        return Window.shouldClose();
+        //if (rl.isMouseButtonPressed(rl.MouseButton.left) and rl.isKeyDown(rl.KeyboardKey.left_alt)) {
+        //    const mouse_world = rl.getScreenToWorld2D(rl.getMousePosition(), self.editor.camera);
+        //
+        //    if (self.current) |*cur| {
+        //        if (self.editor.selection.selected_part) |i| {
+        //            const part = cur.parts_list.items[i];
+        //            self.editor.transform = TransformState{
+        //                .is_dragging = true,
+        //                .start_mouse = mouse_world,
+        //                .start_position = part.position,
+        //            };
+        //        }
+        //    }
+        //}
+        //
+        //if (rl.isMouseButtonDown(rl.MouseButton.left)) {
+        //    if (self.editor.transform) |t| {
+        //        if (t.is_dragging) {
+        //            if (self.current) |*cur| {
+        //                if (self.editor.selection.selected_part) |i| {
+        //                    var part = &cur.parts_list.items[i];
+        //
+        //                    const mouse_world = rl.getScreenToWorld2D(rl.getMousePosition(), self.editor.camera);
+        //                    const delta = Vec2{
+        //                        .x = mouse_world.x - t.start_mouse.x,
+        //                        .y = mouse_world.y - t.start_mouse.y,
+        //                    };
+        //
+        //                    const snapping = !rl.isKeyDown(rl.KeyboardKey.left_shift);
+        //                    const snap: f32 = if (snapping) 400.0 else 1.0;
+        //
+        //                    const new_pos = Vec2{
+        //                        .x = t.start_position.x + delta.x,
+        //                        .y = t.start_position.y + delta.y,
+        //                    };
+        //
+        //                    part.position = Vec2{
+        //                        .x = @round(new_pos.x / snap) * snap,
+        //                        .y = @round(new_pos.y / snap) * snap,
+        //                    };
+        //
+        //                    self.editor.is_dirty = true;
+        //                }
+        //            }
+        //        }
+        //    }
+        //} else {
+        //    if (self.editor.transform) |*t| {
+        //        t.is_dragging = false;
+        //    }
+        //}
     }
 };

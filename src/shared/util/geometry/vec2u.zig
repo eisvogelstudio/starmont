@@ -23,7 +23,7 @@ const Vec2 = @import("vec2.zig").Vec2;
 // -----------------------------------
 
 // ---------- shared ----------
-const network = @import("../../network/root.zig");
+const network = @import("../../network/network.zig");
 // ----------------------------
 
 const Vec2u = struct {

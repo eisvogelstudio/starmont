@@ -115,7 +115,7 @@ pub fn build(b: *std.Build) void {
     frontend_lib.linkLibrary(shared_lib);
     frontend_lib.linkLibrary(raylib.artifact("raylib"));
 
-    b.installArtifact(shared_lib);
+    b.installArtifact(frontend_lib);
 
     // editor
     const editor_exe = b.addExecutable(.{

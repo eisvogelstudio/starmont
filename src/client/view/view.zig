@@ -118,83 +118,83 @@ pub const View = struct {
         //}
     }
 
-    pub fn shouldStop(self: *View) bool {
-        _ = self;
-
-        return Window.shouldClose();
-    }
-
-    fn renderShips(self: *View, model: *core.Model) void {
-        _ = self;
-
-        const terms: [32]ecs.term_t = [_]ecs.term_t{
-            ecs.term_t{ .id = ecs.id(core.Position) },
-            ecs.term_t{ .id = ecs.id(core.ShipSize) },
-            ecs.term_t{ .id = ecs.id(core.Ship) },
-            ecs.term_t{ .id = ecs.id(core.Visible) },
-        } ++ [_]ecs.term_t{ecs.term_t{}} ** 28;
-
-        var query_desc = ecs.query_desc_t{
-            .terms = terms,
-            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
-        };
-
-        const query = ecs.query_init(model.world, &query_desc) catch unreachable;
-        defer ecs.query_fini(query);
-
-        var it = ecs.query_iter(model.world, query);
-
-        while (ecs.query_next(&it)) {
-            const ships: []const core.Position = ecs.field(&it, core.Position, 0).?;
-            const sizes: []const core.ShipSize = ecs.field(&it, core.ShipSize, 1).?;
-
-            for (0..it.count()) |i| {
-                //const entity = it.entities()[i];
-                //std.log.info("{?s}", .{ecs.get_name(model.world, entity)});
-
-                const size: f32 = switch (sizes[i]) {
-                    .Small => 1,
-                    .Medium => 2,
-                    .Large => 4,
-                    .Capital => 8,
-                };
-
-                _ = ships;
-                _ = size;
-
-                //rl.drawCircle(@intFromFloat(@mod(ships[i].x, screenWidth * 1.1)), @intFromFloat(@mod(ships[i].y, screenHeight * 1.1)), 5 * size, rl.Color.sky_blue);
-            }
-        }
-    }
-
-    fn renderPlayers(self: *View, model: *core.Model) void {
-        const terms: [32]ecs.term_t = [_]ecs.term_t{
-            ecs.term_t{ .id = ecs.id(core.Position) },
-            ecs.term_t{ .id = ecs.id(core.Player) },
-            ecs.term_t{ .id = ecs.id(core.Visible) },
-        } ++ [_]ecs.term_t{ecs.term_t{}} ** 29;
-
-        var query_desc = ecs.query_desc_t{
-            .terms = terms,
-            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
-        };
-
-        const query = ecs.query_init(model.world, &query_desc) catch unreachable;
-        defer ecs.query_fini(query);
-
-        var it = ecs.query_iter(model.world, query);
-
-        while (ecs.query_next(&it)) {
-            const positions: []const core.Position = ecs.field(&it, core.Position, 0).?;
-
-            for (0..it.count()) |i| {
-                const entity = it.entities()[i];
-                _ = entity;
-                //const color: rl.Color = rl.Color.green;
-                _ = self;
-                _ = positions;
-                //rl.drawCircle(@intFromFloat(@mod(positions[i].x, screenWidth)), @intFromFloat(@mod(positions[i].y, screenHeight)), 10, color);
-            }
-        }
-    }
+    //pub fn shouldStop(self: *View) bool {
+    //    _ = self;
+    //
+    //    return Window.shouldClose();
+    //}
+    //
+    //fn renderShips(self: *View, model: *core.Model) void {
+    //    _ = self;
+    //
+    //    const terms: [32]ecs.term_t = [_]ecs.term_t{
+    //        ecs.term_t{ .id = ecs.id(core.Position) },
+    //        ecs.term_t{ .id = ecs.id(core.ShipSize) },
+    //        ecs.term_t{ .id = ecs.id(core.Ship) },
+    //        ecs.term_t{ .id = ecs.id(core.Visible) },
+    //    } ++ [_]ecs.term_t{ecs.term_t{}} ** 28;
+    //
+    //    var query_desc = ecs.query_desc_t{
+    //        .terms = terms,
+    //        .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
+    //    };
+    //
+    //    const query = ecs.query_init(model.world, &query_desc) catch unreachable;
+    //    defer ecs.query_fini(query);
+    //
+    //    var it = ecs.query_iter(model.world, query);
+    //
+    //    while (ecs.query_next(&it)) {
+    //        const ships: []const core.Position = ecs.field(&it, core.Position, 0).?;
+    //        const sizes: []const core.ShipSize = ecs.field(&it, core.ShipSize, 1).?;
+    //
+    //        for (0..it.count()) |i| {
+    //            //const entity = it.entities()[i];
+    //            //std.log.info("{?s}", .{ecs.get_name(model.world, entity)});
+    //
+    //            const size: f32 = switch (sizes[i]) {
+    //                .Small => 1,
+    //                .Medium => 2,
+    //                .Large => 4,
+    //                .Capital => 8,
+    //            };
+    //
+    //            _ = ships;
+    //            _ = size;
+    //
+    //            //rl.drawCircle(@intFromFloat(@mod(ships[i].x, screenWidth * 1.1)), @intFromFloat(@mod(ships[i].y, screenHeight * 1.1)), 5 * size, rl.Color.sky_blue);
+    //        }
+    //    }
+    //}
+    //
+    //fn renderPlayers(self: *View, model: *core.Model) void {
+    //    const terms: [32]ecs.term_t = [_]ecs.term_t{
+    //        ecs.term_t{ .id = ecs.id(core.Position) },
+    //        ecs.term_t{ .id = ecs.id(core.Player) },
+    //        ecs.term_t{ .id = ecs.id(core.Visible) },
+    //    } ++ [_]ecs.term_t{ecs.term_t{}} ** 29;
+    //
+    //    var query_desc = ecs.query_desc_t{
+    //        .terms = terms,
+    //        .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
+    //    };
+    //
+    //    const query = ecs.query_init(model.world, &query_desc) catch unreachable;
+    //    defer ecs.query_fini(query);
+    //
+    //    var it = ecs.query_iter(model.world, query);
+    //
+    //    while (ecs.query_next(&it)) {
+    //        const positions: []const core.Position = ecs.field(&it, core.Position, 0).?;
+    //
+    //        for (0..it.count()) |i| {
+    //            const entity = it.entities()[i];
+    //            _ = entity;
+    //            //const color: rl.Color = rl.Color.green;
+    //            _ = self;
+    //            _ = positions;
+    //            //rl.drawCircle(@intFromFloat(@mod(positions[i].x, screenWidth)), @intFromFloat(@mod(positions[i].y, screenHeight)), 10, color);
+    //        }
+    //    }
+    //}
 };

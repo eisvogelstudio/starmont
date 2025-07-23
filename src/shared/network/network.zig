@@ -15,10 +15,14 @@
 // ─────────────────────────────────────────────────────────────────────
 
 // ╔══════════════════════════════ pack ══════════════════════════════╗
-pub const core = @import("core/core.zig");
-pub const editor = @import("editor/editor.zig");
-pub const network = @import("network/network.zig");
-pub const util = @import("util/util.zig");
+pub const Client = @import("client.zig").Client;
+
+pub const ServerInfo = @import("server.zig").ServerInfo;
+pub const Server = @import("server.zig").Server;
+
+pub const serial = @import("serial.zig");
+
+pub usingnamespace @import("message.zig");
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ test ══════════════════════════════╗

@@ -23,8 +23,8 @@ const serial = @import("serial.zig");
 // -----------------------------
 
 // ---------- shared ----------
-const core = @import("../core/root.zig");
-const util = @import("../util/root.zig");
+const core = @import("../core/core.zig");
+const util = @import("../util/util.zig");
 // ----------------------------
 
 pub const AssignMessage = struct {

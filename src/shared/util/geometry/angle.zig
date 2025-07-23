@@ -19,7 +19,7 @@ const std = @import("std");
 // -------------------------
 
 // ---------- shared ----------
-const network = @import("../../network/root.zig");
+const network = @import("../../network/network.zig");
 // ----------------------------
 
 pub const Angle = union(enum) {

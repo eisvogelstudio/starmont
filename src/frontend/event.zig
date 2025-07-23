@@ -14,12 +14,9 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- local ----------
-const editor = @import("editor.zig");
-// ----------------------------
-
 // ---------- shared ----------
 const core = @import("shared").core;
+const editor = @import("shared").editor;
 const util = @import("shared").util;
 // ----------------------------
 
@@ -46,7 +43,7 @@ pub const FrontEvent = union(enum) {
     CameraReset,
 
     // ##### editor #####
-    Editor: editor.EditorEvent, //TODO[OPTIMISATION] make optional to save mem / only if editor
+    Editor: editor.Action, //TODO[OPTIMISATION] make optional to save mem / only if editor
 
     // ##### game #####
     Action: core.Action, //TODO[OPTIMISATION] make optional to save mem / only if game

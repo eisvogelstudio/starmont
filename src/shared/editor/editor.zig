@@ -14,11 +14,10 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-pub const Client = @import("client.zig").Client;
+// ╔══════════════════════════════ pack ══════════════════════════════╗
+pub const Action = @import("action.zig").Action;
+// ╚══════════════════════════════════════════════════════════════════╝
 
-pub const ServerInfo = @import("server.zig").ServerInfo;
-pub const Server = @import("server.zig").Server;
-
-pub const serial = @import("serial.zig");
-
-pub usingnamespace @import("message.zig");
+// ╔══════════════════════════════ test ══════════════════════════════╗
+//TODO[TEST] import all pack files
+// ╚══════════════════════════════════════════════════════════════════╝

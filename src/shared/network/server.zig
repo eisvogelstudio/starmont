@@ -25,7 +25,7 @@ const primitive = @import("primitive.zig");
 // -----------------------------
 
 // ---------- shared ----------
-const util = @import("../util/root.zig");
+const util = @import("../util/util.zig");
 // ----------------------------
 
 // ---------- external ----------

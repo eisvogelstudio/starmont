@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────
 
 // ---------- local ----------
-const util = @import("../util/root.zig");
+const util = @import("../util/util.zig");
 // ---------------------------
 
 pub const ComponentType = enum {

@@ -14,11 +14,7 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-// -------------------------
-
-// ---------- root ----------
+// ╔══════════════════════════════ pack ══════════════════════════════╗
 pub const render = @import("render.zig");
 
 pub const Input = @import("input.zig").Input;
@@ -30,8 +26,8 @@ pub const TextureCache = @import("texture.zig").TextureCache;
 pub const FrontEvent = @import("event.zig").FrontEvent;
 
 pub const rl = @import("raylib");
-// --------------------------
+// ╚══════════════════════════════════════════════════════════════════╝
 
-test {
-    std.testing.refAllDecls(@This());
-}
+// ╔══════════════════════════════ test ══════════════════════════════╗
+//TODO[TEST] import all pack files
+// ╚══════════════════════════════════════════════════════════════════╝

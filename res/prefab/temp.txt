@@ -1,0 +1,23 @@
+ship_xy/
+      core.ziggy
+      visual.ziggy
+      interior/
+        tilemap.whatever
+        subobjects.whatever
+
+
+
+
+
+assets/prefabs/
+  ship/
+    core.ziggy
+    front.ziggy
+  turret/
+    core.ziggy
+    front.ziggy
+
+assets/prefabs/
+  entities/
+  structures/
+  environment/

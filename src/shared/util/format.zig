@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────
 
 // ---------- shared ----------
-const core = @import("../core/root.zig");
+const core = @import("../core/core.zig");
 // ----------------------------
 
 pub fn writeId(writer: anytype, id: core.Id) void {
