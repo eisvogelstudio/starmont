@@ -109,8 +109,8 @@ pub const Vec2 = struct {
     }
 
     pub fn rotate(v: Vec2, angle: Angle) Vec2 {
-        const cos = @cos(angle.toDegrees());
-        const sin = @sin(angle.toDegrees());
+        const cos = @cos(angle.toRadians());
+        const sin = @sin(angle.toRadians());
         return .{
             .x = v.x * cos - v.y * sin,
             .y = v.x * sin + v.y * cos,
