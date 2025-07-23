@@ -52,9 +52,7 @@ pub const AssignMessage = struct {
     }
 
     pub fn write(self: AssignMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Assign: {d}", .{self.quad}) catch unreachable;
     }
 };
 
@@ -81,9 +79,7 @@ pub const UnassignMessage = struct {
     }
 
     pub fn write(self: UnassignMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Unassign: {d}", .{self.quad}) catch unreachable;
     }
 };
 
@@ -116,9 +112,7 @@ pub const NeighbourMessage = struct {
     }
 
     pub fn write(self: NeighbourMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Neighbour: {d}", .{self.quad}) catch unreachable;
     }
 };
 
@@ -144,8 +138,7 @@ pub const MasterInfoMessage = struct {
 
     pub fn write(self: MasterInfoMessage, writer: anytype) void {
         _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("MasterInfo", .{}) catch unreachable;
     }
 };
 
@@ -172,8 +165,7 @@ pub const MasterDebugMessage = struct {
 
     pub fn write(self: MasterDebugMessage, writer: anytype) void {
         _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("MasterDebug", .{}) catch unreachable;
     }
 };
 
@@ -199,8 +191,7 @@ pub const RegisterMessage = struct {
 
     pub fn write(self: RegisterMessage, writer: anytype) void {
         _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Register", .{}) catch unreachable;
     }
 };
 
@@ -226,8 +217,7 @@ pub const UnregisterMessage = struct {
 
     pub fn write(self: UnregisterMessage, writer: anytype) void {
         _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Unregister", .{}) catch unreachable;
     }
 };
 
@@ -254,9 +244,7 @@ pub const HeartbeatMessage = struct {
     }
 
     pub fn write(self: HeartbeatMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Heartbeat: {d}", .{self.load}) catch unreachable;
     }
 };
 
@@ -284,9 +272,7 @@ pub const QuadInfoMessage = struct {
     }
 
     pub fn write(self: QuadInfoMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("QuadInfo: quad={d} pressure={d}", .{ self.quad, self.pressure }) catch unreachable;
     }
 };
 
@@ -315,9 +301,8 @@ pub const EntityHandoverMessage = struct {
     }
 
     pub fn write(self: EntityHandoverMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("EntityHandover: ", .{}) catch unreachable;
+        util.format.writeId(writer, self.id);
     }
 };
 
@@ -346,9 +331,8 @@ pub const EntityClaimMessage = struct {
     }
 
     pub fn write(self: EntityClaimMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        var buf = self.id.toString();
+        writer.print("EntityClaim: {s}", .{buf}) catch unreachable;
     }
 };
 
@@ -376,9 +360,8 @@ pub const EntityFailoverMessage = struct {
     }
 
     pub fn write(self: EntityFailoverMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        var buf = self.id.toString();
+        writer.print("EntityFailover: {s}", .{buf}) catch unreachable;
     }
 };
 
@@ -404,8 +387,7 @@ pub const ServerInfoMessage = struct {
 
     pub fn write(self: ServerInfoMessage, writer: anytype) void {
         _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("ServerInfo", .{}) catch unreachable;
     }
 };
 
@@ -431,8 +413,7 @@ pub const ServerDebugMessage = struct {
 
     pub fn write(self: ServerDebugMessage, writer: anytype) void {
         _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("ServerDebug", .{}) catch unreachable;
     }
 };
 
@@ -458,8 +439,7 @@ pub const ClientInfoMessage = struct {
 
     pub fn write(self: ClientInfoMessage, writer: anytype) void {
         _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("ClientInfo", .{}) catch unreachable;
     }
 };
 
@@ -485,8 +465,7 @@ pub const EditorInfoMessage = struct {
 
     pub fn write(self: EditorInfoMessage, writer: anytype) void {
         _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("EditorInfo", .{}) catch unreachable;
     }
 };
 
@@ -512,9 +491,7 @@ pub const CommandMessage = struct {
     }
 
     pub fn write(self: CommandMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Command: {s}", .{self.command}) catch unreachable;
     }
 };
 
@@ -551,9 +528,7 @@ pub const NoticeMessage = struct {
     }
 
     pub fn write(self: NoticeMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Notice: duration={d} message={s}", .{ self.duration, self.message }) catch unreachable;
     }
 };
 
@@ -592,9 +567,11 @@ pub const ForwardMessage = struct {
     }
 
     pub fn write(self: ForwardMessage, writer: anytype) void {
-        //TODO[MISSING]
-        _ = self;
-        _ = writer;
+        var id_buf = self.serverId.toString();
+        writer.print(
+            "Forward: server={s} ip={s} port={d}",
+            .{ id_buf, self.ip, self.port },
+        ) catch unreachable;
     }
 };
 
@@ -629,9 +606,8 @@ pub const AlphaMessage = struct {
     }
 
     pub fn write(self: AlphaMessage, writer: anytype) void {
-        //TODO[MISSING]
-        _ = self;
-        _ = writer;
+        var id_buf = self.ephemeral.toString();
+        writer.print("Alpha: id={s} name={s}", .{ id_buf, self.name }) catch unreachable;
     }
 };
 
@@ -662,9 +638,7 @@ pub const OmegaMessage = struct {
     }
 
     pub fn write(self: OmegaMessage, writer: anytype) void {
-        //TODO[MISSING]
-        _ = self;
-        _ = writer;
+        writer.print("Omega: {s}", .{self.message}) catch unreachable;
     }
 };
 
@@ -701,9 +675,10 @@ pub const KickMessage = struct {
     }
 
     pub fn write(self: KickMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print(
+            "Kick: duration={d} message={s}",
+            .{ self.duration, self.message },
+        ) catch unreachable;
     }
 };
 
@@ -736,9 +711,7 @@ pub const PingMessage = struct {
     }
 
     pub fn write(self: PingMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Ping: nonce={d} time={d}", .{ self.nonce, self.time }) catch unreachable;
     }
 };
 
@@ -771,9 +744,7 @@ pub const PongMessage = struct {
     }
 
     pub fn write(self: PongMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Pong: nonce={d} time={d}", .{ self.nonce, self.time }) catch unreachable;
     }
 };
 
@@ -806,9 +777,7 @@ pub const VersionCheckMessage = struct {
     }
 
     pub fn write(self: VersionCheckMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("VersionCheck: {s}", .{self.version}) catch unreachable;
     }
 };
 
@@ -851,9 +820,10 @@ pub const VersionResultMessage = struct {
     }
 
     pub fn write(self: VersionResultMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print(
+            "VersionResult: match={b} version={s} message={s}",
+            .{ self.is_match, self.version, self.message },
+        ) catch unreachable;
     }
 };
 
@@ -883,9 +853,7 @@ pub const AuthChallengeMessage = struct {
     }
 
     pub fn write(self: AuthChallengeMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("AuthChallenge: id={d}", .{self.auth_id}) catch unreachable;
     }
 };
 
@@ -915,9 +883,7 @@ pub const AuthResultMessage = struct {
     }
 
     pub fn write(self: AuthResultMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("AuthResult: id={d}", .{self.auth_id}) catch unreachable;
     }
 };
 
@@ -950,9 +916,10 @@ pub const AuthResponseMessage = struct {
     }
 
     pub fn write(self: AuthResponseMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print(
+            "AuthResponse: id={d} success={b}",
+            .{ self.auth_id, self.is_success },
+        ) catch unreachable;
     }
 };
 
@@ -985,9 +952,7 @@ pub const TickMessage = struct {
     }
 
     pub fn write(self: TickMessage, writer: anytype) void {
-        _ = self;
-        _ = writer;
-        //TODO[MISSING]
+        writer.print("Tick: {d} time={d}", .{ self.tick, self.time }) catch unreachable;
     }
 };
 
@@ -1184,9 +1149,9 @@ pub const ActionMessage = struct {
     }
 
     pub fn write(self: ActionMessage, writer: anytype) void {
-        //TODO[MISSING]
-        _ = self;
-        _ = writer;
+        writer.print("Action: ", .{}) catch unreachable;
+        util.format.writeId(writer, self.id);
+        writer.print(" {s}", .{@tagName(self.action)}) catch unreachable;
     }
 };
 
