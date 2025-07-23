@@ -35,9 +35,6 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8, T: type) !?T {
     const stat = file.stat() catch unreachable;
     file.seekTo(0) catch unreachable;
 
-    const raw = allocator.alloc(u8, stat.size) catch unreachable;
-    defer allocator.free(raw);
-
     const buffer = file.readToEndAlloc(allocator, stat.size) catch unreachable;
     defer allocator.free(buffer);
 

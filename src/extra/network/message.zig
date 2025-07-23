@@ -274,13 +274,13 @@ pub const QuadInfoMessage = struct {
     }
 
     fn serialize(self: QuadInfoMessage, writer: anytype) void {
-        serial.serializeU64(writer, self.id);
+        serial.serializeU64(writer, self.quad);
         serial.serializeF32(writer, self.pressure);
     }
     fn deserialize(reader: anytype) QuadInfoMessage {
-        const id = serial.deserializeU64(reader);
+        const quad = serial.deserializeU64(reader);
         const pressure = serial.deserializeF32(reader);
-        return init(id, pressure).QuadInfo;
+        return init(quad, pressure).QuadInfo;
     }
 
     pub fn write(self: QuadInfoMessage, writer: anytype) void {
