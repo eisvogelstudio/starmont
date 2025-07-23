@@ -168,7 +168,7 @@ const SelectionState = struct {
 };
 
 const TransformState = struct {
-    dragging: bool,
+    is_dragging: bool,
     //origin: Vec2,
     start_mouse: Vec2,
     start_position: Vec2,
@@ -293,7 +293,7 @@ pub fn renderPrefab(prefab: *const Prefab, tex_cache: *TextureCache, allocator: 
 pub const Control = struct {
     allocator: *std.mem.Allocator,
     model: core.Model,
-    snapshotRequired: bool = true,
+    should_request_snapshot: bool = true,
 
     arena_allocator: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(std.heap.page_allocator),
 
@@ -491,7 +491,7 @@ pub const Control = struct {
                 if (self.editor.selection.selected_part) |i| {
                     const part = cur.parts_list.items[i];
                     self.editor.transform = TransformState{
-                        .dragging = true,
+                        .is_dragging = true,
                         .start_mouse = mouse_world,
                         .start_position = part.position,
                     };
@@ -501,7 +501,7 @@ pub const Control = struct {
 
         if (rl.isMouseButtonDown(rl.MouseButton.left)) {
             if (self.editor.transform) |t| {
-                if (t.dragging) {
+                if (t.is_dragging) {
                     if (self.current) |*cur| {
                         if (self.editor.selection.selected_part) |i| {
                             var part = &cur.parts_list.items[i];
@@ -532,7 +532,7 @@ pub const Control = struct {
             }
         } else {
             if (self.editor.transform) |*t| {
-                t.dragging = false;
+                t.is_dragging = false;
             }
         }
     }

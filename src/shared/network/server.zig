@@ -53,7 +53,7 @@ const TimedBatch = struct {
 pub const Server = struct {
     allocator: *std.mem.Allocator,
     socket: net.Socket = undefined,
-    opened: bool = false,
+    is_opened: bool = false,
     clients: std.AutoHashMap(u64, net.Socket),
     batches: std.AutoHashMap(u64, Batch),
     batchesToSend: std.ArrayList(TimedBatch),
@@ -105,7 +105,7 @@ pub const Server = struct {
 
         log.info("server listening on port {}", .{port});
 
-        self.opened = true;
+        self.is_opened = true;
     }
 
     pub fn close(self: *Server) void {
@@ -119,7 +119,7 @@ pub const Server = struct {
 
         self.clients.deinit();
 
-        self.opened = false;
+        self.is_opened = false;
     }
 
     pub fn accept(self: *Server) void {
