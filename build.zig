@@ -49,16 +49,16 @@ pub fn build(b: *std.Build) void {
     shared_mod.addImport("zflecs", zflecs.module("root"));
     shared_mod.addImport("ziggy", ziggy.module("ziggy"));
 
-    // view lib module
-    const view_mod = b.createModule(.{
-        .root_source_file = b.path("src/view/root.zig"),
+    // frontend lib module
+    const frontend_mod = b.createModule(.{
+        .root_source_file = b.path("src/frontend/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    view_mod.addImport("shared", shared_mod);
-    view_mod.addImport("raylib", raylib.module("raylib"));
-    view_mod.addImport("raygui", raylib.module("raygui"));
-    view_mod.addOptions("build_options", build_options);
+    frontend_mod.addImport("shared", shared_mod);
+    frontend_mod.addImport("raylib", raylib.module("raylib"));
+    frontend_mod.addImport("raygui", raylib.module("raygui"));
+    frontend_mod.addOptions("build_options", build_options);
 
     // editor module
     const editor_mod = b.createModule(.{
@@ -67,7 +67,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     editor_mod.addImport("shared", shared_mod);
-    editor_mod.addImport("view", view_mod);
+    editor_mod.addImport("frontend", frontend_mod);
 
     // client module
     const client_mod = b.createModule(.{
@@ -76,7 +76,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     client_mod.addImport("shared", shared_mod);
-    client_mod.addImport("view", view_mod);
+    client_mod.addImport("frontend", frontend_mod);
     client_mod.addImport("zflecs", zflecs.module("root"));
 
     // server module
@@ -108,12 +108,12 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(shared_lib);
 
     // view lib
-    const view_lib = b.addStaticLibrary(.{
-        .name = "starmont_view",
-        .root_module = view_mod,
+    const frontend_lib = b.addStaticLibrary(.{
+        .name = "starmont_frontend",
+        .root_module = frontend_mod,
     });
-    view_lib.linkLibrary(shared_lib);
-    view_lib.linkLibrary(raylib.artifact("raylib"));
+    frontend_lib.linkLibrary(shared_lib);
+    frontend_lib.linkLibrary(raylib.artifact("raylib"));
 
     b.installArtifact(shared_lib);
 
@@ -123,7 +123,7 @@ pub fn build(b: *std.Build) void {
         .root_module = editor_mod,
     });
     editor_exe.linkLibrary(shared_lib);
-    editor_exe.linkLibrary(view_lib);
+    editor_exe.linkLibrary(frontend_lib);
 
     b.installArtifact(editor_exe);
 
@@ -133,7 +133,7 @@ pub fn build(b: *std.Build) void {
         .root_module = client_mod,
     });
     client_exe.linkLibrary(shared_lib);
-    client_exe.linkLibrary(view_lib);
+    client_exe.linkLibrary(frontend_lib);
     client_exe.linkLibrary(zflecs.artifact("flecs"));
 
     b.installArtifact(client_exe);

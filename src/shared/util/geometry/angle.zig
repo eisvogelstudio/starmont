@@ -18,6 +18,10 @@
 const std = @import("std");
 // -------------------------
 
+// ---------- shared ----------
+const network = @import("../../network/root.zig");
+// ----------------------------
+
 pub const Angle = union(enum) {
     degrees: f32,
     radians: f32,
@@ -92,6 +96,14 @@ pub const Angle = union(enum) {
 
     pub fn isZero(self: Angle, epsilon: f32) bool {
         return @abs(self.toRadians()) < epsilon;
+    }
+
+    pub fn serialize(self: Angle, writer: anytype) void {
+        network.serial.serializeF32(writer, self.toDegrees());
+    }
+
+    pub fn deserialize(reader: anytype) Angle {
+        return Angle.fromDegrees(network.serial.deserializeF32(reader));
     }
 };
 

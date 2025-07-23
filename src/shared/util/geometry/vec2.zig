@@ -22,6 +22,10 @@ const std = @import("std");
 const Angle = @import("angle.zig").Angle;
 // -----------------------------------
 
+// ---------- shared ----------
+const network = @import("../../network/root.zig");
+// ----------------------------
+
 pub const Vec2 = struct {
     x: f32,
     y: f32,
@@ -173,5 +177,16 @@ pub const Vec2 = struct {
         const k = 1.0 - eta * eta * (1.0 - dotVN * dotVN);
         if (k < 0.0) return .{ .x = 0.0, .y = 0.0 };
         return sub(scale(v, eta), scale(n, eta * dotVN + @sqrt(k)));
+    }
+
+    pub fn serialize(self: Vec2, writer: anytype) void {
+        network.serial.serializeF32(writer, self.x);
+        network.serial.serializeF32(writer, self.y);
+    }
+
+    pub fn deserialize(reader: anytype) Vec2 {
+        const x = network.serial.deserializeF32(reader);
+        const y = network.serial.deserializeF32(reader);
+        return Vec2{ .x = x, .y = y };
     }
 };

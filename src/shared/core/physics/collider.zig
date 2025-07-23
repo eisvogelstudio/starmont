@@ -18,60 +18,30 @@
 const std = @import("std");
 // -------------------------
 
-// ---------- shared ----------
-const util = @import("shared").util;
-// ----------------------------
+// ---------- local ----------
+const ShapeType = @import("shape.zig").ShapeType;
+const Shape = @import("shape.zig").Shape;
+const util = @import("../../util/root.zig");
+// ---------------------------
 
 // ---------- external ----------
 const zchip = @import("zchip2d");
 // ------------------------------
 
-const BoxShape = struct {
-    size: util.Vec2,
-};
-
-const CircleShape = struct {
-    radius: f32,
-};
-
-const CapsuleShape = struct {
-    half_height: f32,
-    radius: f32,
-};
-
-const SegmentShape = struct {
-    a: util.Vec2,
-    b: util.Vec2,
-    thickness: f32 = 0.0,
-};
-
-const PolygonShape = struct {
-    vertices: []const util.Vec2,
-};
-
-const ColliderKind = enum {
-    Box,
-    Circle,
-    Capsule,
-    Segment,
-    Polygon,
-};
-
-const ColliderData = union(ColliderKind) {
-    Box: BoxShape,
-    Circle: CircleShape,
-    Capsule: CapsuleShape,
-    Segment: SegmentShape,
-    Polygon: PolygonShape,
-};
-
+// ┌──────────────────── Collider ────────────────────┐
 pub const Collider = struct {
-    kind: ColliderKind,
-    data: ColliderData,
+    shape: Shape,
     offset: util.Vec2 = util.Vec2.zero(),
     rotation: util.Angle = util.Angle.zero(),
     is_sensor: bool = false,
+
+    pub fn fromShape(shape_val: Shape) Collider {
+        return Collider{
+            .shape = shape_val,
+        };
+    }
 };
+// └──────────────────────────────────────────────────┘
 
 const RuntimeCollider = struct {
     id: u32,
@@ -90,12 +60,12 @@ const RuntimeCollider = struct {
 
         switch (collider.kind) {
             .Circle => {
-                const r = collider.data.Circle.radius;
+                const r = collider.shape.Circle.radius;
                 const shape = zchip.cpCircleShapeNew(body, r, zchip.cpvzero);
                 try shapes.append(shape);
             },
             .Box => {
-                const s = collider.data.Box.size;
+                const s = collider.shape.Box.size;
                 const hw = s.x / 2.0;
                 const hh = s.y / 2.0;
                 const verts = [_]zchip.cpVect{
@@ -108,21 +78,21 @@ const RuntimeCollider = struct {
                 try shapes.append(shape);
             },
             .Segment => {
-                const seg = collider.data.Segment;
+                const seg = collider.shape.Segment;
                 const shape = zchip.cpSegmentShapeNew(body, zchip.cpv(seg.a.x, seg.a.y), zchip.cpv(seg.b.x, seg.b.y), seg.radius);
                 try shapes.append(shape);
             },
             .Polygon => {
-                const verts = try allocator.alloc(zchip.cpVect, collider.data.Polygon.vertices.len);
+                const verts = try allocator.alloc(zchip.cpVect, collider.shape.Polygon.vertices.len);
                 defer allocator.free(verts);
-                for (collider.data.Polygon.vertices, 0..) |v, i| {
+                for (collider.shape.Polygon.vertices, 0..) |v, i| {
                     verts[i] = zchip.cpv(v.x, v.y);
                 }
                 const shape = zchip.cpPolyShapeNew(body, @intCast(verts.len), &verts[0], zchip.cpTransformIdentity, 0.0);
                 try shapes.append(shape);
             },
             .Capsule => {
-                const cap = collider.data.Capsule;
+                const cap = collider.shape.Capsule;
                 const r = cap.radius;
                 const hh = cap.half_height;
 

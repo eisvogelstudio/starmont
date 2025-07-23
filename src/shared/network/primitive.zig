@@ -19,7 +19,7 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-// ---------- network ----------
+// ---------- local ----------
 const Batch = @import("batch.zig").Batch;
 // -----------------------------
 

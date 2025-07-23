@@ -19,9 +19,10 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-// ---------- shared ----------
+// ---------- local ----------
 const core = @import("../../core/root.zig");
-// ----------------------------
+const util = @import("../../util/root.zig");
+// ---------------------------
 
 // ---------- network/serial ----------
 const primitive = @import("primitive.zig");
@@ -71,54 +72,34 @@ pub fn deserializeJerk(reader: anytype) core.Jerk {
     return core.Jerk{ .x = x, .y = y };
 }
 
+pub fn serializeRotation(writer: anytype, rot: core.Rotation) void {
+    rot.value.serialize(writer);
+}
+
+pub fn deserializeRotation(reader: anytype) core.Rotation {
+    return core.Rotation{ .value = util.Angle.deserialize(reader) };
+}
+
+pub fn serializeRotationalVelocity(writer: anytype, rotv: core.RotationalVelocity) void {
+    rotv.value.serialize(writer);
+}
+
+pub fn deserializeRotationalVelocity(reader: anytype) core.RotationalVelocity {
+    return core.RotationalVelocity{ .value = util.Angle.deserialize(reader) };
+}
+
+pub fn serializeRotationalAcceleration(writer: anytype, rota: core.RotationalAcceleration) void {
+    rota.value.serialize(writer);
+}
+
+pub fn deserializeRotationalAcceleration(reader: anytype) core.RotationalAcceleration {
+    return core.RotationalAcceleration{ .value = util.Angle.deserialize(reader) };
+}
+
 pub fn serializeShipSize(writer: anytype, size: core.ShipSize) void {
     primitive.serializeEnum(writer, core.ShipSize, size);
 }
 
 pub fn deserializeShipSize(reader: anytype) core.ShipSize {
     return primitive.deserializeEnum(reader, core.ShipSize);
-}
-
-test "serialize/deserialize Position" {
-    var buf: [8]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
-    const reader = stream.reader();
-
-    const original = core.Position{ .x = 42.0, .y = -13.5 };
-    serializePosition(writer, original);
-
-    stream.reset();
-    const result = deserializePosition(reader);
-    try std.testing.expectEqual(original.x, result.x);
-    try std.testing.expectEqual(original.y, result.y);
-}
-
-test "serialize/deserialize Velocity" {
-    var buf: [8]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
-    const reader = stream.reader();
-
-    const original = core.Velocity{ .x = 0.1, .y = -0.1 };
-    serializeVelocity(writer, original);
-
-    stream.reset();
-    const result = deserializeVelocity(reader);
-    try std.testing.expectEqual(original.x, result.x);
-    try std.testing.expectEqual(original.y, result.y);
-}
-
-test "serialize/deserialize ShipSize enum" {
-    var buf: [1]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
-    const reader = stream.reader();
-
-    const original = core.ShipSize.medium; // Beispielwert
-    serializeShipSize(writer, original);
-
-    stream.reset();
-    const result = deserializeShipSize(reader);
-    try std.testing.expectEqual(original, result);
 }

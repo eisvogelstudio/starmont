@@ -23,8 +23,8 @@ const core = @import("shared").core;
 // ----------------------------
 
 // ---------- shared ----------
-const render = @import("view").r;
-const Window = @import("view").Window;
+const render = @import("frontend").render;
+const Window = @import("frontend").Window;
 // ----------------------------
 
 // ---------- external ----------

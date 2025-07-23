@@ -18,8 +18,8 @@
 const std = @import("std");
 // -------------------------
 
-// ---------- client ----------
-const View = @import("view2/view.zig").View;
+// ---------- local ----------
+const View = @import("view/view.zig").View;
 // ----------------------------
 
 // ---------- shared ----------
@@ -27,23 +27,34 @@ const core = @import("shared").core;
 const network = @import("shared").network;
 // ----------------------------
 
-const v = @import("view");
+// ---------- frontend ----------
+const frontend = @import("frontend");
+// ----------------------------
 
 // ---------- external ----------
 const ecs = @import("zflecs");
-//const rl = @import("raylib");
 // ------------------------------
 
+// ╔══════════════════════════════ init ══════════════════════════════╗
 const log = std.log.scoped(.control);
 
 const name = "client";
+// ╚══════════════════════════════════════════════════════════════════╝
 
+// ┌──────────────────── State ────────────────────┐
+const State = struct {
+    stop: bool = false,
+    snapshotRequired: bool = true,
+};
+// └───────────────────────────────────────────────┘
+
+// ┌──────────────────── Control ────────────────────┐
 pub const Control = struct {
     allocator: *std.mem.Allocator,
     model: core.Model,
     view: View,
     client: network.Client,
-    snapshotRequired: bool = true,
+    state: State,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
@@ -51,9 +62,8 @@ pub const Control = struct {
             .model = core.Model.init(allocator),
             .view = View.init(allocator),
             .client = network.Client.init(allocator),
+            .state = State{},
         };
-
-        //v.r.drawSpaceship(.{ .x = 0, .y = 0 }, 100);
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
@@ -70,9 +80,9 @@ pub const Control = struct {
     }
 
     pub fn update(self: *Control) void {
-        const actions = captureInput(self.allocator);
-        self.sendInput(actions);
-        actions.deinit();
+        self.processFrontEvents();
+
+        self.sendActions();
 
         self.model.update();
         self.view.update(&self.model);
@@ -81,9 +91,6 @@ pub const Control = struct {
             self.client.connect("127.0.0.1", 11111) catch |err| {
                 switch (err) {
                     error.Cooldown => {
-                        //nothing
-                    },
-                    error.AlreadyConnected => {
                         //nothing
                     },
                     else => {
@@ -97,9 +104,9 @@ pub const Control = struct {
             return;
         }
 
-        if (self.snapshotRequired) {
+        if (self.state.snapshotRequired) {
             self.client.submit(network.SnapshotRequestMessage.init());
-            self.snapshotRequired = false;
+            self.state.snapshotRequired = false;
         }
 
         // Receive messages
@@ -114,8 +121,6 @@ pub const Control = struct {
             }
 
             for (batches) |b| {
-                //msg.print(std.io.getStdOut().writer()) catch unreachable;
-                //std.io.getStdOut().writer().print("\n", .{}) catch unreachable;
                 for (b.messages.items) |message| {
                     switch (message) {
                         .Entity => |id| {
@@ -125,42 +130,10 @@ pub const Control = struct {
                             self.model.removeEntity(id.id);
                         },
                         .Component => |comp| {
-                            switch (comp.component) {
-                                .Position => {
-                                    self.model.setComponent(comp.id, core.Position, comp.component.Position);
-                                },
-                                .Velocity => {
-                                    self.model.setComponent(comp.id, core.Velocity, comp.component.Velocity);
-                                },
-                                .Acceleration => {
-                                    self.model.setComponent(comp.id, core.Acceleration, comp.component.Acceleration);
-                                },
-                                .Jerk => {
-                                    self.model.setComponent(comp.id, core.Jerk, comp.component.Jerk);
-                                },
-                                .ShipSize => {
-                                    self.model.setComponent(comp.id, core.ShipSize, comp.component.ShipSize);
-                                },
-                            }
+                            comp.apply(&self.model);
                         },
                         .ComponentRemove => |comp| {
-                            switch (comp.component) {
-                                .Position => {
-                                    self.model.removeComponent(comp.id, core.Position);
-                                },
-                                .Velocity => {
-                                    self.model.removeComponent(comp.id, core.Velocity);
-                                },
-                                .Acceleration => {
-                                    self.model.removeComponent(comp.id, core.Acceleration);
-                                },
-                                .Jerk => {
-                                    self.model.removeComponent(comp.id, core.Jerk);
-                                },
-                                .ShipSize => {
-                                    self.model.removeComponent(comp.id, core.ShipSize);
-                                },
-                            }
+                            comp.apply(&self.model);
                         },
                         else => @panic("received unexpected message"),
                     }
@@ -190,74 +163,60 @@ pub const Control = struct {
     }
 
     pub fn shouldStop(self: *Control) bool {
-        return self.view.shouldStop();
+        return self.state.stop;
     }
 
-    fn getNetworkState(self: *Control) void {
-        const terms: [32]ecs.term_t = [_]ecs.term_t{
-            ecs.term_t{ .id = ecs.id(core.Position) },
-            ecs.term_t{ .id = ecs.id(core.ShipSize) },
-            ecs.term_t{ .id = ecs.id(core.Ship) },
-            ecs.term_t{ .id = ecs.id(core.Visible) },
-        } ++ [_]ecs.term_t{ecs.term_t{}} ** 28;
+    fn processFrontEvents(self: *Control) void {
+        const events = std.ArrayList(frontend.FrontEvent).init(self.allocator.*);
 
-        var query_desc = ecs.query_desc_t{
-            .terms = terms,
-            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
-        };
+        //TODO[MISSING]
 
-        const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
-        defer ecs.query_fini(query);
-
-        var it = ecs.query_iter(self.model.world, query);
-
-        while (ecs.query_next(&it)) {
-            const position: []const core.Position = ecs.field(&it, core.Position, 0).?;
-            const velocities: []const core.ShipSize = ecs.field(&it, core.Velocity, 1).?;
-            const accelerations: []const core.ShipSize = ecs.field(&it, core.Acceleration, 1).?;
-
-            for (0..it.count()) |i| {
-                const entity = it.entities()[i];
-
-                _ = entity;
-            }
-
-            _ = position;
-            _ = velocities;
-            _ = accelerations;
-        }
+        events.deinit();
     }
 
-    //fn setNetworkState(self: *Control, state: *const NetworkState) void {
-    //    const count = state.entities.len;
-    //    for (0..count) |i| {
-    //        const entity = state.entities[i];
-    //
-    //        if (ecs.is_alive(self.world, entity)) {
-    //            _ = ecs.set(self.world, entity, core.Position, state.positions[i]);
-    //            _ = ecs.set(self.world, entity, core.Velocity, state.velocities[i]);
-    //            _ = ecs.set(self.world, entity, core.Acceleration, state.accelerations[i]);
-    //        }
-    //    }
-    //}
-
-    fn captureInput(allocator: *std.mem.Allocator) std.ArrayList(core.Action) {
-        const events = std.ArrayList(core.Action).init(allocator.*);
-
-        //if (rl.isKeyDown(rl.KeyboardKey.w)) events.append(core.Action.MoveForward) catch unreachable;
-        //if (rl.isKeyDown(rl.KeyboardKey.a)) events.append(core.Action.MoveLeft) catch unreachable;
-        //if (rl.isKeyDown(rl.KeyboardKey.s)) events.append(core.Action.MoveBackward) catch unreachable;
-        //if (rl.isKeyDown(rl.KeyboardKey.d)) events.append(core.Action.MoveRight) catch unreachable;
-        //if (rl.isKeyPressed(rl.KeyboardKey.space)) events.append(core.Action.SpawnPlayer) catch unreachable;
-
-        return events; //TODO: move func to view
-    }
-
-    fn sendInput(self: *Control, actions: std.ArrayList(core.Action)) void {
+    fn sendActions(self: *Control) void {
         if (!self.client.connected) return;
 
-        for (actions.items) |a| {
-            self.client.submit(network.ActionMessage.init(a));
-        }
+        //for (actions.items) |a| {
+        //    self.client.submit(network.ActionMessage.init(a));
+        //}
+
+        //TODO[MISSING]
     }
+
+    //fn getNetworkState(self: *Control) void {
+    //    const terms: [32]ecs.term_t = [_]ecs.term_t{
+    //        ecs.term_t{ .id = ecs.id(core.Position) },
+    //        ecs.term_t{ .id = ecs.id(core.ShipSize) },
+    //        ecs.term_t{ .id = ecs.id(core.Ship) },
+    //        ecs.term_t{ .id = ecs.id(core.Visible) },
+    //    } ++ [_]ecs.term_t{ecs.term_t{}} ** 28;
+    //
+    //    var query_desc = ecs.query_desc_t{
+    //        .terms = terms,
+    //        .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
+    //    };
+    //
+    //    const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
+    //    defer ecs.query_fini(query);
+    //
+    //    var it = ecs.query_iter(self.model.world, query);
+    //
+    //    while (ecs.query_next(&it)) {
+    //        const position: []const core.Position = ecs.field(&it, core.Position, 0).?;
+    //        const velocities: []const core.ShipSize = ecs.field(&it, core.Velocity, 1).?;
+    //        const accelerations: []const core.ShipSize = ecs.field(&it, core.Acceleration, 1).?;
+    //
+    //        for (0..it.count()) |i| {
+    //            const entity = it.entities()[i];
+    //
+    //            _ = entity;
+    //        }
+    //
+    //        _ = position;
+    //        _ = velocities;
+    //        _ = accelerations;
+    //    }
+    //}
 };
+// └─────────────────────────────────────────────────┘

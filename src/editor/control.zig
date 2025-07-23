@@ -24,17 +24,17 @@ const util = @import("shared").util;
 // ----------------------------
 
 // ---------- shared ----------
-const view = @import("view");
-const Input = view.Input;
-const Window = view.Window;
+const frontend = @import("frontend");
+const Input = frontend.Input;
+const Window = frontend.Window;
 // ----------------------------
 
 const log = std.log.scoped(.control);
 
 const name = "editor";
 
-const rl = view.rl;
-const TextureCache = view.TextureCache;
+const rl = frontend.rl;
+const TextureCache = frontend.TextureCache;
 
 const Vec2 = rl.Vector2;
 
@@ -316,7 +316,7 @@ pub const Control = struct {
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
 
-        const temp = util.ziggy.load(control.arena_allocator.allocator(), "prefab.ziggy", Prefab) catch unreachable;
+        const temp = util.ziggy.load(control.arena_allocator.allocator(), "ressources/prefab.ziggy", Prefab) catch unreachable;
         control.current = PrefabData.from(allocator.*, temp);
 
         return control;
@@ -371,7 +371,7 @@ pub const Control = struct {
         self.handleSelection();
         self.handleDragging();
 
-        const wheel = view.Input.getMouseWheelMove();
+        const wheel = frontend.Input.getMouseWheelMove();
 
         if (Input.isKeyDown(Input.KeyboardKey.left_control) and Input.isKeyDown(Input.KeyboardKey.left_shift)) {
             if (self.current) |*cur| {

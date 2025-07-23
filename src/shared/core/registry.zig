@@ -19,9 +19,9 @@ const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-// ---------- shared ----------
+// ---------- local ----------
 const util = @import("../util/root.zig");
-// ----------------------------
+// ---------------------------
 
 // ---------- external ----------
 const ecs = @import("zflecs");

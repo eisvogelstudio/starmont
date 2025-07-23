@@ -1234,6 +1234,9 @@ pub const ComponentMessage = struct {
         Velocity: core.Velocity,
         Acceleration: core.Acceleration,
         Jerk: core.Jerk,
+        Rotation: core.Rotation,
+        RotationalVelocity: core.RotationalVelocity,
+        RotationalAcceleration: core.RotationalAcceleration,
         ShipSize: core.ShipSize,
     };
 
@@ -1310,6 +1313,15 @@ pub const ComponentMessage = struct {
             .Jerk => |jerk| {
                 serial.serializeJerk(writer, jerk);
             },
+            .Rotation => |rot| {
+                serial.serializeRotation(writer, rot);
+            },
+            .RotationalVelocity => |rotv| {
+                serial.serializeRotationalVelocity(writer, rotv);
+            },
+            .RotationalAcceleration => |rota| {
+                serial.serializeRotationalAcceleration(writer, rota);
+            },
             .ShipSize => |size| {
                 serial.serializeShipSize(writer, size);
             },
@@ -1325,6 +1337,9 @@ pub const ComponentMessage = struct {
             .Velocity => Component{ .Velocity = serial.deserializeVelocity(reader) },
             .Acceleration => Component{ .Acceleration = serial.deserializeAcceleration(reader) },
             .Jerk => Component{ .Jerk = serial.deserializeJerk(reader) },
+            .Rotation => Component{ .Rotation = serial.deserializeRotation(reader) },
+            .RotationalVelocity => Component{ .RotationalVelocity = serial.deserializeRotationalVelocity(reader) },
+            .RotationalAcceleration => Component{ .RotationalAcceleration = serial.deserializeRotationalAcceleration(reader) },
             .ShipSize => Component{ .ShipSize = serial.deserializeShipSize(reader) },
         };
 
@@ -1349,8 +1364,46 @@ pub const ComponentMessage = struct {
             .Jerk => |jerk| {
                 util.format.writeJerk(writer, jerk);
             },
+            .Rotation => |jerk| {
+                util.format.writeRotation(writer, jerk);
+            },
+            .RotationalVelocity => |jerk| {
+                util.format.writeRotationalVelocity(writer, jerk);
+            },
+            .RotationalAcceleration => |jerk| {
+                util.format.writeRotationalAcceleration(writer, jerk);
+            },
             .ShipSize => |size| {
                 util.format.writeShipSize(writer, size);
+            },
+        }
+    }
+
+    pub fn apply(self: ComponentMessage, model: *core.Model) void {
+        switch (self.component) {
+            .Position => {
+                model.setComponent(self.id, core.Position, self.component.Position);
+            },
+            .Velocity => {
+                model.setComponent(self.id, core.Velocity, self.component.Velocity);
+            },
+            .Acceleration => {
+                model.setComponent(self.id, core.Acceleration, self.component.Acceleration);
+            },
+            .Jerk => {
+                model.setComponent(self.id, core.Jerk, self.component.Jerk);
+            },
+            .Rotation => {
+                model.setComponent(self.id, core.Rotation, self.component.Rotation);
+            },
+            .RotationalVelocity => {
+                model.setComponent(self.id, core.RotationalVelocity, self.component.RotationalVelocity);
+            },
+            .RotationalAcceleration => {
+                model.setComponent(self.id, core.RotationalAcceleration, self.component.RotationalAcceleration);
+            },
+            .ShipSize => {
+                model.setComponent(self.id, core.ShipSize, self.component.ShipSize);
             },
         }
     }
@@ -1386,6 +1439,35 @@ pub const ComponentRemoveMessage = struct {
 
     pub fn write(self: ComponentRemoveMessage, writer: anytype) void {
         writer.print("ComponentRemove: {}", .{self.component}) catch unreachable;
+    }
+
+    pub fn apply(self: ComponentRemoveMessage, model: *core.Model) void {
+        switch (self.component) {
+            .Position => {
+                model.removeComponent(self.id, core.Position);
+            },
+            .Velocity => {
+                model.removeComponent(self.id, core.Velocity);
+            },
+            .Acceleration => {
+                model.removeComponent(self.id, core.Acceleration);
+            },
+            .Jerk => {
+                model.removeComponent(self.id, core.Jerk);
+            },
+            .Rotation => {
+                model.removeComponent(self.id, core.Rotation);
+            },
+            .RotationalVelocity => {
+                model.removeComponent(self.id, core.RotationalVelocity);
+            },
+            .RotationalAcceleration => {
+                model.removeComponent(self.id, core.RotationalAcceleration);
+            },
+            .ShipSize => {
+                model.removeComponent(self.id, core.ShipSize);
+            },
+        }
     }
 };
 

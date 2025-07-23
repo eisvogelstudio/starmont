@@ -16,11 +16,9 @@
 
 // ---------- std ----------
 const std = @import("std");
-const testing = std.testing;
 // -------------------------
 
-// ##### text #####
-
+// ╔══════════════════════════════ text ══════════════════════════════╗
 pub fn serializeText(writer: anytype, text: []const u8) void {
     serializeU64(writer, @intCast(text.len));
     writer.writeAll(text) catch unreachable;
@@ -32,9 +30,20 @@ pub fn deserializeText(reader: anytype, allocator: *std.mem.Allocator) []const u
     _ = reader.readAll(text) catch unreachable;
     return text;
 }
+// ╚══════════════════════════════════════════════════════════════════╝
 
-// ##### bool #####
+// ╔══════════════════════════════ enum ══════════════════════════════╗
+pub fn serializeEnum(writer: anytype, comptime T: type, value: T) void {
+    writer.writeByte(@intFromEnum(value)) catch unreachable;
+}
 
+pub fn deserializeEnum(reader: anytype, comptime T: type) T {
+    const action_byte = reader.readByte() catch unreachable;
+    return @enumFromInt(action_byte);
+}
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// ╔══════════════════════════════ bool ══════════════════════════════╗
 pub fn serializeBool(writer: anytype, boolean: bool) void {
     const byte: u8 = if (boolean) 1 else 0;
     writer.writeByte(byte) catch unreachable;
@@ -44,9 +53,9 @@ pub fn deserializeBool(reader: anytype) bool {
     const byte = reader.readByte() catch unreachable;
     return byte != 0;
 }
+// ╚══════════════════════════════════════════════════════════════════╝
 
-// ##### uint #####
-
+// ╔══════════════════════════════ uint ══════════════════════════════╗
 pub fn serializeU8(writer: anytype, uint: u8) void {
     var buf: [1]u8 = undefined;
     buf = @bitCast(uint);
@@ -94,9 +103,9 @@ pub fn deserializeU64(reader: anytype) u64 {
     _ = reader.readAll(&buf) catch unreachable;
     return @bitCast(buf);
 }
+// ╚══════════════════════════════════════════════════════════════════╝
 
-// ##### int #####
-
+// ╔══════════════════════════════ int ══════════════════════════════╗
 pub fn serializeI8(writer: anytype, int: i8) void {
     var buf: [1]u8 = undefined;
     buf = @bitCast(int);
@@ -144,9 +153,9 @@ pub fn deserializeI64(reader: anytype) i64 {
     _ = reader.readAll(&buf) catch unreachable;
     return @bitCast(buf);
 }
+// ╚═════════════════════════════════════════════════════════════════╝
 
-// ##### float #####
-
+// ╔══════════════════════════════ float ══════════════════════════════╗
 pub fn serializeF16(writer: anytype, float: f16) void {
     var buf: [2]u8 = undefined;
     buf = @bitCast(float);
@@ -182,12 +191,4 @@ pub fn deserializeF64(reader: anytype) f64 {
     _ = reader.readAll(&buf) catch unreachable;
     return @bitCast(buf);
 }
-
-pub fn serializeEnum(writer: anytype, comptime T: type, value: T) void {
-    writer.writeByte(@intFromEnum(value)) catch unreachable;
-}
-
-pub fn deserializeEnum(reader: anytype, comptime T: type) T {
-    const action_byte = reader.readByte() catch unreachable;
-    return @enumFromInt(action_byte);
-}
+// ╚═══════════════════════════════════════════════════════════════════╝

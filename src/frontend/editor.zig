@@ -15,38 +15,31 @@
 // ─────────────────────────────────────────────────────────────────────
 
 // ---------- shared ----------
+const core = @import("shared").core;
 const util = @import("shared").util;
 // ----------------------------
 
-// ---------- core ----------
-const Collider = @import("collider.zig").Collider;
-// --------------------------
-
-const TileKind = enum {
-    Empty,
-    Floor,
-    Wall,
-    Glass,
-    Door,
-    Terminal,
-    Spawnpoint,
+pub const EditorTool = enum {
+    Select,
+    Move,
+    Rotate,
+    Scale,
+    Paint,
+    Collider,
+    Pivot,
 };
 
-const Tile = struct {
-    kind: TileKind,
-};
-
-pub const tile_size = util.Vec2u.init(32, 32);
-
-const Tilemap = struct {
-    size: util.Vec2u,
-    tiles: []Tile,
-    colliders: []Collider,
-    //markers: []Marker,
-};
-
-const TilemapEntity = struct {
-    tilemap: *const Tilemap,
-    position: util.Vec2,
-    rotation: util.Angle,
+pub const EditorEvent = union(enum) {
+    SelectPart: u32,
+    DeleteSelected,
+    DuplicateSelected,
+    CreatePart,
+    CreateCollider,
+    PlacePivot,
+    ToggleColliderView,
+    ToggleSnapToGrid,
+    ChangeTool: EditorTool,
+    FileOpen: []const u8,
+    FileSave,
+    FileSaveAs: []const u8,
 };

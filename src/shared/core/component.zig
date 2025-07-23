@@ -14,9 +14,9 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- shared ----------
-const util = @import("shared").util;
-// ----------------------------
+// ---------- local ----------
+const util = @import("../util/root.zig");
+// ---------------------------
 
 pub const ComponentType = enum {
     Position,
@@ -81,15 +81,15 @@ pub const Jerk = struct {
     }
 };
 
-const Rotation = struct {
+pub const Rotation = struct {
     value: util.Angle,
 };
 
-const RotationalVelocity = struct {
+pub const RotationalVelocity = struct {
     value: util.Angle,
 };
 
-const RotationalAcceleration = struct {
+pub const RotationalAcceleration = struct {
     value: util.Angle,
 };
 

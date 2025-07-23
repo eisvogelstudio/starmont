@@ -89,8 +89,8 @@ pub const Client = struct {
         var socket = try net.connectToHost(self.allocator.*, host, port, .tcp);
         defer if (!self.connected) socket.close();
 
-        try socket.setReadTimeout(100); // 100ns
-        try socket.setWriteTimeout(100); // 100ns
+        socket.setReadTimeout(100) catch unreachable; // 100ns
+        socket.setWriteTimeout(100) catch unreachable; // 100ns
 
         self.socket = socket;
         self.connected = true;

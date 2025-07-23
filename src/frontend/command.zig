@@ -14,22 +14,23 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-// -------------------------
+// unsure if this will be needed...
+//could all be done via model/ecs
+const FrontCommand = union(enum) {
+    // Transient (einmalige Aktionen)
+    //PlaySound: struct { id: SoundId },
+    //ShowFloatingText: struct { entity: u32, text: []const u8, color: Color },
+    //FlashScreen,
+    //ShakeCamera,
+    //AnimateEntity: struct { entity: u32, animation: AnimationId },
+    //SpawnParticles: struct { position: Vec2, kind: ParticleKind },
 
-// ---------- root ----------
-pub const render = @import("render.zig");
+    // Persistent (zustandsverändernd)
+    //OpenUi: struct { panel: UiPanel },
+    //CloseUi: struct { panel: UiPanel },
+    //FocusCameraOn: struct { entity: u32 },
+    //HighlightEntity: struct { entity: u32 },
+    //SetVisibility: struct { entity: u32, visible: bool },
 
-pub const Input = @import("input.zig").Input;
-pub const Window = @import("window.zig").Window;
-
-pub const TextureEntry = @import("texture.zig").TextureEntry;
-pub const TextureCache = @import("texture.zig").TextureCache;
-
-pub const rl = @import("raylib");
-// --------------------------
-
-test {
-    std.testing.refAllDecls(@This());
-}
+    // ...
+};

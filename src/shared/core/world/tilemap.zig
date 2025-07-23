@@ -14,11 +14,36 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-pub const Client = @import("client.zig").Client;
+// ---------- local ----------
+const util = @import("../../util/root.zig");
+const Collider = @import("../physics/collider.zig").Collider;
+// --------------------------
 
-pub const ServerInfo = @import("server.zig").ServerInfo;
-pub const Server = @import("server.zig").Server;
+const TileKind = enum {
+    Empty,
+    Floor,
+    Wall,
+    Glass,
+    Door,
+    Terminal,
+    Spawnpoint,
+};
 
-pub const serial = @import("serial.zig");
+const Tile = struct {
+    kind: TileKind,
+};
 
-pub usingnamespace @import("message.zig");
+pub const tile_size = util.Vec2u.init(32, 32);
+
+const Tilemap = struct {
+    size: util.Vec2u,
+    tiles: []Tile,
+    colliders: []Collider,
+    //markers: []Marker,
+};
+
+const TilemapEntity = struct {
+    tilemap: *const Tilemap,
+    position: util.Vec2,
+    rotation: util.Angle,
+};

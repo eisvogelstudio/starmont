@@ -20,7 +20,7 @@ pub const version = "0.1.0-dev";
 const action = @import("action.zig");
 pub const Action = action.Action;
 
-const collider = @import("collider.zig");
+const collider = @import("physics/collider.zig");
 
 const identity = @import("identity.zig");
 pub const Identity = identity.Identity;
@@ -32,7 +32,7 @@ const registry = @import("registry.zig");
 pub const Id = registry.Id;
 pub const Registry = registry.Registry;
 
-const tilemap = @import("tilemap.zig");
+const tilemap = @import("world/tilemap.zig");
 
 pub usingnamespace @import("component.zig");
 pub usingnamespace @import("tag.zig");

@@ -136,6 +136,11 @@ pub const Model = struct {
         ecs.COMPONENT(self.world, component.Velocity);
         ecs.COMPONENT(self.world, component.Acceleration);
         ecs.COMPONENT(self.world, component.Jerk);
+
+        ecs.COMPONENT(self.world, component.Rotation);
+        ecs.COMPONENT(self.world, component.RotationalVelocity);
+        ecs.COMPONENT(self.world, component.RotationalAcceleration);
+
         ecs.COMPONENT(self.world, component.ShipSize);
     }
 

@@ -14,31 +14,45 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-// -------------------------
-
-// ---------- util/geometry ----------
-const Vec2 = @import("vec2.zig").Vec2;
-// -----------------------------------
-
-// ---------- shared ----------
-const network = @import("../../network/root.zig");
+// ---------- local ----------
+const editor = @import("editor.zig");
 // ----------------------------
 
-const Vec2u = struct {
-    x: u32,
-    y: u32,
+// ---------- shared ----------
+const core = @import("shared").core;
+const util = @import("shared").util;
+// ----------------------------
 
-    pub fn init(x: u32, y: u32) Vec2u {
-        return .{ .x = x, .y = y };
-    }
+pub const FrontEvent = union(enum) {
+    // ##### general #####
+    Quit,
+    TogglePause,
+    ToggleFullscreen,
+    Undo,
+    Redo,
+    MoveIntent: struct {
+        entity: u32,
+        direction: util.Vec2,
+    },
+    RotateIntent: struct {
+        entity: u32,
+        rotation: util.Angle,
+    },
 
-    pub fn add(self: Vec2u, other: Vec2u) Vec2u {
-        return .{ .x = self.x + other.x, .y = self.y + other.y };
-    }
+    // ##### camera #####
+    CameraZoom: f32,
+    CameraPan: util.Vec2,
+    CameraFocusEntity: u32,
+    CameraReset,
 
-    pub fn toVec2(self: Vec2u) Vec2 {
-        return .{ .x = @floatFromInt(self.x), .y = @floatFromInt(self.y) };
-    }
+    // ##### editor #####
+    Editor: editor.EditorEvent, //TODO[OPTIMISATION] make optional to save mem / only if editor
+
+    // ##### game #####
+    Action: core.Action, //TODO[OPTIMISATION] make optional to save mem / only if game
+
+    // ##### debug #####
+    ReloadAssets,
+    ToggleDebugOverlay,
+    LogState,
 };

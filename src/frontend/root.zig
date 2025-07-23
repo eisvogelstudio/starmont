@@ -14,11 +14,24 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-pub const Client = @import("client.zig").Client;
+// ---------- std ----------
+const std = @import("std");
+// -------------------------
 
-pub const ServerInfo = @import("server.zig").ServerInfo;
-pub const Server = @import("server.zig").Server;
+// ---------- root ----------
+pub const render = @import("render.zig");
 
-pub const serial = @import("serial.zig");
+pub const Input = @import("input.zig").Input;
+pub const Window = @import("window.zig").Window;
 
-pub usingnamespace @import("message.zig");
+pub const TextureEntry = @import("texture.zig").TextureEntry;
+pub const TextureCache = @import("texture.zig").TextureCache;
+
+pub const FrontEvent = @import("event.zig").FrontEvent;
+
+pub const rl = @import("raylib");
+// --------------------------
+
+test {
+    std.testing.refAllDecls(@This());
+}
