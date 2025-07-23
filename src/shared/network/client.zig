@@ -38,7 +38,7 @@ const interval = 1000 / hz;
 pub const Client = struct {
     allocator: *std.mem.Allocator,
     socket: net.Socket = undefined,
-    connected: bool = false,
+    is_connected: bool = false,
     stamp: i64 = 0,
     batch: Batch,
     last: i64 = 0,
@@ -76,7 +76,7 @@ pub const Client = struct {
     }
 
     pub fn connect(self: *Client, host: []const u8, port: u16) !void {
-        if (self.connected) {
+        if (self.is_connected) {
             return;
         }
 
@@ -87,20 +87,20 @@ pub const Client = struct {
         }
 
         var socket = try net.connectToHost(self.allocator.*, host, port, .tcp);
-        defer if (!self.connected) socket.close();
+        defer if (!self.is_connected) socket.close();
 
         try socket.setReadTimeout(100); // 100ns
         try socket.setWriteTimeout(100); // 100ns
 
         self.socket = socket;
-        self.connected = true;
+        self.is_connected = true;
         self.stamp = now;
 
         log.info("connected to {s}:{d}", .{ host, port });
     }
 
     pub fn disconnect(self: *Client) void {
-        if (!self.connected) {
+        if (!self.is_connected) {
             return;
         }
 
@@ -108,13 +108,13 @@ pub const Client = struct {
 
         log.info("disconnected\n", .{});
 
-        self.connected = false;
+        self.is_connected = false;
     }
 
     pub fn receive(self: *Client) ![]Batch {
         const batches = primitive.receive(&self.socket, self.allocator) catch |err| {
             if (err == error.ClosedConnection) {
-                self.connected = false;
+                self.is_connected = false;
             }
 
             return err;

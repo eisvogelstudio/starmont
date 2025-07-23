@@ -153,10 +153,10 @@ const Rect = struct {
 
 //TODO to utils
 pub const DirectionSet = packed struct {
-    north: bool = false,
-    south: bool = false,
-    east: bool = false,
-    west: bool = false,
+    has_north: bool = false,
+    has_south: bool = false,
+    has_east: bool = false,
+    has_west: bool = false,
 
     pub fn empty() DirectionSet {
         return .{};
@@ -170,33 +170,33 @@ pub const DirectionSet = packed struct {
 
     pub fn set(self: *DirectionSet, dir: Direction, value: bool) void {
         switch (dir) {
-            .North => self.north = value,
-            .South => self.south = value,
-            .East => self.east = value,
-            .West => self.west = value,
+            .North => self.has_north = value,
+            .South => self.has_south = value,
+            .East => self.has_east = value,
+            .West => self.has_west = value,
 
             .NorthEast => {
-                self.north = value;
-                self.east = value;
+                self.has_north = value;
+                self.has_east = value;
             },
             .NorthWest => {
-                self.north = value;
-                self.west = value;
+                self.has_north = value;
+                self.has_west = value;
             },
             .SouthEast => {
-                self.south = value;
-                self.east = value;
+                self.has_south = value;
+                self.has_east = value;
             },
             .SouthWest => {
-                self.south = value;
-                self.west = value;
+                self.has_south = value;
+                self.has_west = value;
             },
         }
     }
 };
 
 const Neightbours = struct {
-    valid: bool = false,
+    is_valid: bool = false,
     north: *std.ArrayList(ServerId),
     ne: ServerId,
     east: *std.ArrayList(ServerId),

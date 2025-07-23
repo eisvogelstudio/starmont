@@ -536,7 +536,7 @@ pub const NoticeMessage = struct {
     pub fn write(self: NoticeMessage, writer: anytype) void {
         _ = self;
         _ = writer;
-        //writer.print("VersionResult: {d}", .{self.match}) catch unreachable;
+        //writer.print("VersionResult: {d}", .{self.is_match}) catch unreachable;
     }
 };
 
@@ -686,7 +686,7 @@ pub const KickMessage = struct {
     pub fn write(self: KickMessage, writer: anytype) void {
         _ = self;
         _ = writer;
-        //writer.print("VersionResult: {d}", .{self.match}) catch unreachable;
+        //writer.print("VersionResult: {d}", .{self.is_match}) catch unreachable;
     }
 };
 
@@ -791,23 +791,23 @@ pub const VersionCheckMessage = struct {
     pub fn write(self: VersionCheckMessage, writer: anytype) void {
         _ = self;
         _ = writer;
-        //writer.print("VersionResult: {d}", .{self.match}) catch unreachable;
+        //writer.print("VersionResult: {d}", .{self.is_match}) catch unreachable;
     }
 };
 
 pub const VersionResultMessage = struct {
     allocator: *std.mem.Allocator,
-    match: bool,
+    is_match: bool,
     version: []const u8,
     message: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, match: bool, version: []const u8, message: []const u8) Message {
+    pub fn init(allocator: *std.mem.Allocator, is_match: bool, version: []const u8, message: []const u8) Message {
         const dup_version = allocator.dupe(u8, version) catch unreachable;
         const dup_message = allocator.dupe(u8, message) catch unreachable;
 
         const vers = VersionResultMessage{
             .allocator = allocator,
-            .match = match,
+            .is_match = is_match,
             .version = dup_version,
             .message = dup_message,
         };
@@ -821,32 +821,34 @@ pub const VersionResultMessage = struct {
     }
 
     fn serialize(self: VersionResultMessage, writer: anytype) void {
-        serial.serializeBool(writer, self.match);
+        serial.serializeBool(writer, self.is_match);
         serial.serializeText(writer, self.version);
         serial.serializeText(writer, self.message);
     }
 
     fn deserialize(reader: anytype, allocator: *std.mem.Allocator) VersionResultMessage {
-        const match = serial.deserializeBool(reader);
+        const is_match = serial.deserializeBool(reader);
         const version = serial.deserializeText(reader, allocator);
         const message = serial.deserializeText(reader, allocator);
-        return init(allocator, match, version, message).VersionResult;
+        return init(allocator, is_match, version, message).VersionResult;
     }
 
     pub fn write(self: VersionResultMessage, writer: anytype) void {
         _ = self;
         _ = writer;
-        //writer.print("VersionResult: {d}", .{self.match}) catch unreachable;
+        //writer.print("VersionResult: {d}", .{self.is_match}) catch unreachable;
     }
 };
 
 pub const AuthChallengeMessage = struct {
     auth_id: u64,
+    is_success: bool,
     //TODO
 
-    pub fn init(auth_id: u64) Message {
+    pub fn init(auth_id: u64, is_success: bool) Message {
         const auth = AuthChallengeMessage{
             .auth_id = auth_id,
+            .is_success = is_success,
         };
 
         return Message{ .AuthChallenge = auth };
@@ -857,12 +859,13 @@ pub const AuthChallengeMessage = struct {
     }
 
     fn serialize(self: AuthChallengeMessage, writer: anytype) void {
-        serial.serializeU64(writer, self.success);
+        serial.serializeU64(writer, self.is_success);
     }
 
     fn deserialize(reader: anytype) AuthChallengeMessage {
         const auth_id = serial.deserializeU64(reader);
-        return init(auth_id).AuthChallenge;
+        const is_success = serial.deserializeBool(reader);
+        return init(auth_id, is_success).AuthChallenge;
     }
 
     pub fn write(self: AuthChallengeMessage, writer: anytype) void {
@@ -906,12 +909,12 @@ pub const AuthResultMessage = struct {
 
 pub const AuthResponseMessage = struct {
     auth_id: u64,
-    success: bool,
+    is_success: bool,
 
-    pub fn init(auth_id: u64, success: bool) Message {
+    pub fn init(auth_id: u64, is_success: bool) Message {
         const auth = AuthResponseMessage{
             .auth_id = auth_id,
-            .success = success,
+            .is_success = is_success,
         };
 
         return Message{ .AuthResponse = auth };
@@ -923,19 +926,19 @@ pub const AuthResponseMessage = struct {
 
     fn serialize(self: AuthResponseMessage, writer: anytype) void {
         serial.serializeU64(writer, self.auth_id);
-        serial.serializeBool(writer, self.success);
+        serial.serializeBool(writer, self.is_success);
     }
 
     fn deserialize(reader: anytype) AuthResponseMessage {
         const auth_id = serial.deserializeU64(reader);
-        const success = serial.deserializeBool(reader);
-        return init(auth_id, success).AuthResponse;
+        const is_success = serial.deserializeBool(reader);
+        return init(auth_id, is_success).AuthResponse;
     }
 
     pub fn write(self: AuthResponseMessage, writer: anytype) void {
         _ = self;
         _ = writer;
-        //writer.print("AuthResponse: {d}", .{self.success}) catch unreachable;
+        //writer.print("AuthResponse: {d}", .{self.is_success}) catch unreachable;
     }
 };
 

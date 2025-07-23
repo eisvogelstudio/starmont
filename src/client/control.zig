@@ -43,7 +43,7 @@ pub const Control = struct {
     model: core.Model,
     view: View,
     client: network.Client,
-    snapshotRequired: bool = true,
+    should_request_snapshot: bool = true,
 
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
@@ -97,9 +97,9 @@ pub const Control = struct {
             return;
         }
 
-        if (self.snapshotRequired) {
+        if (self.should_request_snapshot) {
             self.client.submit(network.SnapshotRequestMessage.init());
-            self.snapshotRequired = false;
+            self.should_request_snapshot = false;
         }
 
         // Receive messages
