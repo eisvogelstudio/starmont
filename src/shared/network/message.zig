@@ -842,13 +842,11 @@ pub const VersionResultMessage = struct {
 
 pub const AuthChallengeMessage = struct {
     auth_id: u64,
-    is_success: bool,
     //TODO
 
-    pub fn init(auth_id: u64, is_success: bool) Message {
+    pub fn init(auth_id: u64) Message {
         const auth = AuthChallengeMessage{
             .auth_id = auth_id,
-            .is_success = is_success,
         };
 
         return Message{ .AuthChallenge = auth };
@@ -864,8 +862,7 @@ pub const AuthChallengeMessage = struct {
 
     fn deserialize(reader: anytype) AuthChallengeMessage {
         const auth_id = serial.deserializeU64(reader);
-        const is_success = serial.deserializeBool(reader);
-        return init(auth_id, is_success).AuthChallenge;
+        return init(auth_id).AuthChallenge;
     }
 
     pub fn write(self: AuthChallengeMessage, writer: anytype) void {
