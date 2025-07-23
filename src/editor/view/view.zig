@@ -14,25 +14,25 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
+// ---------- external ----------
+const ecs = @import("zflecs");
+// ------------------------------
+
+// ---------- zig ----------
 const std = @import("std");
 // -------------------------
 
-// ---------- shared ----------
+// ---------- starmont ----------
 const core = @import("shared").core;
-const util = @import("shared").util;
-// ----------------------------
+const util = @import("util");
+// ------------------------------
 
-// ---------- shared ----------
+// ---------- local ----------
 const frontend = @import("frontend");
 const Input = frontend.Input;
 const Window = frontend.Window;
 const TextureCache = frontend.TextureCache;
-// ----------------------------
-
-// ---------- external ----------
-const ecs = @import("zflecs");
-// ------------------------------
+// ---------------------------
 
 // ╔══════════════════════════════ init ══════════════════════════════╗
 const log = std.log.scoped(.view);

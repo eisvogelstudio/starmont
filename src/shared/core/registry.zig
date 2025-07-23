@@ -14,58 +14,66 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-const testing = std.testing;
-// -------------------------
-
-// ---------- local ----------
-const util = @import("../util/util.zig");
-// ---------------------------
-
 // ---------- external ----------
 const ecs = @import("zflecs");
 // ------------------------------
 
+// ---------- zig ----------
+const std = @import("std");
+// -------------------------
+
+// ---------- starmont ----------
+const util = @import("util");
+// ------------------------------
+
+// ---------- local ----------
+const comp = @import("component.zig");
+const tag = @import("tag.zig");
+const sys = @import("system.zig");
+// ----------------------------
+
 const log = std.log.scoped(.model);
 
-pub const Id = util.UUID4;
+pub const Id = struct {
+    uuid: util.UUID4,
+};
 
 pub const Registry = struct {
     allocator: *std.mem.Allocator,
     random: std.Random,
+    world: *ecs.world_t,
+    tick: u64 = 0,
 
-    id_to_entity: std.AutoHashMap(util.UUID4, ecs.entity_t),
-    entity_to_id: std.AutoHashMap(ecs.entity_t, util.UUID4),
+    id_to_entity: std.AutoHashMap(Id, ecs.entity_t),
+    entity_to_id: std.AutoHashMap(ecs.entity_t, Id),
 
     pub fn init(allocator: *std.mem.Allocator, random: std.Random) Registry {
-        return Registry{
+        var registry = Registry{
             .allocator = allocator,
             .random = random,
-            .id_to_entity = std.AutoHashMap(util.UUID4, ecs.entity_t).init(allocator.*),
-            .entity_to_id = std.AutoHashMap(ecs.entity_t, util.UUID4).init(allocator.*),
+            .world = ecs.init(),
+            .tick = 0,
+            .id_to_entity = std.AutoHashMap(Id, ecs.entity_t).init(allocator.*),
+            .entity_to_id = std.AutoHashMap(ecs.entity_t, Id).init(allocator.*),
         };
+
+        registry.registerComponents();
+        registry.registerTags();
+        registry.registerSystems();
+
+        return registry;
     }
 
     pub fn deinit(self: *Registry) void {
         self.id_to_entity.deinit();
         self.entity_to_id.deinit();
+
+        _ = ecs.fini(self.world);
     }
 
-    pub fn create(self: *Registry) util.UUID4 {
-        const id = self.next_id;
-        self.next_id.id += 1;
-        return id;
-    }
-
-    pub fn register(self: *Registry, id: Id, entity: ecs.entity_t) void {
-        if (self.id_to_entity.contains(id)) {
-            self.remove(id);
-            log.err("entity #{d} was already registered", .{id.toString()});
-        }
-
-        self.id_to_entity.put(id, entity) catch unreachable;
-        self.entity_to_id.put(entity, id) catch unreachable;
+    pub fn update(self: *Registry) void {
+        self.tick += 1;
+        _ = ecs.progress(self.world, 0);
     }
 
     pub fn getEntity(self: *Registry, id: Id) ?ecs.entity_t {
@@ -76,68 +84,118 @@ pub const Registry = struct {
         return self.entity_to_id.get(entity);
     }
 
-    pub fn remove(self: *Registry, id: Id) void {
-        if (self.id_to_entity.get(id)) |entity| {
-            _ = self.entity_to_id.remove(entity);
+    pub fn createEntity(self: *Registry) Id {
+        const id = util.UUID4.generate(self.random);
+        const entity = ecs.new_id(self.world);
+
+        self.register(id, entity);
+
+        return id;
+    }
+
+    pub fn addEntity(self: *Registry, id: Id) void {
+        const entity = ecs.new_id(self.world);
+
+        if (self.getEntity(id) != null) {
+            self.unregister(id);
+            std.log.warn("entity {d} already existed", .{id.uuid.toString()});
         }
-        _ = self.id_to_entity.remove(id);
+
+        self.register(id, entity);
+    }
+
+    pub fn removeEntity(self: *Registry, id: Id) void {
+        if (self.getEntity(id) != null) {
+            self.unregister(id);
+        } else {
+            std.log.warn("tried to remove core from unknown entity", .{});
+        }
+    }
+
+    pub fn setComponent(self: *Registry, id: Id, T: type, value: T) void {
+        const entity = self.getEntity(id);
+
+        if (entity) |e| {
+            _ = ecs.set(self.world, e, T, value);
+        } else {
+            std.log.warn("tried to set component to unknown entity", .{});
+        }
+    }
+
+    pub fn removeComponent(self: *Registry, id: Id, T: type) void {
+        const entity = self.getEntity(id);
+
+        if (entity) |e| {
+            _ = ecs.remove(self.world, e, T);
+        } else {
+            std.log.warn("tried to remove component from unknown entity", .{});
+        }
+    }
+
+    fn register(self: *Registry, id: Id, entity: ecs.entity_t) void {
+        if (self.id_to_entity.contains(id)) {
+            self.removeEntity(id);
+            log.err("entity {d} was already registered", .{id.uuid.toString()});
+        }
+
+        self.id_to_entity.put(id, entity) catch unreachable;
+        self.entity_to_id.put(entity, id) catch unreachable;
+    }
+
+    fn unregister(self: *Registry, id: Id) void {
+        const entity = self.getEntity(id);
+        if (entity) |e| {
+            ecs.delete(self.world, e);
+            if (self.entity_to_id.get(e) != null) {
+                _ = self.entity_to_id.remove(e);
+            }
+            _ = self.id_to_entity.remove(id);
+        }
+    }
+
+    fn registerComponents(self: *Registry) void {
+        ecs.COMPONENT(self.world, comp.Position);
+        ecs.COMPONENT(self.world, comp.Velocity);
+        ecs.COMPONENT(self.world, comp.Acceleration);
+        ecs.COMPONENT(self.world, comp.Jerk);
+
+        ecs.COMPONENT(self.world, comp.Rotation);
+        ecs.COMPONENT(self.world, comp.RotationalVelocity);
+        ecs.COMPONENT(self.world, comp.RotationalAcceleration);
+
+        ecs.COMPONENT(self.world, comp.ShipSize);
+    }
+
+    fn registerTags(self: *Registry) void {
+        ecs.TAG(self.world, tag.Player);
+
+        ecs.TAG(self.world, tag.Ship);
+
+        ecs.TAG(self.world, tag.Small);
+        ecs.TAG(self.world, tag.Medium);
+        ecs.TAG(self.world, tag.Large);
+        ecs.TAG(self.world, tag.Capital);
+
+        ecs.TAG(self.world, tag.Visible);
+    }
+
+    fn registerSystems(self: *Registry) void {
+        const jerk_id = ecs.ADD_SYSTEM(self.world, "apply_jerk", ecs.OnUpdate, sys.applyJerk);
+
+        const accel_accelerated_id = ecs.ADD_SYSTEM(self.world, "apply_acceleration_accelerated", ecs.OnUpdate, sys.applyAccelerationAccelerated);
+        const accel_dynamic_id = ecs.ADD_SYSTEM(self.world, "apply_acceleration_dynamic", ecs.OnUpdate, sys.applyAccelerationDynamic);
+
+        const velocity_linear_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_linear", ecs.OnUpdate, sys.applyVelocityLinear);
+        const velocity_accelerated_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_accelerated", ecs.OnUpdate, sys.applyVelocityAccelerated);
+        const velocity_dynamic_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_dynamic", ecs.OnUpdate, sys.applyVelocityDynamic);
+
+        _ = jerk_id;
+
+        _ = accel_accelerated_id;
+        _ = accel_dynamic_id;
+
+        _ = velocity_linear_id;
+        _ = velocity_accelerated_id;
+        _ = velocity_dynamic_id;
     }
 };
-
-test "Registry create and register" {
-    var allocator = std.testing.allocator;
-    var registry = Registry.init(&allocator);
-    defer registry.deinit();
-
-    const id1 = registry.create();
-    try testing.expectEqual(id1, Id{ .id = 1 });
-
-    const entity1: ecs.entity_t = 42;
-    registry.register(id1, entity1);
-
-    const retrieved_entity = registry.getEntity(id1);
-    try testing.expect(retrieved_entity != null);
-    try testing.expectEqual(retrieved_entity.?, entity1);
-
-    const retrieved_id = registry.getId(entity1);
-    try testing.expect(retrieved_id != null);
-    try testing.expectEqual(retrieved_id.?.id, id1.id);
-}
-
-test "Registry register twice" {
-    var allocator = std.testing.allocator;
-    var registry = Registry.init(&allocator);
-    defer registry.deinit();
-
-    const id = registry.create();
-    registry.register(id, 1);
-    registry.register(id, 2);
-
-    try testing.expectEqual(registry.getEntity(id).?, 2);
-    try testing.expectEqual(registry.getId(2).?.id, id.id);
-    try testing.expect(registry.getId(1) == null);
-}
-
-test "Registry remove" {
-    var allocator = std.testing.allocator;
-    var registry = Registry.init(&allocator);
-    defer registry.deinit();
-
-    const id = registry.create();
-    registry.register(id, 123);
-
-    registry.remove(id);
-
-    try testing.expect(registry.getEntity(id) == null);
-    try testing.expect(registry.getId(123) == null);
-}
-
-test "Registry get unknown" {
-    var allocator = std.testing.allocator;
-    var registry = Registry.init(&allocator);
-    defer registry.deinit();
-
-    const id = Id{ .id = 9999 };
-    try testing.expect(registry.getEntity(id) == null);
-    try testing.expect(registry.getId(8888) == null);
-}

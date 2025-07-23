@@ -14,28 +14,26 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-// -------------------------
-
-// ---------- local ----------
-const ShapeType = @import("shape.zig").ShapeType;
-const Shape = @import("shape.zig").Shape;
-const util = @import("../../util/util.zig");
-// ---------------------------
-
 // ---------- external ----------
 const zchip = @import("zchip2d");
 // ------------------------------
 
+// ---------- zig ----------
+const std = @import("std");
+// -------------------------
+
+// ---------- starmont ----------
+const util = @import("util");
+// ------------------------------
+
 // ┌──────────────────── Collider ────────────────────┐
 pub const Collider = struct {
-    shape: Shape,
+    shape: util.Shape,
     offset: util.Vec2 = util.Vec2.zero(),
     rotation: util.Angle = util.Angle.zero(),
     is_sensor: bool = false,
 
-    pub fn fromShape(shape_val: Shape) Collider {
+    pub fn fromShape(shape_val: util.Shape) Collider {
         return Collider{
             .shape = shape_val,
         };

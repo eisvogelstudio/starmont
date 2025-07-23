@@ -14,25 +14,22 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- builtin ----------
+// ---------- zig ----------
 const builtin = @import("builtin");
-// -------------------------
-
-// ---------- std ----------
 const std = @import("std");
 // -------------------------
 
-// ---------- client ----------
+// ---------- starmont ----------
+const ServerId = @import("shared").network.ServerId;
+const util = @import("util");
+// ------------------------------
+
+// ---------- local ----------
 const Control = @import("control.zig").Control;
 const QuadTree = @import("quadtree.zig").QuadTree;
 const QuadNode = @import("quadtree.zig").QuadNode;
 const ServerRegistry = @import("server_registry.zig").ServerRegistry;
-// ----------------------------
-
-// ---------- shared ----------
-const ServerId = @import("shared").network.ServerId;
-const util = @import("shared").util;
-// ----------------------------
+// ---------------------------
 
 pub const std_options: std.Options = .{
     .log_level = if (builtin.mode == .Debug) .debug else .info,

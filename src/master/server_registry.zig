@@ -14,14 +14,14 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
+// ---------- zig ----------
 const std = @import("std");
 const testing = std.testing;
 // -------------------------
 
-// ---------- shared ----------
-const ServerId = @import("shared").network.ServerId;
-const ServerInfo = @import("shared").network.ServerInfo;
+// ---------- starmont --------
+const ServerId = @import("extra").network.SeverId;
+const ServerInfo = @import("extra").network.ServerInfo;
 // ----------------------------
 
 pub const ServerRegistry = struct {

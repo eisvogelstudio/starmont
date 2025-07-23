@@ -18,10 +18,10 @@
 const std = @import("std");
 // -------------------------
 
-// ---------- shared ----------
+// ---------- starmont ----------
 const core = @import("shared").core;
-const network = @import("shared").network;
-// ----------------------------
+const network = @import("extra").network;
+// ------------------------------
 
 const log = std.log.scoped(.control);
 

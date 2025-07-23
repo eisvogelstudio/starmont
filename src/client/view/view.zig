@@ -14,21 +14,19 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
+// ---------- external ----------
+const ecs = @import("zflecs");
+// ------------------------------
+
+// ---------- zig ----------
 const std = @import("std");
 // -------------------------
 
-// ---------- shared ----------
+// ---------- starmont ----------
 const core = @import("shared").core;
-// ----------------------------
-
-// ---------- shared ----------
 const render = @import("frontend").render;
 const Window = @import("frontend").Window;
-// ----------------------------
-
-// ---------- external ----------
-const ecs = @import("zflecs");
+const Model = @import("model").Model;
 // ------------------------------
 
 const log = std.log.scoped(.view);
@@ -71,7 +69,7 @@ pub const View = struct {
         Window.close();
     }
 
-    pub fn update(self: *View, model: *core.Model) void {
+    pub fn update(self: *View, model: *Model) void {
         //rl.beginDrawing();
         //defer rl.endDrawing();
         //rl.clearBackground(rl.Color.white);

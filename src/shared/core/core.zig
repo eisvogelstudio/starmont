@@ -14,29 +14,47 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ╔══════════════════════════════ pack ══════════════════════════════╗
+// ╔══════════════════════════════ init ══════════════════════════════╗
 pub const name = "starmont";
 pub const version = "0.1.0-dev";
+// ╚══════════════════════════════════════════════════════════════════╝
 
-const action = @import("action.zig");
-pub const Action = action.Action;
+// ╔══════════════════════════════ pack ══════════════════════════════╗
+// ┌──────────────────── character ────────────────────┐
+pub const Action = @import("character/action.zig").Action;
+pub const Identity = @import("character/identity.zig").Identity;
+// └───────────────────────────────────────────────────┘
+// ┌──────────────────── physics ────────────────────┐
+pub const Collider = @import("physics/collider.zig").Collider;
+// └─────────────────────────────────────────────────┘
+// ┌──────────────────── world ────────────────────┐
+pub const tilemap = @import("world/tilemap.zig");
+// └───────────────────────────────────────────────┘
+// ---------- component ----------
+pub const ComponentType = @import("component.zig").ComponentType;
+pub const Acceleration = @import("component.zig").Acceleration;
+pub const Jerk = @import("component.zig").Jerk;
+pub const Position = @import("component.zig").Position;
+pub const Rotation = @import("component.zig").Rotation;
+pub const RotationalAcceleration = @import("component.zig").RotationalAcceleration;
+pub const RotationalVelocity = @import("component.zig").RotationalVelocity;
+pub const ShipSize = @import("component.zig").ShipSize;
+pub const Velocity = @import("component.zig").Velocity;
+// ------------------------------
+// ---------- registry ----------
+pub const Id = @import("registry.zig").Id;
+pub const Registry = @import("registry.zig").Registry;
+// ------------------------------
+// ---------- component ----------
+pub const Capital = @import("tag.zig").Capital;
+pub const Large = @import("tag.zig").Large;
+pub const Medium = @import("tag.zig").Medium;
+pub const Player = @import("tag.zig").Player;
+pub const Ship = @import("tag.zig").Ship;
+pub const Small = @import("tag.zig").Small;
+pub const Visible = @import("tag.zig").Visible;
+// ------------------------------
 
-const collider = @import("physics/collider.zig");
-
-const identity = @import("identity.zig");
-pub const Identity = identity.Identity;
-
-const model = @import("model.zig");
-pub const Model = model.Model;
-
-const registry = @import("registry.zig");
-pub const Id = registry.Id;
-pub const Registry = registry.Registry;
-
-const tilemap = @import("world/tilemap.zig");
-
-pub usingnamespace @import("component.zig");
-pub usingnamespace @import("tag.zig");
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ test ══════════════════════════════╗

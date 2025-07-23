@@ -14,11 +14,6 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- shared ----------
-const core = @import("../core/core.zig");
-const util = @import("../util/util.zig");
-// ----------------------------
-
 pub const Tool = enum {
     Select,
     Move,

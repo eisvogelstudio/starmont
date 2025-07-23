@@ -17,10 +17,10 @@
 // ╔══════════════════════════════ pack ══════════════════════════════╗
 pub const core = @import("core/core.zig");
 pub const editor = @import("editor/editor.zig");
-pub const network = @import("network/network.zig");
-pub const util = @import("util/util.zig");
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ test ══════════════════════════════╗
-//TODO[TEST] import all pack files
+test {
+    //TODO[TEST]
+}
 // ╚══════════════════════════════════════════════════════════════════╝

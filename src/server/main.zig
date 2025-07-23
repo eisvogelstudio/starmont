@@ -14,21 +14,18 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- builtin ----------
+// ---------- zig ----------
 const builtin = @import("builtin");
-// -------------------------
-
-// ---------- std ----------
 const std = @import("std");
 // -------------------------
 
-// ---------- server ----------
-const Control = @import("control.zig").Control;
+// ---------- starmont ----------
+const util = @import("util");
 // ------------------------------
 
-// ---------- shared ----------
-const util = @import("shared").util;
-// ----------------------------
+// ---------- local ----------
+const Control = @import("control.zig").Control;
+// ---------------------------
 
 pub const std_options: std.Options = .{
     .log_level = if (builtin.mode == .Debug) .debug else .info,

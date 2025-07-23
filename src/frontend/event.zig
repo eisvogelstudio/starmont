@@ -14,11 +14,11 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- shared ----------
+// ---------- starmont ----------
 const core = @import("shared").core;
 const editor = @import("shared").editor;
-const util = @import("shared").util;
-// ----------------------------
+const util = @import("util");
+// ------------------------------
 
 pub const FrontEvent = union(enum) {
     // ##### general #####

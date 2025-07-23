@@ -14,8 +14,8 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- local ----------
-const util = @import("../util/util.zig");
+// ---------- starmont ----------
+const util = @import("util");
 // ---------------------------
 
 pub const ComponentType = enum {

@@ -14,8 +14,11 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- starmont ----------
+const util = @import("util");
+// ------------------------------
+
 // ---------- local ----------
-const util = @import("../../util/util.zig");
 const Collider = @import("../physics/collider.zig").Collider;
 // --------------------------
 

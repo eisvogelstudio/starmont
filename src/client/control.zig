@@ -14,26 +14,24 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
+// ---------- external ----------
+const ecs = @import("zflecs");
+// ------------------------------
+
+// ---------- zig ----------
 const std = @import("std");
 // -------------------------
+
+// ---------- starmont ----------
+const core = @import("shared").core;
+const network = @import("extra").network;
+const frontend = @import("frontend");
+const Model = @import("model").Model;
+// ------------------------------
 
 // ---------- local ----------
 const View = @import("view/view.zig").View;
 // ----------------------------
-
-// ---------- shared ----------
-const core = @import("shared").core;
-const network = @import("shared").network;
-// ----------------------------
-
-// ---------- frontend ----------
-const frontend = @import("frontend");
-// ----------------------------
-
-// ---------- external ----------
-const ecs = @import("zflecs");
-// ------------------------------
 
 // ╔══════════════════════════════ init ══════════════════════════════╗
 const log = std.log.scoped(.control);
@@ -51,7 +49,7 @@ const State = struct {
 // ┌──────────────────── Control ────────────────────┐
 pub const Control = struct {
     allocator: *std.mem.Allocator,
-    model: core.Model,
+    model: Model,
     view: View,
     client: network.Client,
     state: State,
@@ -59,7 +57,7 @@ pub const Control = struct {
     pub fn init(allocator: *std.mem.Allocator) Control {
         const control = Control{
             .allocator = allocator,
-            .model = core.Model.init(allocator),
+            .model = Model.init(allocator),
             .view = View.init(allocator),
             .client = network.Client.init(allocator),
             .state = State{},
@@ -105,7 +103,7 @@ pub const Control = struct {
         }
 
         if (self.state.should_request_snapshot) {
-            self.client.submit(network.SnapshotRequestMessage.init());
+            self.client.submit(network.msg.SnapshotRequestMessage.init());
             self.state.should_request_snapshot = false;
         }
 
@@ -124,16 +122,16 @@ pub const Control = struct {
                 for (b.messages.items) |message| {
                     switch (message) {
                         .Entity => |id| {
-                            self.model.createEntity(id.id);
+                            self.model.registry.addEntity(id.id);
                         },
                         .EntityRemove => |id| {
-                            self.model.removeEntity(id.id);
+                            self.model.registry.removeEntity(id.id);
                         },
                         .Component => |comp| {
-                            comp.apply(&self.model);
+                            comp.apply(&self.model.registry);
                         },
                         .ComponentRemove => |comp| {
-                            comp.apply(&self.model);
+                            comp.apply(&self.model.registry);
                         },
                         else => @panic("received unexpected message"),
                     }

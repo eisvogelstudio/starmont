@@ -14,17 +14,17 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
-const std = @import("std");
-// -------------------------
-
-// ---------- shared ----------
-const util = @import("shared").util;
-// ----------------------------
-
 // ---------- external -----------
 const rl = @import("raylib");
 // -------------------------------
+
+// ---------- zig ----------
+const std = @import("std");
+// -------------------------
+
+// ---------- starmont ----------
+const util = @import("util");
+// ------------------------------
 
 pub const TextureEntry = struct {
     path: []const u8,

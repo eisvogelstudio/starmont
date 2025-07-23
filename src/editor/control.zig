@@ -14,19 +14,19 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- std ----------
+// ---------- zig ----------
 const std = @import("std");
 // -------------------------
 
+// ---------- starmont ----------
+const core = @import("shared").core;
+const util = @import("util");
+const FrontEvent = @import("frontend").FrontEvent;
+// ------------------------------
+
 // ---------- local ----------
 const View = @import("view/view.zig").View;
-// ----------------------------
-
-// ---------- shared ----------
-const core = @import("shared").core;
-const util = @import("shared").util;
-const FrontEvent = @import("frontend").FrontEvent;
-// ----------------------------
+// ---------------------------
 
 // ╔══════════════════════════════ init ══════════════════════════════╗
 const log = std.log.scoped(.control);
