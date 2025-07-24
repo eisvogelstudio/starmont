@@ -25,6 +25,17 @@ const VisualPart = @import("visual/prefab.zig").VisualPart;
 const VisualPrefab = @import("visual/prefab.zig").VisualPrefab;
 // ---------------------------
 
+pub const PrefabManifest = struct {
+    name: []const u8 = "",
+    core: []const u8 = "",
+    visual: []const u8 = "",
+};
+
+pub const Prefab = struct {
+    visual: VisualPrefab = .{},
+    core: CorePrefab = .{},
+};
+
 pub const PrefabData = struct {
     allocator: std.mem.Allocator,
     parts_list: std.ArrayList(VisualPart),
@@ -52,5 +63,23 @@ pub const PrefabData = struct {
 
     pub fn toCore(self: *PrefabData) CorePrefab {
         return .{ .colliders = self.colliders_list.items };
+    }
+
+    pub fn toPrefab(self: *PrefabData) Prefab {
+        return .{ .visual = self.toVisual(), .core = self.toCore() };
+    }
+
+    pub fn setFromPrefab(self: *PrefabData, prefab: Prefab) !void {
+        for (self.parts_list.items) |p| self.allocator.free(p.image_path);
+        self.parts_list.clearRetainingCapacity();
+        self.colliders_list.clearRetainingCapacity();
+
+        for (prefab.visual.parts) |part| {
+            var copy = part;
+            copy.image_path = try self.allocator.dupe(u8, part.image_path);
+            try self.parts_list.append(copy);
+        }
+
+        try self.colliders_list.appendSlice(prefab.core.colliders);
     }
 };

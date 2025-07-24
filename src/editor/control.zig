@@ -25,6 +25,8 @@ const FrontEvent = @import("frontend").FrontEvent;
 const visual = @import("shared").visual;
 const editor = @import("shared").editor;
 const PrefabData = @import("shared").PrefabData;
+const Prefab = @import("shared").Prefab;
+const PrefabManifest = @import("shared").PrefabManifest;
 // ------------------------------
 
 // ---------- local ----------
@@ -276,6 +278,8 @@ pub const Control = struct {
     selection: SelectionState = .{},
     current_path: ?[]const u8 = null,
 
+    collider_view: bool = false,
+
     should_request_snapshot: bool = true,
 
     arena_allocator: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(std.heap.page_allocator),
@@ -345,7 +349,10 @@ pub const Control = struct {
         }
 
         self.view.begin();
-        self.view.renderVisualPrefab(&self.prefab.toVisual(), self.selection.selected_part);
+        if (!self.collider_view) {
+            self.view.renderVisualPrefab(&self.prefab.toVisual(), self.selection.selected_part);
+        }
+        self.view.renderCorePrefab(&self.prefab.toCore(), if (self.collider_view) false else true) catch {};
         self.view.end();
     }
 
@@ -489,6 +496,9 @@ pub const Control = struct {
                 self.current_path = try self.allocator.dupe(u8, p);
                 try self.savePrefab(p);
             },
+            .ToggleColliderView => {
+                self.collider_view = !self.collider_view;
+            },
             else => {},
         }
     }
@@ -499,6 +509,41 @@ pub const Control = struct {
                 .image_path = try self.allocator.dupe(u8, path),
             };
             try self.prefab.parts_list.append(part);
+        } else if (std.mem.endsWith(u8, path, "prefab.ziggy")) {
+            const load = util.ziggy.load(self.arena_allocator.allocator(), path, PrefabManifest) catch {
+                std.debug.print("failed to open file: {s}", .{path});
+                return;
+            };
+            if (load) |manifest| {
+                const dir = blk: {
+                    if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
+                        break :blk path[0..idx];
+                    } else {
+                        break :blk ".";
+                    }
+                };
+                const visual_path = try std.fs.path.join(self.arena_allocator.allocator(), &.{ dir, manifest.visual });
+                const core_path = try std.fs.path.join(self.arena_allocator.allocator(), &.{ dir, manifest.core });
+                defer self.arena_allocator.allocator().free(visual_path);
+                defer self.arena_allocator.allocator().free(core_path);
+
+                if (util.ziggy.load(self.arena_allocator.allocator(), visual_path, visual.VisualPrefab)) |v| {
+                    for (self.prefab.parts_list.items) |p| self.allocator.free(p.image_path);
+                    self.prefab.parts_list.clearRetainingCapacity();
+                    for (v.parts) |p| {
+                        var copy = p;
+                        copy.image_path = try self.allocator.dupe(u8, p.image_path);
+                        try self.prefab.parts_list.append(copy);
+                    }
+                }
+                if (util.ziggy.load(self.arena_allocator.allocator(), core_path, core.CorePrefab)) |c| {
+                    self.prefab.colliders_list.clearRetainingCapacity();
+                    try self.prefab.colliders_list.appendSlice(c.colliders);
+                }
+
+                if (self.current_path) |old| self.allocator.free(old);
+                self.current_path = try self.allocator.dupe(u8, dir);
+            }
         } else if (std.mem.endsWith(u8, path, "visual.ziggy")) {
             const load = util.ziggy.load(self.arena_allocator.allocator(), path, visual.VisualPrefab) catch {
                 std.debug.print("failed to open file: {s}", .{path});
@@ -543,6 +588,15 @@ pub const Control = struct {
         const core_path = try std.fs.path.join(self.allocator.*, &.{ dir, "core.ziggy" });
         defer self.allocator.free(core_path);
         try util.ziggy.save(self.allocator.*, core_path, self.prefab.toCore());
+
+        const prefab_path = try std.fs.path.join(self.allocator.*, &.{ dir, "prefab.ziggy" });
+        defer self.allocator.free(prefab_path);
+        const manifest = PrefabManifest{
+            .name = std.fs.path.basename(dir),
+            .core = "core.ziggy",
+            .visual = "visual.ziggy",
+        };
+        try util.ziggy.save(self.allocator.*, prefab_path, manifest);
     }
 
     fn deleteSelected(self: *Control) void {
