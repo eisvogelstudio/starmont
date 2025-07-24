@@ -41,8 +41,31 @@ pub const Collider = struct {
 };
 // └──────────────────────────────────────────────────┘
 
-pub const Prefab = struct {
+pub const PrefabDTO = struct {
     colliders: []const Collider,
+};
+
+pub const Prefab = struct {
+    allocator: *std.mem.Allocator,
+    colliders: std.ArrayList(Collider),
+
+    pub fn init(allocator: *std.mem.Allocator) Prefab {
+        return Prefab{
+            .allocator = allocator,
+            .colliders = std.ArrayList(Collider).init(allocator.*),
+        };
+    }
+
+    pub fn deinit(self: *Prefab) void {
+        for (self.colliders.items) |*c| {
+            c.deinit();
+        }
+        self.colliders.deinit();
+    }
+
+    pub fn addCollider(self: *Prefab, collider: Collider) !void {
+        try self.colliders.append(collider);
+    }
 };
 
 //const RuntimeCollider = struct {

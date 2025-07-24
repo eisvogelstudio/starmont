@@ -55,6 +55,7 @@ const Data = struct {
 
         if (self.meta) |m| {
             allocator.free(m.name);
+            for (m.dependencies) |d| allocator.free(d);
             allocator.free(m.dependencies);
         }
 
@@ -204,51 +205,95 @@ pub const Control = struct {
     }
 
     fn openFile(self: *Control, path: []const u8) !void {
-        const suffix = ".starmont";
-        if (!self.state.current.is) {
-            if (std.mem.endsWith(u8, path, suffix)) {
+        const extention = ".starmont";
+
+        if (std.mem.endsWith(u8, path, extention)) {
+            const base = path[0 .. path.len - extention.len];
+
+            if (!self.state.current.is) {
                 self.state.current.is = true;
-                const base = path[0 .. path.len - suffix.len];
-                self.state.current.path = try self.allocator.dupe(u8, base[0..base.len]);
-
-                try self.readFile(path, true);
-
-                const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}.visual.ziggy", .{base});
-                defer self.allocator.free(visual_path);
-                try self.readFile(visual_path, true);
-
-                const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}.core.ziggy", .{base});
-                defer self.allocator.free(core_path);
-                try self.readFile(core_path, true);
+                self.state.current.path = try self.allocator.dupe(u8, base);
+                try self.loadPrefab(base, true);
             } else {
-                std.debug.print("open a meta file (" ++ suffix ++ ") first", .{});
+                try self.loadPrefab(base, false);
             }
+        } else if (std.mem.endsWith(u8, path, ".png")) {
+            try self.readImage(path);
         } else {
-            if (std.mem.endsWith(u8, path, suffix)) {
-                const base = path[0 .. path.len - suffix.len];
-                try self.readFile(path, false);
-
-                const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}visual.ziggy", .{base});
-                defer self.allocator.free(visual_path);
-                try self.readFile(visual_path, false);
-
-                const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}core.ziggy", .{base});
-                defer self.allocator.free(core_path);
-                try self.readFile(core_path, false);
-            } else if (std.mem.endsWith(u8, path, ".png")) {
-                try self.readImage(path);
-            } else {
-                std.debug.print("add a meta file (" ++ suffix ++ ") or an image (.png)", .{});
-            }
+            std.log.err("unsupported file: {s}", .{path});
         }
     }
 
+    fn loadPrefab(self: *Control, base: []const u8, main: bool) !void {
+        const starmont_path = try std.fmt.allocPrint(self.allocator.*, "{s}.starmont", .{base});
+        defer self.allocator.free(starmont_path);
+        try self.readFile(starmont_path, main);
+
+        const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}.visual", .{base});
+        defer self.allocator.free(visual_path);
+        if (std.fs.cwd().openFile(visual_path, .{}) catch null) |f| {
+            f.close();
+            try self.readFile(visual_path, main);
+        } else {
+            const alt = try std.fmt.allocPrint(self.allocator.*, "{s}.visual.ziggy", .{base});
+            defer self.allocator.free(alt);
+            try self.readFile(alt, main);
+        }
+
+        const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}.core", .{base});
+        defer self.allocator.free(core_path);
+        if (std.fs.cwd().openFile(core_path, .{}) catch null) |f2| {
+            f2.close();
+            try self.readFile(core_path, main);
+        } else {
+            const alt = try std.fmt.allocPrint(self.allocator.*, "{s}.core.ziggy", .{base});
+            defer self.allocator.free(alt);
+            try self.readFile(alt, main);
+        }
+    }
+
+    // if (!self.state.current.is) {
+    //     if (std.mem.endsWith(u8, path, extention)) {
+    //         self.state.current.is = true;
+    //         const base = path[0 .. path.len - extention.len];
+    //         self.state.current.path = try self.allocator.dupe(u8, base[0..base.len]);
+    //
+    //         try self.readFile(path, true);
+    //
+    //         const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}.visual.ziggy", .{base});
+    //         defer self.allocator.free(visual_path);
+    //         try self.readFile(visual_path, true);
+    //
+    //         const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}.core.ziggy", .{base});
+    //         defer self.allocator.free(core_path);
+    //         try self.readFile(core_path, true);
+    //     } else {
+    //         std.debug.print("open a meta file (" ++ extention ++ ") first", .{});
+    //     }
+    // } else {
+    //     if (std.mem.endsWith(u8, path, extention)) {
+    //         const base = path[0 .. path.len - extention.len];
+    //         try self.readFile(path, false);
+    //
+    //         const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}visual.ziggy", .{base});
+    //         defer self.allocator.free(visual_path);
+    //         try self.readFile(visual_path, false);
+    //
+    //         const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}core.ziggy", .{base});
+    //         defer self.allocator.free(core_path);
+    //         try self.readFile(core_path, false);
+    //     } else if (std.mem.endsWith(u8, path, ".png")) {
+    //         try self.readImage(path);
+    //     } else {
+    //         std.debug.print("add a meta file (" ++ extention ++ ") or an image (.png)", .{});
+    //     }
+    // }
+    //}
+
     fn readImage(self: *Control, path: []const u8) !void {
         if (std.mem.endsWith(u8, path, ".png")) {
-            const asset = visual.Asset{
-                .image_path = try self.allocator.dupe(u8, path),
-            };
-            try self.state.current.node.?.getVisual().assets.append(asset);
+            const asset = try visual.Asset.init(self.allocator, path);
+            try self.state.current.node.?.visuals.append(asset);
         } else {
             std.debug.print("unsupported file type", .{});
         }
@@ -272,7 +317,7 @@ pub const Control = struct {
 
         if (std.mem.endsWith(u8, path, "visual.ziggy")) {
             const load = util.ziggy.load(self.arena_allocator.allocator(), path, visual.Prefab) catch {
-                std.debug.print("failed to open file: {s}", .{path});
+                std.log.err("failed to open: {s}", .{path});
                 return;
             };
             if (load) |v| {
@@ -284,13 +329,35 @@ pub const Control = struct {
             }
         } else if (std.mem.endsWith(u8, path, "core.ziggy")) {
             const load = util.ziggy.load(self.arena_allocator.allocator(), path, core.Prefab) catch {
-                std.debug.print("failed to open file: {s}\n", .{path});
+                std.log.err("failed to open: {s}", .{path});
                 return;
             };
             if (load) |c| {
                 try node.cores.appendSlice(c.colliders);
             }
-        } // else error message
+        } else if (std.mem.endsWith(u8, path, ".starmont")) {
+            const man = util.ziggy.load(self.arena_allocator.allocator(), path, NodeMeta) catch {
+                std.log.err("failed to open: {s}", .{path});
+                return;
+            };
+            if (man) |m| {
+                if (main) {
+                    var deps = try self.allocator.alloc([]const u8, m.dependencies.len);
+                    for (m.dependencies, 0..) |d, i| {
+                        deps[i] = try self.allocator.dupe(u8, d);
+                    }
+                    self.state.current.meta = NodeMeta{
+                        .version = try self.allocator.dupe(u8, m.version),
+                        .dependencies = deps,
+                    };
+                }
+                for (m.dependencies) |dep| {
+                    try self.loadPrefab(dep, false);
+                }
+            }
+        } else {
+            std.log.err("unrecognized file: {s}", .{path});
+        }
     }
 
     fn savePrefab(self: *Control, dir: []const u8) !void {

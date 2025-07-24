@@ -48,7 +48,7 @@ pub const Prefab = struct {
     assets: std.ArrayList(Asset),
 
     pub fn init(allocator: *std.mem.Allocator) Prefab {
-        const arrlist = std.ArrayList(Prefab).init(allocator.*);
+        const arrlist = std.ArrayList(Asset).init(allocator.*);
         return Prefab{
             .allocator = allocator,
             .assets = arrlist,
@@ -60,5 +60,56 @@ pub const Prefab = struct {
             a.deinit();
         }
         self.assets.deinit();
+    }
+};
+
+pub const AssetDTO = struct {
+    image_path: []const u8,
+    position: util.Vec2,
+    rotation: util.Angle,
+    scale: util.Vec2,
+    pivot: util.Vec2,
+
+    pub fn from(asset: *const Asset) AssetDTO {
+        return AssetDTO{
+            .image_path = asset.image_path,
+            .position = asset.position,
+            .rotation = asset.rotation,
+            .scale = asset.scale,
+            .pivot = asset.pivot,
+        };
+    }
+
+    pub fn to(self: AssetDTO, allocator: std.mem.Allocator) !Asset {
+        return Asset{
+            .image_path = try allocator.dupe(u8, self.image_path),
+            .position = self.position,
+            .rotation = self.rotation,
+            .scale = self.scale,
+            .pivot = self.pivot,
+        };
+    }
+};
+
+pub const PrefabDTO = struct {
+    assets: []const AssetDTO,
+
+    pub fn from(p: *const Prefab, allocator: std.mem.Allocator) !PrefabDTO {
+        const asset_dtos = try allocator.alloc(AssetDTO, p.assets.items.len);
+        for (p.assets.items, 0..) |*a, i| {
+            asset_dtos[i] = AssetDTO.from(a);
+        }
+
+        return PrefabDTO{
+            .assets = asset_dtos,
+        };
+    }
+
+    pub fn to(self: PrefabDTO, allocator: *std.mem.Allocator) !Prefab {
+        var prefab = Prefab.init(allocator);
+        for (self.assets) |dto| {
+            try prefab.assets.append(try dto.to(allocator.*));
+        }
+        return prefab;
     }
 };
