@@ -1,13 +1,28 @@
 // ─────────────────────────────────────────────────────────────────────
 //  Starmont - Version 0.1.0
-//  Prefab data structures
+//  Copyright (C) 2025 Eisvogel Studio
+//  Contact: eisvogelstudio@protonmail.com
+//  Repository: https://github.com/eisvogelstudio/starmont
+//
+//  Author: Felix Koppe (fkoppe@web.de)
+//
+//  All rights reserved. This source code is publicly accessible for
+//  reference purposes. Forking and cloning for personal, non-commercial
+//  use is permitted, but modification, redistribution, or commercial
+//  use without explicit written permission is strictly prohibited.
+//
+//  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- zig ----------
 const std = @import("std");
-const util = @import("util");
-const core = @import("shared").core;
+// -------------------------
 
-pub const Part = struct {
+// ---------- starmont ----------
+const util = @import("util");
+// ------------------------------
+
+pub const VisualPart = struct {
     image_path: []const u8,
     position: util.Vec2 = util.Vec2.zero(),
     rotation: util.Angle = util.Angle.zero(),
@@ -16,9 +31,5 @@ pub const Part = struct {
 };
 
 pub const VisualPrefab = struct {
-    parts: []const Part = &[_]Part{},
-};
-
-pub const CorePrefab = struct {
-    colliders: []const core.Collider = &[_]core.Collider{},
+    parts: []const VisualPart = &[_]VisualPart{},
 };

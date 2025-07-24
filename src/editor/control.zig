@@ -22,8 +22,9 @@ const std = @import("std");
 const core = @import("shared").core;
 const util = @import("util");
 const FrontEvent = @import("frontend").FrontEvent;
-const fprefab = @import("frontend").prefab;
+const visual = @import("shared").visual;
 const editor = @import("shared").editor;
+const PrefabData = @import("shared").PrefabData;
 // ------------------------------
 
 // ---------- local ----------
@@ -120,30 +121,6 @@ const State = struct {
 //    pivot: Vec2 = .{ .x = 0.5, .y = 0.5 }, // normalized, relative to image
 //};
 
-const PrefabData = struct {
-    parts_list: std.ArrayList(fprefab.Part),
-    colliders_list: std.ArrayList(core.Collider),
-
-    pub fn init(allocator: std.mem.Allocator) PrefabData {
-        return PrefabData{
-            .parts_list = std.ArrayList(fprefab.Part).init(allocator),
-            .colliders_list = std.ArrayList(core.Collider).init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *PrefabData) void {
-        self.parts_list.deinit();
-        self.colliders_list.deinit();
-    }
-
-    pub fn toVisual(self: *PrefabData) fprefab.VisualPrefab {
-        return .{ .parts = self.parts_list.items };
-    }
-
-    pub fn toCore(self: *PrefabData) fprefab.CorePrefab {
-        return .{ .colliders = self.colliders_list.items };
-    }
-};
 //    points: []const Vec2, // must form a convex polygon or whatever rule you enforce
 //};
 
@@ -338,7 +315,7 @@ pub const Control = struct {
     }
 
     pub fn update(self: *Control) void {
-        var events = self.view.pollEvents(self.allocator.*) catch {
+        var events = self.view.pollEvents() catch {
             return;
         };
         defer {
@@ -507,12 +484,16 @@ pub const Control = struct {
 
     fn openFile(self: *Control, path: []const u8) !void {
         if (std.mem.endsWith(u8, path, ".png")) {
-            const part = fprefab.Part{
+            const part = visual.VisualPart{
                 .image_path = try self.allocator.dupe(u8, path),
             };
             try self.prefab.parts_list.append(part);
         } else if (std.mem.endsWith(u8, path, "visual.ziggy")) {
-            if (util.ziggy.load(self.arena_allocator.allocator(), path, fprefab.VisualPrefab)) |v| {
+            const load = util.ziggy.load(self.arena_allocator.allocator(), path, visual.VisualPrefab) catch {
+                std.debug.print("failed to open file: {s}", .{path});
+                return;
+            };
+            if (load) |v| {
                 self.prefab.parts_list.clearRetainingCapacity();
                 try self.prefab.parts_list.appendSlice(v.parts);
                 if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
@@ -520,7 +501,11 @@ pub const Control = struct {
                 }
             }
         } else if (std.mem.endsWith(u8, path, "core.ziggy")) {
-            if (util.ziggy.load(self.arena_allocator.allocator(), path, fprefab.CorePrefab)) |c| {
+            const load = util.ziggy.load(self.arena_allocator.allocator(), path, core.CorePrefab) catch {
+                std.debug.print("failed to open file: {s}", .{path});
+                return;
+            };
+            if (load) |c| {
                 self.prefab.colliders_list.clearRetainingCapacity();
                 try self.prefab.colliders_list.appendSlice(c.colliders);
                 if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {

@@ -331,8 +331,7 @@ pub const EntityClaimMessage = struct {
     }
 
     pub fn write(self: EntityClaimMessage, writer: anytype) void {
-        var buf = self.id.toString();
-        writer.print("EntityClaim: {s}", .{buf}) catch unreachable;
+        writer.print("EntityClaim: {s}", .{self.id.toString()}) catch unreachable;
     }
 };
 
@@ -360,8 +359,7 @@ pub const EntityFailoverMessage = struct {
     }
 
     pub fn write(self: EntityFailoverMessage, writer: anytype) void {
-        var buf = self.id.toString();
-        writer.print("EntityFailover: {s}", .{buf}) catch unreachable;
+        writer.print("EntityFailover: {s}", .{self.id.toString()}) catch unreachable;
     }
 };
 
@@ -567,10 +565,9 @@ pub const ForwardMessage = struct {
     }
 
     pub fn write(self: ForwardMessage, writer: anytype) void {
-        var id_buf = self.serverId.toString();
         writer.print(
             "Forward: server={s} ip={s} port={d}",
-            .{ id_buf, self.ip, self.port },
+            .{ self.id.toString(), self.ip, self.port },
         ) catch unreachable;
     }
 };
@@ -606,8 +603,7 @@ pub const AlphaMessage = struct {
     }
 
     pub fn write(self: AlphaMessage, writer: anytype) void {
-        var id_buf = self.ephemeral.toString();
-        writer.print("Alpha: id={s} name={s}", .{ id_buf, self.name }) catch unreachable;
+        writer.print("Alpha: id={s} name={s}", .{ self.id.toString(), self.name }) catch unreachable;
     }
 };
 

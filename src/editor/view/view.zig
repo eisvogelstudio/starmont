@@ -24,18 +24,15 @@ const std = @import("std");
 
 // ---------- starmont ----------
 const core = @import("shared").core;
+const visual = @import("shared").visual;
 const util = @import("util");
-// ------------------------------
-
-// ---------- local ----------
 const frontend = @import("frontend");
-const Input = frontend.Input;
-const Window = frontend.Window;
-const TextureCache = frontend.TextureCache;
-const FrontEvent = frontend.FrontEvent;
-const rl = frontend.rl;
-const fprefab = frontend.prefab;
-// ---------------------------
+const Input = @import("frontend").Input;
+const Window = @import("frontend").Window;
+const TextureCache = @import("frontend").TextureCache;
+const FrontEvent = @import("frontend").FrontEvent;
+const rl = @import("frontend").rl;
+// ------------------------------
 
 // ╔══════════════════════════════ init ══════════════════════════════╗
 const log = std.log.scoped(.view);
@@ -69,9 +66,11 @@ pub const View = struct {
     pub fn begin(self: *View) void {
         Window.update();
         Window.beginFrame();
+        _ = self;
     }
 
     pub fn end(self: *View) void {
+        _ = self;
         Window.endFrame();
     }
 
@@ -93,18 +92,22 @@ pub const View = struct {
             }
         }
 
-        if (Input.isKeyPressed(Input.KeyboardKey.KEY_DELETE)) {
+        if (Input.isKeyPressed(Input.KeyboardKey.delete)) {
             try list.append(.{ .Editor = .DeleteSelected });
         }
 
-        if (Input.isKeyPressed(Input.KeyboardKey.KEY_ESCAPE)) {
+        if (Input.isKeyPressed(Input.KeyboardKey.left_control) and Input.isKeyPressed(Input.KeyboardKey.s)) {
+            try list.append(.{ .Editor = .FileSave });
+        }
+
+        if (Input.isKeyPressed(Input.KeyboardKey.escape)) {
             try list.append(.Quit);
         }
 
         return list;
     }
 
-    pub fn renderVisualPrefab(self: *View, prefab: *const fprefab.VisualPrefab, selected: ?usize) void {
+    pub fn renderVisualPrefab(self: *View, prefab: *const visual.VisualPrefab, selected: ?usize) void {
         for (prefab.parts, 0..) |part, idx| {
             const tex = self.cache.get(part.image_path) catch {
                 log.warn("texture load failed: {s}", .{part.image_path});

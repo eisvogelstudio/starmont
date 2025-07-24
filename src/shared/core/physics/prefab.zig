@@ -14,24 +14,10 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-//TODO[REMOVE]
-// unsure if this will be needed...
-//could all be done via model/ecs
-const FrontCommand = union(enum) {
-    // Transient (einmalige Aktionen)
-    //PlaySound: struct { id: SoundId },
-    //ShowFloatingText: struct { entity: u32, text: []const u8, color: Color },
-    //FlashScreen,
-    //ShakeCamera,
-    //AnimateEntity: struct { entity: u32, animation: AnimationId },
-    //SpawnParticles: struct { position: Vec2, kind: ParticleKind },
+// ---------- local ------
+const Collider = @import("collider.zig").Collider;
+// ------------------------
 
-    // Persistent (zustandsverändernd)
-    //OpenUi: struct { panel: UiPanel },
-    //CloseUi: struct { panel: UiPanel },
-    //FocusCameraOn: struct { entity: u32 },
-    //HighlightEntity: struct { entity: u32 },
-    //SetVisibility: struct { entity: u32, visible: bool },
-
-    // ...
+pub const CorePrefab = struct {
+    colliders: []const Collider = &[_]Collider{},
 };

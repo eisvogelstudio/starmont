@@ -19,39 +19,39 @@ const std = @import("std");
 // -------------------------
 
 pub const Angle = union(enum) {
-    degrees: f32,
-    radians: f32,
+    degrees: struct { value: f32 },
+    radians: struct { value: f32 },
 
     pub fn zero() Angle {
         return Angle.fromDegrees(0.0);
     }
 
     pub fn fromDegrees(deg: f32) Angle {
-        return Angle{ .degrees = deg };
+        return Angle{ .degrees = .{ .value = deg } };
     }
 
     pub fn fromRadians(rad: f32) Angle {
-        return Angle{ .radians = rad };
+        return Angle{ .radians = .{ .value = rad } };
     }
 
     pub fn toRadians(self: Angle) f32 {
         return switch (self) {
-            .degrees => |d| degToRad(d),
-            .radians => |r| r,
+            .degrees => |d| degToRad(d.value),
+            .radians => |r| r.value,
         };
     }
 
     pub fn toDegrees(self: Angle) f32 {
         return switch (self) {
-            .degrees => |d| d,
-            .radians => |r| radToDeg(r),
+            .degrees => |d| d.value,
+            .radians => |r| radToDeg(r.value),
         };
     }
 
     pub fn add(self: Angle, other: Angle) Angle {
         return switch (self) {
-            .degrees => |d| Angle.degrees(d + other.toDegrees()),
-            .radians => |r| Angle.radians(r + other.toRadians()),
+            .degrees => |d| Angle.degrees(d.value + other.toDegrees()),
+            .radians => |r| Angle.radians(r.value + other.toRadians()),
         };
     }
 
@@ -64,15 +64,15 @@ pub const Angle = union(enum) {
 
     pub fn negate(self: Angle) Angle {
         return switch (self) {
-            .degrees => Angle.degrees(-self.degrees),
-            .radians => Angle.radians(-self.radians),
+            .degrees => Angle.fromDegrees(-self.degrees.value),
+            .radians => Angle.fromRadians(-self.radians.value),
         };
     }
 
     pub fn normalize(self: Angle) Angle {
         return switch (self) {
-            .degrees => Angle.degrees(normalizeDegrees(self.degrees)),
-            .radians => Angle.radians(normalizeRadians(self.radians)),
+            .degrees => Angle.fromDegrees(normalizeDegrees(self.degrees.value)),
+            .radians => Angle.fromRadians(normalizeRadians(self.radians.value)),
         };
     }
 
@@ -81,13 +81,13 @@ pub const Angle = union(enum) {
     }
 
     pub fn lerp(self: Angle, to: Angle, t: f32) Angle {
-        return Angle.radians(std.math.lerp(self.toRadians(), to.toRadians(), t));
+        return Angle.fromRadians(std.math.lerp(self.toRadians(), to.toRadians(), t));
     }
 
     pub fn shortestDelta(self: Angle, to: Angle) Angle {
         const diff = normalizeRadians(to.toRadians() - self.toRadians());
         const wrapped = if (diff > std.math.pi) diff - 2 * std.math.pi else diff;
-        return Angle.radians(wrapped);
+        return Angle.fromRadians(wrapped);
     }
 
     pub fn isZero(self: Angle, epsilon: f32) bool {
