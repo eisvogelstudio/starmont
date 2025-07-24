@@ -23,6 +23,8 @@ pub const Window = @import("window.zig").Window;
 pub const TextureEntry = @import("texture.zig").TextureEntry;
 pub const TextureCache = @import("texture.zig").TextureCache;
 
+pub const prefab = @import("prefab/types.zig");
+
 pub const FrontEvent = @import("event.zig").FrontEvent;
 
 pub const rl = @import("raylib");

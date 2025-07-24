@@ -22,6 +22,8 @@ const std = @import("std");
 const core = @import("shared").core;
 const util = @import("util");
 const FrontEvent = @import("frontend").FrontEvent;
+const fprefab = @import("frontend").prefab;
+const editor = @import("shared").editor;
 // ------------------------------
 
 // ---------- local ----------
@@ -117,6 +119,31 @@ const State = struct {
 //    scale: Vec2 = .{ .x = 1.0, .y = 1.0 }, // uniform or non-uniform
 //    pivot: Vec2 = .{ .x = 0.5, .y = 0.5 }, // normalized, relative to image
 //};
+
+const PrefabData = struct {
+    parts_list: std.ArrayList(fprefab.Part),
+    colliders_list: std.ArrayList(core.Collider),
+
+    pub fn init(allocator: std.mem.Allocator) PrefabData {
+        return PrefabData{
+            .parts_list = std.ArrayList(fprefab.Part).init(allocator),
+            .colliders_list = std.ArrayList(core.Collider).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *PrefabData) void {
+        self.parts_list.deinit();
+        self.colliders_list.deinit();
+    }
+
+    pub fn toVisual(self: *PrefabData) fprefab.VisualPrefab {
+        return .{ .parts = self.parts_list.items };
+    }
+
+    pub fn toCore(self: *PrefabData) fprefab.CorePrefab {
+        return .{ .colliders = self.colliders_list.items };
+    }
+};
 //    points: []const Vec2, // must form a convex polygon or whatever rule you enforce
 //};
 
@@ -265,7 +292,12 @@ const screenHeight = 1080 / 2;
 
 pub const Control = struct {
     allocator: *std.mem.Allocator,
+    view: View,
     state: State,
+
+    prefab: PrefabData,
+    selection: SelectionState = .{},
+    current_path: ?[]const u8 = null,
 
     should_request_snapshot: bool = true,
 
@@ -278,8 +310,9 @@ pub const Control = struct {
     pub fn init(allocator: *std.mem.Allocator) Control {
         var control = Control{
             .allocator = allocator,
+            .view = View.init(allocator, name),
             .state = State{},
-            //.editor = EditorState.init(screenWidth, screenHeight),
+            .prefab = PrefabData.init(allocator.*),
         };
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
@@ -298,84 +331,39 @@ pub const Control = struct {
 
         log.info("stopped sucessfully", .{});
 
-        //self.current.?.deinit();
+        self.prefab.deinit();
+        self.view.deinit();
 
         self.arena_allocator.deinit();
     }
 
     pub fn update(self: *Control) void {
-        //const actions = captureInput(self.allocator);
-        //actions.deinit();
+        var events = self.view.pollEvents(self.allocator.*) catch {
+            return;
+        };
+        defer {
+            for (events.items) |e| {
+                if (e == .Editor) {
+                    switch (e.Editor) {
+                        .FileOpen => |p| self.allocator.free(p),
+                        else => {},
+                    }
+                }
+            }
+            events.deinit();
+        }
 
-        //Window.update();
-        //const mouse = rl.getMousePosition();
-        //const mouse_vec = Vec2{ .x = mouse.x, .y = mouse.y };
+        for (events.items) |ev| {
+            switch (ev) {
+                .Quit => self.state.should_stop = true,
+                .Editor => |act| self.handleEditorAction(act) catch {},
+                else => {},
+            }
+        }
 
-        // --- Input Handling ---
-        //if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
-        //    for (collider.points, 0..) |p, i| {
-        //        if (Vec2.distance(mouse_vec, p) < handle_radius * 1.5) {
-        //            handle_state.dragging = true;
-        //            handle_state.selected_index = i;
-        //            dragging_offset = Vec2{ .x = p.x - mouse.x, .y = p.y - mouse.y };
-        //            break;
-        //        }
-        //    }
-        //}
-
-        //if (rl.isMouseButtonReleased(rl.MouseButton.left)) {
-        //    handle_state.dragging = false;
-        //}
-
-        //if (handle_state.dragging) {
-        //    collider.points[handle_state.selected_index] = Vec2{
-        //       .x = mouse.x + dragging_offset.x,
-        //        .y = mouse.y + dragging_offset.y,
-        //    };
-        //}
-        self.handleSelection();
-        self.handleDragging();
-
-        //const wheel = frontend.Input.getMouseWheelMove();
-        //
-        //if (Input.isKeyDown(Input.KeyboardKey.left_control) and Input.isKeyDown(Input.KeyboardKey.left_shift)) {
-        //    if (self.current) |*cur| {
-        //        if (self.editor.selection.selected_part) |val| {
-        //            cur.parts_list.items[val].rotation = @mod(std.math.round(cur.parts_list.items[val].rotation + wheel), 360);
-        //        }
-        //    }
-        //} else {
-        //    self.handleZoom(wheel);
-        //}
-
-        // --- Drawing ---
-        //Window.beginFrame();
-        ////rl.clearBackground(rl.DARKGRAY);
-        //rl.clearBackground(rl.Color.dark_brown);
-        //
-        //rl.beginMode2D(self.editor.camera);
-        //// Render your prefab here
-        //if (self.current) |*cur| {
-        //    renderPrefab(&cur.to(), &self.cache, self.allocator.*, self.editor.selection.selected_part) catch unreachable;
-        //}
-        //rl.endMode2D();
-
-        //rl.clearBackground(rl.Color.ray_white);
-
-        //rl.drawText("Starmont Editor", 10, 10, 20, rl.Color.dark_gray);
-
-        // Linien des Colliders
-        //for (collider.points, 0..) |p, i| {
-        //    const next = collider.points[(i + 1) % collider.points.len];
-        //    rl.drawLineV(p.toRayVec(), next.toRayVec(), rl.Color.black);
-        //}
-
-        // Punkte (Handles)
-        //for (collider.points) |p| {
-        //    rl.drawCircleV(p.toRayVec(), handle_radius, rl.Color.red);
-        //}
-
-        //Window.endFrame();
+        self.view.begin();
+        self.view.renderVisualPrefab(&self.prefab.toVisual(), self.selection.selected_part);
+        self.view.end();
     }
 
     pub fn shouldStop(self: *Control) bool {
@@ -506,5 +494,56 @@ pub const Control = struct {
         //        t.is_dragging = false;
         //    }
         //}
+    }
+
+    fn handleEditorAction(self: *Control, action: editor.Action) !void {
+        switch (action) {
+            .FileOpen => |path| try self.openFile(path),
+            .DeleteSelected => self.deleteSelected(),
+            .FileSave => if (self.current_path) |p| try self.savePrefab(p),
+            else => {},
+        }
+    }
+
+    fn openFile(self: *Control, path: []const u8) !void {
+        if (std.mem.endsWith(u8, path, ".png")) {
+            const part = fprefab.Part{
+                .image_path = try self.allocator.dupe(u8, path),
+            };
+            try self.prefab.parts_list.append(part);
+        } else if (std.mem.endsWith(u8, path, "visual.ziggy")) {
+            if (util.ziggy.load(self.arena_allocator.allocator(), path, fprefab.VisualPrefab)) |v| {
+                self.prefab.parts_list.clearRetainingCapacity();
+                try self.prefab.parts_list.appendSlice(v.parts);
+                if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
+                    self.current_path = try self.allocator.dupe(u8, path[0..idx]);
+                }
+            }
+        } else if (std.mem.endsWith(u8, path, "core.ziggy")) {
+            if (util.ziggy.load(self.arena_allocator.allocator(), path, fprefab.CorePrefab)) |c| {
+                self.prefab.colliders_list.clearRetainingCapacity();
+                try self.prefab.colliders_list.appendSlice(c.colliders);
+                if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
+                    self.current_path = try self.allocator.dupe(u8, path[0..idx]);
+                }
+            }
+        }
+    }
+
+    fn savePrefab(self: *Control, dir: []const u8) !void {
+        const visual_path = try std.fs.path.join(self.allocator.*, &.{ dir, "visual.ziggy" });
+        defer self.allocator.free(visual_path);
+        try util.ziggy.save(self.allocator.*, visual_path, self.prefab.toVisual());
+
+        const core_path = try std.fs.path.join(self.allocator.*, &.{ dir, "core.ziggy" });
+        defer self.allocator.free(core_path);
+        try util.ziggy.save(self.allocator.*, core_path, self.prefab.toCore());
+    }
+
+    fn deleteSelected(self: *Control) void {
+        if (self.selection.selected_part) |idx| {
+            _ = self.prefab.parts_list.orderedRemove(idx);
+            self.selection.selected_part = null;
+        }
     }
 };
