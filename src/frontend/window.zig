@@ -53,7 +53,7 @@ pub const Window = struct {
     }
 
     pub fn clear() void {
-        rl.clearBackground(rl.Color.gold);
+        rl.clearBackground(rl.Color.white);
     }
 
     pub fn getWidth() i32 {

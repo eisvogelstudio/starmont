@@ -44,6 +44,7 @@ const log = std.log.scoped(.view);
 pub const View = struct {
     allocator: *std.mem.Allocator,
     cache: TextureCache,
+    camera: rl.Camera2D,
 
     //TODO[MISSING] make dynamic
     const screen_width = 1920 / 2;
@@ -53,6 +54,12 @@ pub const View = struct {
         const view = View{
             .allocator = allocator,
             .cache = TextureCache.init(allocator.*),
+            .camera = rl.Camera2D{
+                .offset = rl.Vector2{ .x = screen_width / 2, .y = screen_height / 2 },
+                .target = rl.Vector2{ .x = 0, .y = 0 },
+                .rotation = 0,
+                .zoom = 1.0,
+            },
         };
 
         Window.open(name, screen_width, screen_height);
@@ -69,9 +76,12 @@ pub const View = struct {
     pub fn begin(self: *View) void {
         Window.update();
         Window.beginFrame();
+        Window.clear();
+        rl.beginMode2D(self.camera);
     }
 
     pub fn end(self: *View) void {
+        rl.endMode2D();
         Window.endFrame();
     }
 
@@ -91,6 +101,16 @@ pub const View = struct {
                 const copy = try self.allocator.dupe(u8, path);
                 try list.append(.{ .Editor = .{ .FileOpen = copy } });
             }
+        }
+
+        const wheel = Input.getMouseWheelMove();
+        if (wheel != 0) {
+            try list.append(.{ .CameraZoom = wheel });
+        }
+
+        if (Input.isMouseButtonDown(Input.MouseButton.MOUSE_MIDDLE)) {
+            const delta = Input.getMouseDelta();
+            try list.append(.{ .CameraPan = .{ .x = delta.x, .y = delta.y } });
         }
 
         if (Input.isKeyPressed(Input.KeyboardKey.KEY_DELETE)) {
