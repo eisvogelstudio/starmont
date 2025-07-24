@@ -308,7 +308,8 @@ pub const Control = struct {
 
         log.info("stopped sucessfully", .{});
 
-        self.prefab.deinit();
+        self.prefab.deinit(self.allocator.*);
+        if (self.current_path) |p| self.allocator.free(p);
         self.view.deinit();
 
         self.arena_allocator.deinit();
@@ -334,6 +335,11 @@ pub const Control = struct {
             switch (ev) {
                 .Quit => self.state.should_stop = true,
                 .Editor => |act| self.handleEditorAction(act) catch {},
+                .CameraZoom => |z| self.handleZoom(z),
+                .CameraPan => |delta| {
+                    self.view.camera.target.x -= delta.x / self.view.camera.zoom;
+                    self.view.camera.target.y -= delta.y / self.view.camera.zoom;
+                },
                 else => {},
             }
         }
@@ -351,14 +357,14 @@ pub const Control = struct {
         if (wheel != 0) {
             const zoomFactor = 1.1;
             if (wheel > 0) {
-                self.editor.camera.zoom *= zoomFactor;
+                self.view.camera.zoom *= zoomFactor;
             } else {
-                self.editor.camera.zoom /= zoomFactor;
+                self.view.camera.zoom /= zoomFactor;
             }
 
             // Clamp zoom to avoid inversion or nan
-            if (self.editor.camera.zoom < 0.05) self.editor.camera.zoom = 0.05;
-            if (self.editor.camera.zoom > 15.0) self.editor.camera.zoom = 15.0;
+            if (self.view.camera.zoom < 0.05) self.view.camera.zoom = 0.05;
+            if (self.view.camera.zoom > 15.0) self.view.camera.zoom = 15.0;
         }
     }
 
@@ -478,6 +484,11 @@ pub const Control = struct {
             .FileOpen => |path| try self.openFile(path),
             .DeleteSelected => self.deleteSelected(),
             .FileSave => if (self.current_path) |p| try self.savePrefab(p),
+            .FileSaveAs => |p| {
+                if (self.current_path) |old| self.allocator.free(old);
+                self.current_path = try self.allocator.dupe(u8, p);
+                try self.savePrefab(p);
+            },
             else => {},
         }
     }
@@ -494,9 +505,17 @@ pub const Control = struct {
                 return;
             };
             if (load) |v| {
+                for (self.prefab.parts_list.items) |p| {
+                    self.allocator.free(p.image_path);
+                }
                 self.prefab.parts_list.clearRetainingCapacity();
-                try self.prefab.parts_list.appendSlice(v.parts);
+                for (v.parts) |p| {
+                    var copy = p;
+                    copy.image_path = try self.allocator.dupe(u8, p.image_path);
+                    try self.prefab.parts_list.append(copy);
+                }
                 if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
+                    if (self.current_path) |old| self.allocator.free(old);
                     self.current_path = try self.allocator.dupe(u8, path[0..idx]);
                 }
             }
@@ -509,6 +528,7 @@ pub const Control = struct {
                 self.prefab.colliders_list.clearRetainingCapacity();
                 try self.prefab.colliders_list.appendSlice(c.colliders);
                 if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
+                    if (self.current_path) |old| self.allocator.free(old);
                     self.current_path = try self.allocator.dupe(u8, path[0..idx]);
                 }
             }
@@ -527,7 +547,8 @@ pub const Control = struct {
 
     fn deleteSelected(self: *Control) void {
         if (self.selection.selected_part) |idx| {
-            _ = self.prefab.parts_list.orderedRemove(idx);
+            const part = self.prefab.parts_list.orderedRemove(idx);
+            self.allocator.free(part.image_path);
             self.selection.selected_part = null;
         }
     }
