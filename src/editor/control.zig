@@ -24,7 +24,8 @@ const util = @import("util");
 const FrontEvent = @import("frontend").FrontEvent;
 const visual = @import("shared").visual;
 const editor = @import("shared").editor;
-const PrefabData = @import("shared").PrefabData;
+const Node = @import("shared").Node;
+const NodeMeta = @import("shared").NodeMeta;
 // ------------------------------
 
 // ---------- local ----------
@@ -37,92 +38,39 @@ const log = std.log.scoped(.control);
 const name = "editor";
 // ╚══════════════════════════════════════════════════════════════════╝
 
+const Data = struct {
+    is: bool = false,
+    path: ?[]const u8 = null,
+    meta: ?NodeMeta,
+    node: ?Node,
+
+    fn empty() Data {
+        return Data{ .path = null, .meta = null, .node = null };
+    }
+
+    fn deinit(self: *Data, allocator: *std.mem.Allocator) void {
+        if (self.path) |p| {
+            allocator.free(p);
+        }
+
+        if (self.meta) |m| {
+            allocator.free(m.name);
+            allocator.free(m.dependencies);
+        }
+
+        if (self.node) |*n| {
+            n.deinit();
+        }
+    }
+};
+
 // ┌──────────────────── State ────────────────────┐
 const State = struct {
     should_stop: bool = false,
+    current: Data = Data.empty(),
+    selection: SelectionState = .{},
 };
 // └───────────────────────────────────────────────┘
-
-//const Prefab = struct {
-//    name: []const u8,
-//    parts: []const Part,
-//    colliders: []const Collider,
-//};
-
-//const PrefabData = struct {
-//    prefab: Prefab,
-//    parts_list: std.ArrayList(Part),
-//    colliders_list: std.ArrayList(Collider),
-//
-//    pub fn init(allocator: std.mem.Allocator) !PrefabData {
-//        return PrefabData{
-//            .prefab = Prefab{
-//                .name = "unnamed",
-//                .parts = &[_]Part{},
-//                .colliders = &[_]Collider{},
-//            },
-//            .parts_list = try std.ArrayList(Part).init(allocator),
-//            .colliders_list = try std.ArrayList(Collider).init(allocator),
-//        };
-//    }
-//
-//    pub fn appendPart(self: *PrefabData, part: Part) !void {
-//        try self.parts_list.append(part);
-//        self.prefab.parts = self.parts_list.items;
-//    }
-//
-//    pub fn appendCollider(self: *PrefabData, collider: Collider) !void {
-//        try self.colliders_list.append(collider);
-//        self.prefab.colliders = self.colliders_list.items;
-//    }
-//
-//    pub fn deinit(self: *PrefabData) void {
-//        self.parts_list.deinit();
-//        self.colliders_list.deinit();
-//    }
-//
-//    pub fn from(allocator: std.mem.Allocator, p: ?Prefab) ?PrefabData {
-//        if (p) |prefab| {
-//            var parts = std.ArrayList(Part).init(allocator);
-//            parts.appendSlice(prefab.parts) catch unreachable;
-//
-//            var colliders = std.ArrayList(Collider).init(allocator);
-//            colliders.appendSlice(prefab.colliders) catch unreachable;
-//
-//            return PrefabData{
-//                .prefab = Prefab{
-//                    .name = prefab.name,
-//                    .parts = parts.items,
-//                    .colliders = colliders.items,
-//                },
-//                .parts_list = parts,
-//                .colliders_list = colliders,
-//            };
-//        } else {
-//            return null;
-//        }
-//    }
-//
-//    /// Converts the dynamic PrefabData back into a static Prefab (e.g. for serialization)
-//    pub fn to(self: *PrefabData) Prefab {
-//        return Prefab{
-//            .name = self.prefab.name,
-//            .parts = self.parts_list.items,
-//            .colliders = self.colliders_list.items,
-//        };
-//    }
-//};
-
-//const Part = struct {
-//    image_path: []const u8, // path to PNG
-//    position: Vec2,
-//    rotation: f32 = 0.0, // in degrees or radians (your call)
-//    scale: Vec2 = .{ .x = 1.0, .y = 1.0 }, // uniform or non-uniform
-//    pivot: Vec2 = .{ .x = 0.5, .y = 0.5 }, // normalized, relative to image
-//};
-
-//    points: []const Vec2, // must form a convex polygon or whatever rule you enforce
-//};
 
 const EditorMode = enum {
     Idle,
@@ -152,164 +100,31 @@ const TransformState = struct {
     //mode: enum { Move, Scale, Rotate },
 };
 
-//const Camera2D = extern struct {
-//    offset: rl.Vector2,
-//    target: rl.Vector2,
-//    rotation: f32,
-//    zoom: f32,
-//};
-
-//const EditorState = struct {
-//    // prefab: Prefab,
-//
-//    selection: SelectionState,
-//    mode: EditorMode,
-//    transform: ?TransformState,
-//
-//    //camera: rl.Camera2D, // für Pan/Zoom
-//    // mouse: MouseState,
-//
-//    is_dirty: bool, // ungespeicherte Änderungen?
-//
-//    //pub fn init(screen_width: f32, screen_height: f32) EditorState {
-//    //    return EditorState{
-//    //        .selection = .{},
-//    //        .mode = .Idle,
-//    //        .transform = null,
-//    //        //.camera = rl.Camera2D{
-//    //        //    .offset = rl.Vector2{ .x = screen_width / 2.0, .y = screen_height / 2.0 },
-//    //        //    .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
-//    //        //    .rotation = 0.0,
-//    //        //    .zoom = 1.0,
-//    //        //},
-//    //        .is_dirty = false,
-//    //    };
-//    //}
-//};
-
-const screenWidth = 1920 / 2;
-const screenHeight = 1080 / 2;
-
-//var collider: Collider = undefined;
-//var handle_state = HandleState{};
-//const handle_radius: f32 = 8.0;
-//var dragging_offset = Vec2{ .x = 0, .y = 0 };
-
-//pub fn renderPrefab(prefab: *const Prefab, tex_cache: *TextureCache, allocator: std.mem.Allocator, selected: ?usize) !void {
-//    _ = allocator;
-//    for (prefab.parts, 0..) |part, i| {
-//        const tex = try tex_cache.get(part.image_path);
-//
-//        const origin = rl.Vector2{
-//            .x = @as(f32, @floatFromInt(tex.width)) * part.pivot.x,
-//            .y = @as(f32, @floatFromInt(tex.height)) * part.pivot.y,
-//        };
-//
-//        const dest_size = rl.Vector2{
-//            .x = @as(f32, @floatFromInt(tex.width)) * part.scale.x,
-//            .y = @as(f32, @floatFromInt(tex.height)) * part.scale.y,
-//        };
-//
-//        rl.drawTexturePro(
-//            tex,
-//            rl.Rectangle{ .x = 0, .y = 0, .width = @floatFromInt(tex.width), .height = @floatFromInt(tex.height) },
-//            rl.Rectangle{
-//                .x = part.position.x,
-//                .y = part.position.y,
-//                .width = dest_size.x,
-//                .height = dest_size.y,
-//            },
-//            origin,
-//            part.rotation,
-//            rl.Color.white,
-//        );
-//
-//        if (selected != null and selected.? == i) {
-//            const half_size = rl.Vector2{
-//                .x = dest_size.x * 0.5,
-//                .y = dest_size.y * 0.5,
-//            };
-//
-//            // Punkte im lokalen Raum (relativ zur Mitte)
-//            const corners = [_]rl.Vector2{
-//                .{ .x = -half_size.x, .y = -half_size.y },
-//                .{ .x = half_size.x, .y = -half_size.y },
-//                .{ .x = half_size.x, .y = half_size.y },
-//                .{ .x = -half_size.x, .y = half_size.y },
-//            };
-//
-//            // Rotation in Grad → Bogenmaß
-//            const rad = part.rotation * std.math.pi / 180.0;
-//
-//            // vorberechnete Sinus/Cosinus
-//            const cos_theta = @cos(rad);
-//            const sin_theta = @sin(rad);
-//
-//            // Transformierte Punkte
-//            var transformed: [4]rl.Vector2 = undefined;
-//            for (corners, 0..) |corner, j| {
-//                const rotated = rl.Vector2{
-//                    .x = corner.x * cos_theta - corner.y * sin_theta,
-//                    .y = corner.x * sin_theta + corner.y * cos_theta,
-//                };
-//                transformed[j] = rl.Vector2{
-//                    .x = part.position.x + rotated.x,
-//                    .y = part.position.y + rotated.y,
-//                };
-//            }
-//
-//            // Linien zeichnen
-//            for (transformed, 0..) |p, j| {
-//                const next = transformed[(j + 1) % 4];
-//                rl.drawLineEx(p, next, 4.0, rl.Color.yellow);
-//            }
-//        }
-//    }
-//}
-
 pub const Control = struct {
     allocator: *std.mem.Allocator,
     view: View,
     state: State,
 
-    prefab: PrefabData,
-    selection: SelectionState = .{},
-    current_path: ?[]const u8 = null,
-
-    should_request_snapshot: bool = true,
-
     arena_allocator: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(std.heap.page_allocator),
 
-    //current: ?PrefabData = null,
-
-    //editor: EditorState,
-
     pub fn init(allocator: *std.mem.Allocator) Control {
-        var control = Control{
+        const control = Control{
             .allocator = allocator,
             .view = View.init(allocator, name),
             .state = State{},
-            .prefab = PrefabData.init(allocator.*),
         };
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
 
-        //const temp = util.ziggy.load(control.arena_allocator.allocator(), "res/prefab/test/visual.ziggy", Prefab) catch unreachable;
-        //control.current = PrefabData.from(allocator.*, temp);
-        control = control;
         return control;
     }
 
     pub fn deinit(self: *Control) void {
-        //if (self.current) |*cur| {
-        //    util.ziggy.save(self.arena_allocator.allocator(), "res/prefab/test/visual.ziggy", cur.to()) catch unreachable;
-        //}
-
         log.info("stopped sucessfully", .{});
 
-        self.prefab.deinit();
-        if (self.current_path) |p| self.allocator.free(p);
+        self.state.current.deinit(self.allocator);
+
         self.view.deinit();
 
         self.arena_allocator.deinit();
@@ -345,7 +160,7 @@ pub const Control = struct {
         }
 
         self.view.begin();
-        self.view.renderVisualPrefab(&self.prefab.toVisual(), self.selection.selected_part);
+        if (self.state.current) |*p| self.view.renderPrefab(p, self.state.selection.selected_part);
         self.view.end();
     }
 
@@ -366,6 +181,141 @@ pub const Control = struct {
             if (self.view.camera.zoom < 0.05) self.view.camera.zoom = 0.05;
             if (self.view.camera.zoom > 15.0) self.view.camera.zoom = 15.0;
         }
+    }
+
+    fn handleEditorAction(self: *Control, action: editor.Action) !void {
+        switch (action) {
+            .FileOpen => |path| try self.openFile(path),
+            .DeleteSelected => self.deleteSelected(),
+            .FileSave => {
+                if (self.state.current_path) |p| {
+                    std.debug.print("{s}\n", .{self.state.current_path.?});
+                    try self.savePrefab(p);
+                }
+            },
+            .FileSaveAs => |p| {
+                if (self.state.current_path) |old| self.allocator.free(old);
+                self.state.current_path = try self.allocator.dupe(u8, p);
+                std.debug.print("{s}\n", .{self.state.current_path.?});
+                try self.savePrefab(p);
+            },
+            else => {},
+        }
+    }
+
+    fn openFile(self: *Control, path: []const u8) !void {
+        const suffix = ".starmont";
+        if (!self.state.current.is) {
+            if (std.mem.endsWith(u8, path, suffix)) {
+                self.state.current.is = true;
+                const base = path[0 .. path.len - suffix.len];
+                self.state.current.path = try self.allocator.dupe(u8, base[0..base.len]);
+
+                try self.readFile(path, true);
+
+                const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}.visual.ziggy", .{base});
+                defer self.allocator.free(visual_path);
+                try self.readFile(visual_path, true);
+
+                const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}.core.ziggy", .{base});
+                defer self.allocator.free(core_path);
+                try self.readFile(core_path, true);
+            } else {
+                std.debug.print("open a meta file (" ++ suffix ++ ") first", .{});
+            }
+        } else {
+            if (std.mem.endsWith(u8, path, suffix)) {
+                const base = path[0 .. path.len - suffix.len];
+                try self.readFile(path, false);
+
+                const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}visual.ziggy", .{base});
+                defer self.allocator.free(visual_path);
+                try self.readFile(visual_path, false);
+
+                const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}core.ziggy", .{base});
+                defer self.allocator.free(core_path);
+                try self.readFile(core_path, false);
+            } else if (std.mem.endsWith(u8, path, ".png")) {
+                try self.readImage(path);
+            } else {
+                std.debug.print("add a meta file (" ++ suffix ++ ") or an image (.png)", .{});
+            }
+        }
+    }
+
+    fn readImage(self: *Control, path: []const u8) !void {
+        if (std.mem.endsWith(u8, path, ".png")) {
+            const asset = visual.Asset{
+                .image_path = try self.allocator.dupe(u8, path),
+            };
+            try self.state.current.node.?.getVisual().assets.append(asset);
+        } else {
+            std.debug.print("unsupported file type", .{});
+        }
+    }
+
+    //rename
+    fn readFile(self: *Control, path: []const u8, main: bool) !void {
+        var node: *Node = undefined;
+
+        if (main) {
+            if (self.state.current.node) |*cur| {
+                node = cur;
+            } else {
+                self.state.current.node = Node.init(self.allocator.*);
+                node = &self.state.current.node.?;
+            }
+        } else {
+            node = self.state.current.node.?.sub_nodes.addOne() catch unreachable;
+            node.* = Node.init(self.allocator.*);
+        }
+
+        if (std.mem.endsWith(u8, path, "visual.ziggy")) {
+            const load = util.ziggy.load(self.arena_allocator.allocator(), path, visual.Prefab) catch {
+                std.debug.print("failed to open file: {s}", .{path});
+                return;
+            };
+            if (load) |v| {
+                for (v.assets.items) |p| {
+                    var copy = p;
+                    copy.image_path = try self.allocator.dupe(u8, p.image_path);
+                    try node.visuals.append(copy);
+                }
+            }
+        } else if (std.mem.endsWith(u8, path, "core.ziggy")) {
+            const load = util.ziggy.load(self.arena_allocator.allocator(), path, core.Prefab) catch {
+                std.debug.print("failed to open file: {s}\n", .{path});
+                return;
+            };
+            if (load) |c| {
+                try node.cores.appendSlice(c.colliders);
+            }
+        } // else error message
+    }
+
+    fn savePrefab(self: *Control, dir: []const u8) !void {
+        const visual_path = try std.fs.path.join(self.allocator.*, &.{ dir, "visual.ziggy" });
+        defer self.allocator.free(visual_path);
+        util.ziggy.save(self.allocator.*, visual_path, self.state.current.?.toVisual()) catch {
+            std.debug.print("failed to save {s}\n", .{visual_path});
+        };
+
+        const core_path = try std.fs.path.join(self.allocator.*, &.{ dir, "core.ziggy" });
+        defer self.allocator.free(core_path);
+        util.ziggy.save(self.allocator.*, core_path, self.state.current.?.toCore()) catch {
+            std.debug.print("failed to save {s}\n", .{core_path});
+        };
+
+        std.debug.print("saved successfully\n", .{});
+    }
+
+    fn deleteSelected(self: *Control) void {
+        //if (self.state.selection.selected_part) |idx| {
+        //    const part = self.state.visual.orderedRemove(idx);
+        //    self.allocator.free(part.image_path);
+        //    self.state.selection.selected_part = null;
+        //}
+        _ = self;
     }
 
     pub fn handleSelection(self: *Control) void {
@@ -477,106 +427,5 @@ pub const Control = struct {
         //        t.is_dragging = false;
         //    }
         //}
-    }
-
-    fn handleEditorAction(self: *Control, action: editor.Action) !void {
-        switch (action) {
-            .FileOpen => |path| try self.dragedFile(path),
-            .DeleteSelected => self.deleteSelected(),
-            .FileSave => {
-                if (self.current_path) |p| {
-                    std.debug.print("{s}\n", .{self.current_path.?});
-                    try self.savePrefab(p);
-                }
-            },
-            .FileSaveAs => |p| {
-                if (self.current_path) |old| self.allocator.free(old);
-                self.current_path = try self.allocator.dupe(u8, p);
-                std.debug.print("{s}\n", .{self.current_path.?});
-                try self.savePrefab(p);
-            },
-            else => {},
-        }
-    }
-
-    //rename to openFile
-    fn dragedFile(self: *Control, path: []const u8) {
-        if(nothing opened) {
-            if(std.mem.endsWith(u8, path, "visual.ziggy")) {
-                self.openFile(visual);
-                self.openFile(core);
-            } else {
-                //message
-            }
-        } else {
-            // openFile
-        }
-    }
-
-    //rename
-    fn openFile(self: *Control, path: []const u8) !void {
-        if (std.mem.endsWith(u8, path, ".png")) {
-            const part = visual.VisualPart{
-                .image_path = try self.allocator.dupe(u8, path),
-            };
-            try self.prefab.parts_list.append(part);
-        } else if (std.mem.endsWith(u8, path, "visual.ziggy")) {
-            const load = util.ziggy.load(self.arena_allocator.allocator(), path, visual.VisualPrefab) catch {
-                std.debug.print("failed to open file: {s}", .{path});
-                return;
-            };
-            if (load) |v| {
-                for (self.prefab.parts_list.items) |p| {
-                    self.allocator.free(p.image_path);
-                }
-                self.prefab.parts_list.clearRetainingCapacity();
-                for (v.parts) |p| {
-                    var copy = p;
-                    copy.image_path = try self.allocator.dupe(u8, p.image_path);
-                    try self.prefab.parts_list.append(copy);
-                }
-                if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
-                    if (self.current_path) |old| self.allocator.free(old);
-                    self.current_path = try self.allocator.dupe(u8, path[0..idx]);
-                }
-            }
-        } else if (std.mem.endsWith(u8, path, "core.ziggy")) {
-            const load = util.ziggy.load(self.arena_allocator.allocator(), path, core.CorePrefab) catch {
-                std.debug.print("failed to open file: {s}\n", .{path});
-                return;
-            };
-            if (load) |c| {
-                self.prefab.colliders_list.clearRetainingCapacity();
-                try self.prefab.colliders_list.appendSlice(c.colliders);
-                if (std.mem.lastIndexOfScalar(u8, path, '/')) |idx| {
-                    if (self.current_path) |old| self.allocator.free(old);
-                    self.current_path = try self.allocator.dupe(u8, path[0..idx]);
-                }
-            }
-        } // else error message
-    }
-
-    fn savePrefab(self: *Control, dir: []const u8) !void {
-        const visual_path = try std.fs.path.join(self.allocator.*, &.{ dir, "visual.ziggy" });
-        defer self.allocator.free(visual_path);
-        util.ziggy.save(self.allocator.*, visual_path, self.prefab.toVisual()) catch {
-            std.debug.print("failed to save {s}\n", .{visual_path});
-        };
-
-        const core_path = try std.fs.path.join(self.allocator.*, &.{ dir, "core.ziggy" });
-        defer self.allocator.free(core_path);
-        util.ziggy.save(self.allocator.*, core_path, self.prefab.toCore()) catch {
-            std.debug.print("failed to save {s}\n", .{core_path});
-        };
-
-        std.debug.print("saved successfully\n", .{});
-    }
-
-    fn deleteSelected(self: *Control) void {
-        if (self.selection.selected_part) |idx| {
-            const part = self.prefab.parts_list.orderedRemove(idx);
-            self.allocator.free(part.image_path);
-            self.selection.selected_part = null;
-        }
     }
 };

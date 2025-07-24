@@ -22,14 +22,43 @@ const std = @import("std");
 const util = @import("util");
 // ------------------------------
 
-pub const VisualPart = struct {
+pub const Asset = struct {
+    allocator: *std.mem.Allocator,
     image_path: []const u8,
     position: util.Vec2 = util.Vec2.zero(),
     rotation: util.Angle = util.Angle.zero(),
     scale: util.Vec2 = util.Vec2.one(),
     pivot: util.Vec2 = .{ .x = 0.5, .y = 0.5 },
+
+    pub fn init(allocator: *std.mem.Allocator, path: []const u8) !Asset {
+        const copied_path = try allocator.dupe(u8, path);
+        return Asset{
+            .allocator = allocator,
+            .image_path = copied_path,
+        };
+    }
+
+    pub fn deinit(self: *Asset) void {
+        self.allocator.free(self.image_path);
+    }
 };
 
-pub const VisualPrefab = struct {
-    parts: []const VisualPart = &[_]VisualPart{},
+pub const Prefab = struct {
+    allocator: *std.mem.Allocator,
+    assets: std.ArrayList(Asset),
+
+    pub fn init(allocator: *std.mem.Allocator) Prefab {
+        const arrlist = std.ArrayList(Prefab).init(allocator.*);
+        return Prefab{
+            .allocator = allocator,
+            .assets = arrlist,
+        };
+    }
+
+    pub fn deinit(self: *Prefab) void {
+        for (self.assets.items) |*a| {
+            a.deinit();
+        }
+        self.assets.deinit();
+    }
 };

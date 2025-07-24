@@ -1,1 +1,0 @@
-.parts = [{ .image_path = "/home/fkoppe/Pictures/browser_plugins.png", .position = { .x = 0e0, .y = 0e0 }, .rotation = degrees { .value = 0e0 }, .scale = { .x = 1e0, .y = 1e0 }, .pivot = { .x = 5e-1, .y = 5e-1 } }],

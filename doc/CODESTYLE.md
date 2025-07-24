@@ -1,14 +1,20 @@
 # Codestyle Guidelines
 
-## Use zig fmt
+Keep files readable, segmented, and coherent across the project. Adapt these rules as necessary but preserve consistency.
+
+## Formatting
+
+Always use `zig fmt` to ensure consistent formatting across the codebase.
+Never commit unformatted code.
 
 ## Naming
 
-See: <https://ziglang.org/documentation/0.14.1/#Style-Guide>
+Follow the Zig official naming style:
+<https://ziglang.org/documentation/0.14.1/#Style-Guide>
 
 ## TODO Tagging Convention
 
-All TODO comments should be annotated using a structured tag in the following format:
+All `TODO` comments **must** use a structured format:
 
 ```zig
 // TODO[TAG]: Optional explanation
@@ -37,6 +43,45 @@ Additional context should be added after the tag when appropriate:
 // TODO[BUG]: Collision detection fails for fast-moving objects
 ```
 
-If no fitting tag applies, use a generic TODO without a tag as a fallback.
+If no fitting tag applies, use a generic TODO without a tag as a fallback, but this should be rare.
 
 These tags are intended for internal development use and should be periodically reviewed and cleaned up before releases.
+
+
+Use logical groupings with clear visual separators to maintain structure in source files:
+
+## Import Ordering
+
+```zig
+// ---------- external ----------
+const ziggy = @import("ziggy");
+// ------------------------------
+
+// ---------- zig ----------
+const builtin = @import("builtin");
+const std = @import("std");
+const testing = std.testing;
+// -------------------------
+
+// ---------- starmont ----------
+// from another module
+const core = @import("shared").core;
+const util = @import("util");
+// ------------------------------
+
+// ---------- local ----------
+// relative path in same module
+// ----------------------------
+```
+
+## Visual Seperators
+
+// ╔══════════════════════════════ level 1 ══════════════════════════════╗
+
+// ╚═════════════════════════════════════════════════════════════════════╝
+
+// ┌──────────────────── level 2 ────────────────────┐
+// └─────────────────────────────────────────────────┘
+
+// ---------- level 3 ----------
+// -----------------------------

@@ -18,7 +18,8 @@
 pub const core = @import("core/core.zig");
 pub const editor = @import("editor/editor.zig");
 pub const visual = @import("visual/visual.zig");
-pub const PrefabData = @import("prefab.zig").PrefabData;
+pub const Node = @import("node.zig").Node;
+pub const NodeMeta = @import("node.zig").NodeMeta;
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ test ══════════════════════════════╗

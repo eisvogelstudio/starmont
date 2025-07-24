@@ -23,15 +23,17 @@ const std = @import("std");
 // -------------------------
 
 // ---------- starmont ----------
+const util = @import("util");
 const core = @import("shared").core;
 const visual = @import("shared").visual;
 const editor = @import("shared").editor;
-const util = @import("util");
+
 const frontend = @import("frontend");
 const Input = @import("frontend").Input;
 const Window = @import("frontend").Window;
 const TextureCache = @import("frontend").TextureCache;
 const FrontEvent = @import("frontend").FrontEvent;
+const PrefabData = @import("shared").PrefabData;
 const rl = @import("frontend").rl;
 // ------------------------------
 
@@ -45,8 +47,8 @@ pub const View = struct {
     camera: rl.Camera2D,
 
     //TODO[MISSING] make dynamic
-    const screen_width = 1920 / 2;
-    const screen_height = 1080 / 2;
+    const screen_width = 1920;
+    const screen_height = 1080;
 
     pub fn init(allocator: *std.mem.Allocator, name: []const u8) View {
         const view = View{
@@ -127,7 +129,15 @@ pub const View = struct {
         return list;
     }
 
-    pub fn renderVisualPrefab(self: *View, prefab: *const visual.VisualPrefab, selected: ?usize) void {
+    pub fn renderPrefab(self: *View, prefab: *PrefabData, selected: ?usize) void {
+        for (prefab.dependencies.items) |*p| {
+            self.renderPrefab(p, 99999);
+        }
+
+        self.renderVisualPrefab(&prefab.toVisual(), selected);
+    }
+
+    fn renderVisualPrefab(self: *View, prefab: *const visual.VisualPrefab, selected: ?usize) void {
         for (prefab.parts, 0..) |part, idx| {
             const tex = self.cache.get(part.image_path) catch {
                 log.warn("texture load failed: {s}", .{part.image_path});

@@ -15,8 +15,8 @@
 // ─────────────────────────────────────────────────────────────────────
 
 // ╔══════════════════════════════ pack ══════════════════════════════╗
-pub const VisualPrefab = @import("prefab.zig").VisualPrefab;
-pub const VisualPart = @import("prefab.zig").VisualPart;
+pub const Prefab = @import("asset.zig").Prefab;
+pub const Asset = @import("asset.zig").Asset;
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ test ══════════════════════════════╗

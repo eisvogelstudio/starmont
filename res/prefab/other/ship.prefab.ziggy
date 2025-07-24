@@ -1,0 +1,5 @@
+{
+    .name = "starship",
+    .version = "0.0.1",
+    .author = "Felix Koppe",
+}

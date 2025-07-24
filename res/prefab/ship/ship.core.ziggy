@@ -1,0 +1,3 @@
+.colliders = [],
+.description = "A heavily armored space cruiser with long-range weapons",
+.tags = ["military", "large", "longrange"],
