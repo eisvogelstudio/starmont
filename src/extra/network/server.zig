@@ -246,4 +246,17 @@ pub const Server = struct {
     pub fn submit(self: *Server, client: usize, msg: message.Message) !void {
         self.batches.getPtr(client).?.append(msg) catch unreachable;
     }
+
+    pub fn getPort(self: *Server) ?u16 {
+        if (self.socket.endpoint) |end| {
+            return end.port;
+        }
+    }
+
+    pub fn getAddress(self: *Server, allocator: std.mem.Allocator) ?[]const u8 {
+        if (self.socket.endpoint) |end| {
+            return std.fmt.allocPrint(allocator, "{}", .{end.address}) catch null;
+        }
+        return null;
+    }
 };

@@ -26,17 +26,22 @@ const VisualPrefab = @import("visual/prefab.zig").VisualPrefab;
 // ---------------------------
 
 pub const PrefabData = struct {
+    allocator: std.mem.Allocator,
     parts_list: std.ArrayList(VisualPart),
     colliders_list: std.ArrayList(Collider),
 
     pub fn init(allocator: std.mem.Allocator) PrefabData {
         return PrefabData{
+            .allocator = allocator,
             .parts_list = std.ArrayList(VisualPart).init(allocator),
             .colliders_list = std.ArrayList(Collider).init(allocator),
         };
     }
 
     pub fn deinit(self: *PrefabData) void {
+        for (self.parts_list.items) |part| {
+            self.allocator.free(part.image_path);
+        }
         self.parts_list.deinit();
         self.colliders_list.deinit();
     }

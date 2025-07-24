@@ -41,7 +41,7 @@ pub const Control = struct {
             .server = network.Server.init(allocator),
         };
 
-        control.server.open(11111);
+        control.server.open(0);
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
         log.info("all your starbase are belong to us", .{});

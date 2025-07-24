@@ -308,7 +308,7 @@ pub const Control = struct {
 
         log.info("stopped sucessfully", .{});
 
-        self.prefab.deinit(self.allocator.*);
+        self.prefab.deinit();
         if (self.current_path) |p| self.allocator.free(p);
         self.view.deinit();
 

@@ -73,7 +73,6 @@ pub const View = struct {
     pub fn begin(self: *View) void {
         Window.update();
         Window.beginFrame();
-        _ = self;
         Window.clear();
         rl.beginMode2D(self.camera);
     }
@@ -107,17 +106,7 @@ pub const View = struct {
             try list.append(.{ .CameraZoom = wheel });
         }
 
-        if (Input.isMouseButtonDown(Input.MouseButton.MOUSE_MIDDLE)) {
-            const delta = Input.getMouseDelta();
-            try list.append(.{ .CameraPan = .{ .x = delta.x, .y = delta.y } });
-        }
-
-        const wheel = Input.getMouseWheelMove();
-        if (wheel != 0) {
-            try list.append(.{ .CameraZoom = wheel });
-        }
-
-        if (Input.isMouseButtonDown(Input.MouseButton.MOUSE_MIDDLE)) {
+        if (Input.isMouseButtonDown(Input.MouseButton.middle)) {
             const delta = Input.getMouseDelta();
             try list.append(.{ .CameraPan = .{ .x = delta.x, .y = delta.y } });
         }
