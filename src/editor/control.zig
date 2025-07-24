@@ -488,12 +488,18 @@ pub const Control = struct {
 
     fn handleEditorAction(self: *Control, action: editor.Action) !void {
         switch (action) {
-            .FileOpen => |path| try self.openFile(path),
+            .FileOpen => |path| try self.dragedFile(path),
             .DeleteSelected => self.deleteSelected(),
-            .FileSave => if (self.current_path) |p| try self.savePrefab(p),
+            .FileSave => {
+                if (self.current_path) |p| {
+                    std.debug.print("{s}\n", .{self.current_path.?});
+                    try self.savePrefab(p);
+                }
+            },
             .FileSaveAs => |p| {
                 if (self.current_path) |old| self.allocator.free(old);
                 self.current_path = try self.allocator.dupe(u8, p);
+                std.debug.print("{s}\n", .{self.current_path.?});
                 try self.savePrefab(p);
             },
             .ToggleColliderView => {
@@ -503,6 +509,21 @@ pub const Control = struct {
         }
     }
 
+    //rename to openFile
+    fn dragedFile(self: *Control, path: []const u8) {
+        if(nothing opened) {
+            if(std.mem.endsWith(u8, path, "visual.ziggy")) {
+                self.openFile(visual);
+                self.openFile(core);
+            } else {
+                //message
+            }
+        } else {
+            // openFile
+        }
+    }
+
+    //rename
     fn openFile(self: *Control, path: []const u8) !void {
         if (std.mem.endsWith(u8, path, ".png")) {
             const part = visual.VisualPart{
@@ -566,7 +587,7 @@ pub const Control = struct {
             }
         } else if (std.mem.endsWith(u8, path, "core.ziggy")) {
             const load = util.ziggy.load(self.arena_allocator.allocator(), path, core.CorePrefab) catch {
-                std.debug.print("failed to open file: {s}", .{path});
+                std.debug.print("failed to open file: {s}\n", .{path});
                 return;
             };
             if (load) |c| {
@@ -577,17 +598,21 @@ pub const Control = struct {
                     self.current_path = try self.allocator.dupe(u8, path[0..idx]);
                 }
             }
-        }
+        } // else error message
     }
 
     fn savePrefab(self: *Control, dir: []const u8) !void {
         const visual_path = try std.fs.path.join(self.allocator.*, &.{ dir, "visual.ziggy" });
         defer self.allocator.free(visual_path);
-        try util.ziggy.save(self.allocator.*, visual_path, self.prefab.toVisual());
+        util.ziggy.save(self.allocator.*, visual_path, self.prefab.toVisual()) catch {
+            std.debug.print("failed to save {s}\n", .{visual_path});
+        };
 
         const core_path = try std.fs.path.join(self.allocator.*, &.{ dir, "core.ziggy" });
         defer self.allocator.free(core_path);
-        try util.ziggy.save(self.allocator.*, core_path, self.prefab.toCore());
+        util.ziggy.save(self.allocator.*, core_path, self.prefab.toCore()) catch {
+            std.debug.print("failed to save {s}\n", .{core_path});
+        };
 
         const prefab_path = try std.fs.path.join(self.allocator.*, &.{ dir, "prefab.ziggy" });
         defer self.allocator.free(prefab_path);
@@ -596,7 +621,11 @@ pub const Control = struct {
             .core = "core.ziggy",
             .visual = "visual.ziggy",
         };
-        try util.ziggy.save(self.allocator.*, prefab_path, manifest);
+        util.ziggy.save(self.allocator.*, prefab_path, self.prefab.toCore()) catch {
+            std.debug.print("failed to save {s}\n", .{prefab_path});
+        };
+
+        std.debug.print("saved successfully\n", .{});
     }
 
     fn deleteSelected(self: *Control) void {

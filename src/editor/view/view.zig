@@ -25,6 +25,7 @@ const std = @import("std");
 // ---------- starmont ----------
 const core = @import("shared").core;
 const visual = @import("shared").visual;
+const editor = @import("shared").editor;
 const util = @import("util");
 const frontend = @import("frontend");
 const Input = @import("frontend").Input;
@@ -113,7 +114,7 @@ pub const View = struct {
             try list.append(.{ .Editor = .DeleteSelected });
         }
 
-        if (Input.isKeyPressed(Input.KeyboardKey.left_control) and Input.isKeyPressed(Input.KeyboardKey.s)) {
+        if (Input.isKeyDown(Input.KeyboardKey.left_control) and Input.isKeyPressed(Input.KeyboardKey.s)) {
             try list.append(.{ .Editor = .FileSave });
         }
 
