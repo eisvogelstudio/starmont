@@ -30,15 +30,15 @@ const log = std.log.scoped(.control);
 const name = "server";
 
 pub const Control = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     model: Model,
     server: network.Server,
 
-    pub fn init(allocator: *std.mem.Allocator) !Control {
+    pub fn init(gpa: *std.mem.Allocator) !Control {
         var control = Control{
-            .allocator = allocator,
-            .model = Model.init(allocator),
-            .server = network.Server.init(allocator),
+            .gpa = gpa,
+            .model = Model.init(gpa),
+            .server = network.Server.init(gpa),
         };
 
         control.server.open(0);
@@ -60,14 +60,14 @@ pub const Control = struct {
         self.model.update();
 
         self.server.accept();
-        const data = self.server.withdraw(self.allocator);
+        const data = self.server.withdraw(self.gpa);
 
         if (data) |batches| {
             defer {
                 for (batches) |*b| {
                     b.*.deinit();
                 }
-                self.allocator.free(batches);
+                self.gpa.free(batches);
             }
 
             for (batches) |b| {

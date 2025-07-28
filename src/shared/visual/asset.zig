@@ -29,29 +29,29 @@ pub const Asset = struct {
     scale: util.Vec2 = util.Vec2.one(),
     pivot: util.Vec2 = .{ .x = 0.5, .y = 0.5 },
 
-    pub fn init(allocator: *std.mem.Allocator, path: []const u8) !Asset {
+    pub fn init(gpa: *std.mem.Allocator, path: []const u8) !Asset {
         const asset = Asset{
-            .path = try allocator.dupe(u8, path),
+            .path = try gpa.dupe(u8, path),
         };
 
         return asset;
     }
 
-    pub fn deinit(self: *Asset, allocator: *std.mem.Allocator) void {
-        allocator.free(self.path);
+    pub fn deinit(self: *Asset, gpa: *std.mem.Allocator) void {
+        gpa.free(self.path);
     }
 };
 
 pub const PrefabDTO = struct {
     assets: []const Asset,
 
-    pub fn copy(self: PrefabDTO, allocator: *std.mem.Allocator) !PrefabDTO {
+    pub fn copy(self: PrefabDTO, gpa: *std.mem.Allocator) !PrefabDTO {
         const n = self.assets.len;
-        var new_assets = try allocator.alloc(Asset, n);
+        var new_assets = try gpa.alloc(Asset, n);
 
         for (self.assets, 0..) |asset, i| {
             new_assets[i] = Asset{
-                .path = try allocator.dupe(u8, asset.path),
+                .path = try gpa.dupe(u8, asset.path),
                 .position = asset.position,
                 .rotation = asset.rotation,
                 .scale = asset.scale,
@@ -62,17 +62,17 @@ pub const PrefabDTO = struct {
         return PrefabDTO{ .assets = new_assets };
     }
 
-    pub fn free(self: PrefabDTO, allocator: *std.mem.Allocator) void {
+    pub fn free(self: PrefabDTO, gpa: *std.mem.Allocator) void {
         for (self.assets) |asset| {
-            allocator.free(asset.path);
+            gpa.free(asset.path);
         }
 
-        allocator.free(self.assets);
+        gpa.free(self.assets);
     }
 
-    pub fn from(prefab: *const Prefab, allocator: std.mem.Allocator) !PrefabDTO {
+    pub fn from(prefab: *const Prefab, gpa: std.mem.Allocator) !PrefabDTO {
         const dto = PrefabDTO{
-            .assets = try allocator.alloc(Asset, prefab.assets.items.len),
+            .assets = try gpa.alloc(Asset, prefab.assets.items.len),
         };
 
         for (prefab.assets.items, 0..) |*asset, i| {
@@ -82,8 +82,8 @@ pub const PrefabDTO = struct {
         return dto;
     }
 
-    pub fn to(self: PrefabDTO, allocator: *std.mem.Allocator) !Prefab {
-        var prefab = Prefab.init(allocator);
+    pub fn to(self: PrefabDTO, gpa: *std.mem.Allocator) !Prefab {
+        var prefab = Prefab.init(gpa);
         for (self.assets) |asset| {
             try prefab.assets.append(asset);
         }
@@ -93,13 +93,13 @@ pub const PrefabDTO = struct {
 };
 
 pub const Prefab = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     assets: std.ArrayList(Asset),
 
-    pub fn init(allocator: *std.mem.Allocator) Prefab {
-        const arrlist = std.ArrayList(Asset).init(allocator.*);
+    pub fn init(gpa: *std.mem.Allocator) Prefab {
+        const arrlist = std.ArrayList(Asset).init(gpa.*);
         return Prefab{
-            .allocator = allocator,
+            .gpa = gpa,
             .assets = arrlist,
         };
     }

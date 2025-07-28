@@ -33,12 +33,12 @@ pub const TextureEntry = struct {
 
 pub const TextureCache = struct {
     textures: std.ArrayList(TextureEntry),
-    allocator: std.mem.Allocator,
+    gpa: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) TextureCache {
+    pub fn init(gpa: std.mem.Allocator) TextureCache {
         return TextureCache{
-            .textures = std.ArrayList(TextureEntry).init(allocator),
-            .allocator = allocator,
+            .textures = std.ArrayList(TextureEntry).init(gpa),
+            .gpa = gpa,
         };
     }
 
@@ -47,12 +47,12 @@ pub const TextureCache = struct {
             if (std.mem.eql(u8, entry.path, path)) return entry.texture;
         }
 
-        const pathTerminated = try self.allocator.dupeZ(u8, path);
-        defer self.allocator.free(pathTerminated);
+        const pathTerminated = try self.gpa.dupeZ(u8, path);
+        defer self.gpa.free(pathTerminated);
 
         const tex = rl.loadTexture(pathTerminated) catch return error.TextureLoadFailed;
 
-        const pathCopy = try self.allocator.dupe(u8, path);
+        const pathCopy = try self.gpa.dupe(u8, path);
         try self.textures.append(.{ .path = pathCopy, .texture = tex });
 
         return tex;
@@ -61,7 +61,7 @@ pub const TextureCache = struct {
     pub fn deinit(self: *TextureCache) void {
         for (self.textures.items) |entry| {
             rl.unloadTexture(entry.texture);
-            self.allocator.free(entry.path);
+            self.gpa.free(entry.path);
         }
         self.textures.deinit();
     }

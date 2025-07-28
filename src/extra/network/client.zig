@@ -36,17 +36,17 @@ const hz = 10;
 const interval = 1000 / hz;
 
 pub const Client = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     socket: net.Socket = undefined,
     is_connected: bool = false,
     stamp: i64 = 0,
     batch: Batch,
     last: i64 = 0,
 
-    pub fn init(allocator: *std.mem.Allocator) Client {
+    pub fn init(gpa: *std.mem.Allocator) Client {
         const client = Client{
-            .allocator = allocator,
-            .batch = Batch.init(allocator),
+            .gpa = gpa,
+            .batch = Batch.init(gpa),
         };
 
         net.init() catch unreachable;
@@ -86,7 +86,7 @@ pub const Client = struct {
             return error.Cooldown;
         }
 
-        var socket = try net.connectToHost(self.allocator.*, host, port, .tcp);
+        var socket = try net.connectToHost(self.gpa.*, host, port, .tcp);
         defer if (!self.is_connected) socket.close();
 
         socket.setReadTimeout(100) catch unreachable; // 100ns
@@ -112,7 +112,7 @@ pub const Client = struct {
     }
 
     pub fn receive(self: *Client) ![]Batch {
-        const batches = primitive.receive(&self.socket, self.allocator) catch |err| {
+        const batches = primitive.receive(&self.socket, self.gpa) catch |err| {
             if (err == error.ClosedConnection) {
                 self.is_connected = false;
             }

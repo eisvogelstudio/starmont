@@ -37,12 +37,12 @@ pub const std_options: std.Options = .{
 };
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
+    var gpa_impl = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa_impl.deinit() == .ok);
 
-    var allocator = gpa.allocator();
+    var gpa = gpa_impl.allocator();
 
-    var control = Control.init(&allocator) catch |err| {
+    var control = Control.init(&gpa) catch |err| {
         std.log.err("Failed to initialise server: {s}", .{@errorName(err)});
     };
 

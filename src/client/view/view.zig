@@ -32,14 +32,14 @@ const Model = @import("model").Model;
 const log = std.log.scoped(.view);
 
 pub const View = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
 
     const screenWidth = 800;
     const screenHeight = 450;
 
-    pub fn init(allocator: *std.mem.Allocator) View {
+    pub fn init(gpa: *std.mem.Allocator) View {
         const view = View{
-            .allocator = allocator,
+            .gpa = gpa,
         };
 
         //rl.setTraceLogLevel(rl.TraceLogLevel.none);
