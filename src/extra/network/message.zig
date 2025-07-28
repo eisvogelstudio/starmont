@@ -102,11 +102,11 @@ pub const NeighbourMessage = struct {
         //serial.serializeU16(writer, @intCast(u16, self.neighbours.len));
         //for (self.neighbours) |n| n.serialize(writer);
     }
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) NeighbourMessage {
-        _ = allocator;
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) NeighbourMessage {
+        _ = gpa;
         const id = serial.deserializeU64(reader);
         //const len = serial.deserializeU16(reader);
-        //const arr = allocator.alloc(util.UUID4, len) catch unreachable;
+        //const arr = gpa.alloc(util.UUID4, len) catch unreachable;
         //for (arr) |*n| n.* = util.UUID4.deserialize(reader);
         return init(id).Neighbour;
     }
@@ -483,8 +483,8 @@ pub const CommandMessage = struct {
         serial.serializeText(writer, self.command);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) CommandMessage {
-        const cmd = serial.deserializeText(reader, allocator);
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) CommandMessage {
+        const cmd = serial.deserializeText(reader, gpa);
         return init(cmd).Command;
     }
 
@@ -494,15 +494,15 @@ pub const CommandMessage = struct {
 };
 
 pub const NoticeMessage = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     duration: i64,
     message: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, duration: i64, message: []const u8) Message {
-        const dup_message = allocator.dupe(u8, message) catch unreachable;
+    pub fn init(gpa: *std.mem.Allocator, duration: i64, message: []const u8) Message {
+        const dup_message = gpa.dupe(u8, message) catch unreachable;
 
         const note = NoticeMessage{
-            .allocator = allocator,
+            .gpa = gpa,
             .duration = duration,
             .message = dup_message,
         };
@@ -511,7 +511,7 @@ pub const NoticeMessage = struct {
     }
 
     fn deinit(self: NoticeMessage) void {
-        self.allocator.free(self.message);
+        self.gpa.free(self.message);
     }
 
     fn serialize(self: NoticeMessage, writer: anytype) void {
@@ -519,10 +519,10 @@ pub const NoticeMessage = struct {
         serial.serializeText(writer, self.message);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) NoticeMessage {
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) NoticeMessage {
         const until = serial.deserializeI64(reader);
-        const message = serial.deserializeText(reader, allocator);
-        return init(allocator, until, message).Notice;
+        const message = serial.deserializeText(reader, gpa);
+        return init(gpa, until, message).Notice;
     }
 
     pub fn write(self: NoticeMessage, writer: anytype) void {
@@ -531,14 +531,14 @@ pub const NoticeMessage = struct {
 };
 
 pub const ForwardMessage = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     serverId: util.UUID4,
     ip: []const u8,
     port: u16,
 
-    pub fn init(allocator: *std.mem.Allocator, serverId: util.UUID4, ip: []const u8, port: u16) Message {
+    pub fn init(gpa: *std.mem.Allocator, serverId: util.UUID4, ip: []const u8, port: u16) Message {
         const forward = ForwardMessage{
-            .allocator = allocator,
+            .gpa = gpa,
             .serverId = serverId,
             .ip = ip,
             .port = port,
@@ -548,7 +548,7 @@ pub const ForwardMessage = struct {
     }
 
     fn deinit(self: ForwardMessage) void {
-        self.allocator.free(self.ip);
+        self.gpa.free(self.ip);
     }
 
     fn serialize(self: ForwardMessage, writer: anytype) void {
@@ -557,11 +557,11 @@ pub const ForwardMessage = struct {
         serial.serializeU16(writer, self.port);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) ForwardMessage {
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) ForwardMessage {
         const serverId = serial.deserializeUUID4(reader);
-        const ip = serial.deserializeText(reader, allocator);
+        const ip = serial.deserializeText(reader, gpa);
         const port = serial.deserializeU16(reader);
-        return init(allocator, serverId, ip, port).Forward;
+        return init(gpa, serverId, ip, port).Forward;
     }
 
     pub fn write(self: ForwardMessage, writer: anytype) void {
@@ -573,13 +573,13 @@ pub const ForwardMessage = struct {
 };
 
 pub const AlphaMessage = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     ephemeral: util.UUID4,
     name: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, ephemeral: util.UUID4, name: []const u8) Message {
+    pub fn init(gpa: *std.mem.Allocator, ephemeral: util.UUID4, name: []const u8) Message {
         const alpha = AlphaMessage{
-            .allocator = allocator,
+            .gpa = gpa,
             .ephemeral = ephemeral,
             .name = name,
         };
@@ -588,7 +588,7 @@ pub const AlphaMessage = struct {
     }
 
     fn deinit(self: AlphaMessage) void {
-        self.allocator.free(self.name);
+        self.gpa.free(self.name);
     }
 
     fn serialize(self: AlphaMessage, writer: anytype) void {
@@ -596,10 +596,10 @@ pub const AlphaMessage = struct {
         serial.serializeText(writer, self.name);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) AlphaMessage {
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) AlphaMessage {
         const ephemeral = serial.deserializeUUID4(reader);
-        const name = serial.deserializeText(reader, allocator);
-        return init(allocator, ephemeral, name).Alpha;
+        const name = serial.deserializeText(reader, gpa);
+        return init(gpa, ephemeral, name).Alpha;
     }
 
     pub fn write(self: AlphaMessage, writer: anytype) void {
@@ -608,12 +608,12 @@ pub const AlphaMessage = struct {
 };
 
 pub const OmegaMessage = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     message: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, message: []const u8) Message {
+    pub fn init(gpa: *std.mem.Allocator, message: []const u8) Message {
         const omega = OmegaMessage{
-            .allocator = allocator,
+            .gpa = gpa,
             .message = message,
         };
 
@@ -621,16 +621,16 @@ pub const OmegaMessage = struct {
     }
 
     fn deinit(self: OmegaMessage) void {
-        self.allocator.free(self.message);
+        self.gpa.free(self.message);
     }
 
     fn serialize(self: OmegaMessage, writer: anytype) void {
         serial.serializeText(writer, self.message);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) OmegaMessage {
-        const message = serial.deserializeText(reader, allocator);
-        return init(allocator, message).Omega;
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) OmegaMessage {
+        const message = serial.deserializeText(reader, gpa);
+        return init(gpa, message).Omega;
     }
 
     pub fn write(self: OmegaMessage, writer: anytype) void {
@@ -639,15 +639,15 @@ pub const OmegaMessage = struct {
 };
 
 pub const KickMessage = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     duration: i64,
     message: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, duration: i64, message: []const u8) Message {
-        const dup_message = allocator.dupe(u8, message) catch unreachable;
+    pub fn init(gpa: *std.mem.Allocator, duration: i64, message: []const u8) Message {
+        const dup_message = gpa.dupe(u8, message) catch unreachable;
 
         const kick = KickMessage{
-            .allocator = allocator,
+            .gpa = gpa,
             .duration = duration,
             .message = dup_message,
         };
@@ -656,7 +656,7 @@ pub const KickMessage = struct {
     }
 
     fn deinit(self: KickMessage) void {
-        self.allocator.free(self.message);
+        self.gpa.free(self.message);
     }
 
     fn serialize(self: KickMessage, writer: anytype) void {
@@ -664,10 +664,10 @@ pub const KickMessage = struct {
         serial.serializeText(writer, self.message);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) KickMessage {
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) KickMessage {
         const until = serial.deserializeI64(reader);
-        const message = serial.deserializeText(reader, allocator);
-        return init(allocator, until, message).Kick;
+        const message = serial.deserializeText(reader, gpa);
+        return init(gpa, until, message).Kick;
     }
 
     pub fn write(self: KickMessage, writer: anytype) void {
@@ -745,14 +745,14 @@ pub const PongMessage = struct {
 };
 
 pub const VersionCheckMessage = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     version: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, version: []const u8) Message {
-        const dup_version = allocator.dupe(u8, version) catch unreachable;
+    pub fn init(gpa: *std.mem.Allocator, version: []const u8) Message {
+        const dup_version = gpa.dupe(u8, version) catch unreachable;
 
         const vers = VersionCheckMessage{
-            .allocator = allocator,
+            .gpa = gpa,
             .version = dup_version,
         };
 
@@ -760,16 +760,16 @@ pub const VersionCheckMessage = struct {
     }
 
     fn deinit(self: VersionCheckMessage) void {
-        self.allocator.free(self.version);
+        self.gpa.free(self.version);
     }
 
     fn serialize(self: VersionCheckMessage, writer: anytype) void {
         serial.serializeText(writer, self.version);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) VersionCheckMessage {
-        const version = serial.deserializeText(reader, allocator);
-        return init(allocator, version).VersionCheck;
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) VersionCheckMessage {
+        const version = serial.deserializeText(reader, gpa);
+        return init(gpa, version).VersionCheck;
     }
 
     pub fn write(self: VersionCheckMessage, writer: anytype) void {
@@ -778,17 +778,17 @@ pub const VersionCheckMessage = struct {
 };
 
 pub const VersionResultMessage = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     is_match: bool,
     version: []const u8,
     message: []const u8,
 
-    pub fn init(allocator: *std.mem.Allocator, is_match: bool, version: []const u8, message: []const u8) Message {
-        const dup_version = allocator.dupe(u8, version) catch unreachable;
-        const dup_message = allocator.dupe(u8, message) catch unreachable;
+    pub fn init(gpa: *std.mem.Allocator, is_match: bool, version: []const u8, message: []const u8) Message {
+        const dup_version = gpa.dupe(u8, version) catch unreachable;
+        const dup_message = gpa.dupe(u8, message) catch unreachable;
 
         const vers = VersionResultMessage{
-            .allocator = allocator,
+            .gpa = gpa,
             .is_match = is_match,
             .version = dup_version,
             .message = dup_message,
@@ -798,8 +798,8 @@ pub const VersionResultMessage = struct {
     }
 
     fn deinit(self: VersionResultMessage) void {
-        self.allocator.free(self.version);
-        self.allocator.free(self.message);
+        self.gpa.free(self.version);
+        self.gpa.free(self.message);
     }
 
     fn serialize(self: VersionResultMessage, writer: anytype) void {
@@ -808,11 +808,11 @@ pub const VersionResultMessage = struct {
         serial.serializeText(writer, self.message);
     }
 
-    fn deserialize(reader: anytype, allocator: *std.mem.Allocator) VersionResultMessage {
+    fn deserialize(reader: anytype, gpa: *std.mem.Allocator) VersionResultMessage {
         const is_match = serial.deserializeBool(reader);
-        const version = serial.deserializeText(reader, allocator);
-        const message = serial.deserializeText(reader, allocator);
-        return init(allocator, is_match, version, message).VersionResult;
+        const version = serial.deserializeText(reader, gpa);
+        const message = serial.deserializeText(reader, gpa);
+        return init(gpa, is_match, version, message).VersionResult;
     }
 
     pub fn write(self: VersionResultMessage, writer: anytype) void {
@@ -1841,7 +1841,7 @@ pub const Message = union(MessageType) {
         }
     }
 
-    pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) Message {
+    pub fn deserialize(reader: anytype, gpa: *std.mem.Allocator) Message {
         const type_byte = reader.readByte() catch unreachable;
         const message_type: MessageType = @enumFromInt(type_byte);
         switch (message_type) {
@@ -1854,7 +1854,7 @@ pub const Message = union(MessageType) {
                 return Message{ .Unassign = unassign };
             },
             .Neighbour => {
-                const neighbour = NeighbourMessage.deserialize(reader, allocator);
+                const neighbour = NeighbourMessage.deserialize(reader, gpa);
                 return Message{ .Neighbour = neighbour };
             },
             .MasterInfo => {
@@ -1910,27 +1910,27 @@ pub const Message = union(MessageType) {
                 return Message{ .EditorInfo = info };
             },
             .Command => {
-                const cmd = CommandMessage.deserialize(reader, allocator);
+                const cmd = CommandMessage.deserialize(reader, gpa);
                 return Message{ .Command = cmd };
             },
             .Notice => {
-                const note = NoticeMessage.deserialize(reader, allocator);
+                const note = NoticeMessage.deserialize(reader, gpa);
                 return Message{ .Notice = note };
             },
             .Forward => {
-                const forward = ForwardMessage.deserialize(reader, allocator);
+                const forward = ForwardMessage.deserialize(reader, gpa);
                 return Message{ .Forward = forward };
             },
             .Alpha => {
-                const alpha = AlphaMessage.deserialize(reader, allocator);
+                const alpha = AlphaMessage.deserialize(reader, gpa);
                 return Message{ .Alpha = alpha };
             },
             .Omega => {
-                const omega = OmegaMessage.deserialize(reader, allocator);
+                const omega = OmegaMessage.deserialize(reader, gpa);
                 return Message{ .Omega = omega };
             },
             .Kick => {
-                const kick = KickMessage.deserialize(reader, allocator);
+                const kick = KickMessage.deserialize(reader, gpa);
                 return Message{ .Kick = kick };
             },
             .Ping => {
@@ -1942,11 +1942,11 @@ pub const Message = union(MessageType) {
                 return Message{ .Pong = pong };
             },
             .VersionCheck => {
-                const vers = VersionCheckMessage.deserialize(reader, allocator);
+                const vers = VersionCheckMessage.deserialize(reader, gpa);
                 return Message{ .VersionCheck = vers };
             },
             .VersionResult => {
-                const vers = VersionResultMessage.deserialize(reader, allocator);
+                const vers = VersionResultMessage.deserialize(reader, gpa);
                 return Message{ .VersionResult = vers };
             },
             .AuthChallenge => {

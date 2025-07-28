@@ -24,9 +24,9 @@ pub fn serializeText(writer: anytype, text: []const u8) void {
     writer.writeAll(text) catch unreachable;
 }
 
-pub fn deserializeText(reader: anytype, allocator: *std.mem.Allocator) []const u8 {
+pub fn deserializeText(reader: anytype, gpa: *std.mem.Allocator) []const u8 {
     const len = deserializeU64(reader);
-    const text = allocator.alloc(u8, len) catch unreachable;
+    const text = gpa.alloc(u8, len) catch unreachable;
     _ = reader.readAll(text) catch unreachable;
     return text;
 }

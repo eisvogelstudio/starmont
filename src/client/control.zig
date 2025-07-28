@@ -48,18 +48,18 @@ const State = struct {
 
 // ┌──────────────────── Control ────────────────────┐
 pub const Control = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     model: Model,
     view: View,
     client: network.Client,
     state: State,
 
-    pub fn init(allocator: *std.mem.Allocator) Control {
+    pub fn init(gpa: *std.mem.Allocator) Control {
         const control = Control{
-            .allocator = allocator,
-            .model = Model.init(allocator),
-            .view = View.init(allocator),
-            .client = network.Client.init(allocator),
+            .gpa = gpa,
+            .model = Model.init(gpa),
+            .view = View.init(gpa),
+            .client = network.Client.init(gpa),
             .state = State{},
         };
 
@@ -115,7 +115,7 @@ pub const Control = struct {
                     b.*.deinit();
                 }
 
-                self.allocator.free(batches);
+                self.gpa.free(batches);
             }
 
             for (batches) |b| {
@@ -165,7 +165,7 @@ pub const Control = struct {
     }
 
     fn processFrontEvents(self: *Control) void {
-        const events = std.ArrayList(frontend.FrontEvent).init(self.allocator.*);
+        const events = std.ArrayList(frontend.FrontEvent).init(self.gpa.*);
 
         //TODO[MISSING]
 

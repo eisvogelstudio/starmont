@@ -51,7 +51,7 @@ const TimedBatch = struct {
 };
 
 pub const Server = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     socket: net.Socket = undefined,
     is_opened: bool = false,
     clients: std.AutoHashMap(u64, net.Socket),
@@ -61,13 +61,13 @@ pub const Server = struct {
     last: i64 = 0,
     identifier: u64 = 0,
 
-    pub fn init(allocator: *std.mem.Allocator) Server {
+    pub fn init(gpa: *std.mem.Allocator) Server {
         const server = Server{
-            .allocator = allocator,
-            .clients = std.AutoHashMap(u64, net.Socket).init(allocator.*),
-            .batches = std.AutoHashMap(u64, Batch).init(allocator.*),
-            .batchesToSend = std.ArrayList(TimedBatch).init(allocator.*),
-            .batchesReceived = std.ArrayList(TimedBatch).init(allocator.*),
+            .gpa = gpa,
+            .clients = std.AutoHashMap(u64, net.Socket).init(gpa.*),
+            .batches = std.AutoHashMap(u64, Batch).init(gpa.*),
+            .batchesToSend = std.ArrayList(TimedBatch).init(gpa.*),
+            .batchesReceived = std.ArrayList(TimedBatch).init(gpa.*),
         };
 
         net.init() catch unreachable;
@@ -134,7 +134,7 @@ pub const Server = struct {
 
             log.info("client #{d} connected", .{self.identifier});
             self.clients.put(self.identifier, client) catch unreachable;
-            self.batches.put(self.identifier, Batch.init(self.allocator)) catch unreachable;
+            self.batches.put(self.identifier, Batch.init(self.gpa)) catch unreachable;
             self.identifier += 1;
         }
     }
@@ -142,13 +142,13 @@ pub const Server = struct {
     fn receive(self: *Server) void {
         const now = std.time.milliTimestamp();
 
-        var delete = std.ArrayList(u64).init(self.allocator.*);
+        var delete = std.ArrayList(u64).init(self.gpa.*);
 
         var it = self.clients.iterator();
         while (it.next()) |entry| {
             var client = entry.value_ptr.*;
 
-            const batches = primitive.receive(&client, self.allocator) catch |err| {
+            const batches = primitive.receive(&client, self.gpa) catch |err| {
                 if (err == error.ClosedConnection) {
                     delete.append(entry.key_ptr.*) catch unreachable;
                     continue;
@@ -190,7 +190,7 @@ pub const Server = struct {
         while (it.next()) |entry| {
             self.batches.getPtr(entry.key_ptr.*).?.id = entry.key_ptr.*;
 
-            const timedBatch = TimedBatch{ .batch = self.batches.getPtr(entry.key_ptr.*).?.copy(self.allocator), .stamp = now };
+            const timedBatch = TimedBatch{ .batch = self.batches.getPtr(entry.key_ptr.*).?.copy(self.gpa), .stamp = now };
 
             self.batchesToSend.append(timedBatch) catch unreachable;
 
@@ -201,7 +201,7 @@ pub const Server = struct {
     fn send(self: *Server) void {
         const now = std.time.milliTimestamp();
 
-        var delete = std.ArrayList(usize).init(self.allocator.*);
+        var delete = std.ArrayList(usize).init(self.gpa.*);
 
         for (self.batchesToSend.items, 0..) |*timedBatch, i| {
             if (now - timedBatch.*.stamp < delay) {
@@ -226,13 +226,13 @@ pub const Server = struct {
         delete.deinit();
     }
 
-    pub fn withdraw(self: *Server, allocator: *std.mem.Allocator) ![]Batch {
+    pub fn withdraw(self: *Server, gpa: *std.mem.Allocator) ![]Batch {
         const now = std.time.milliTimestamp();
-        var all = std.ArrayList(Batch).init(allocator.*);
+        var all = std.ArrayList(Batch).init(gpa.*);
 
         for (self.batchesReceived.items) |*timedBatch| {
             if (now - timedBatch.*.stamp < delay) {
-                all.append(timedBatch.*.batch.copy(self.allocator)) catch unreachable;
+                all.append(timedBatch.*.batch.copy(self.gpa)) catch unreachable;
             }
         }
 
@@ -253,9 +253,9 @@ pub const Server = struct {
         }
     }
 
-    pub fn getAddress(self: *Server, allocator: std.mem.Allocator) ?[]const u8 {
+    pub fn getAddress(self: *Server, gpa: std.mem.Allocator) ?[]const u8 {
         if (self.socket.endpoint) |end| {
-            return std.fmt.allocPrint(allocator, "{}", .{end.address}) catch null;
+            return std.fmt.allocPrint(gpa, "{}", .{end.address}) catch null;
         }
         return null;
     }

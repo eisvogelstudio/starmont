@@ -25,14 +25,14 @@ const serial = @import("serial/serial.zig");
 // ---------------------------
 
 pub const Batch = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     messages: std.ArrayList(message.Message),
     id: usize = 0,
 
-    pub fn init(allocator: *std.mem.Allocator) Batch {
+    pub fn init(gpa: *std.mem.Allocator) Batch {
         const batch = Batch{
-            .allocator = allocator,
-            .messages = std.ArrayList(message.Message).init(allocator.*),
+            .gpa = gpa,
+            .messages = std.ArrayList(message.Message).init(gpa.*),
         };
 
         return batch;
@@ -45,13 +45,13 @@ pub const Batch = struct {
         self.messages.deinit();
     }
 
-    pub fn copy(self: *Batch, allocator: *std.mem.Allocator) Batch {
-        var messages = std.ArrayList(message.Message).init(allocator.*);
+    pub fn copy(self: *Batch, gpa: *std.mem.Allocator) Batch {
+        var messages = std.ArrayList(message.Message).init(gpa.*);
 
         messages.appendSlice(self.messages.items) catch unreachable;
 
         return Batch{
-            .allocator = allocator,
+            .gpa = gpa,
             .messages = messages,
             .id = self.id,
         };
@@ -78,13 +78,13 @@ pub const Batch = struct {
         }
     }
 
-    pub fn deserialize(reader: anytype, allocator: *std.mem.Allocator) Batch {
+    pub fn deserialize(reader: anytype, gpa: *std.mem.Allocator) Batch {
         const count = serial.deserializeU16(reader);
-        var batch = Batch.init(allocator);
+        var batch = Batch.init(gpa);
 
         var i: usize = 0;
         while (i < count) : (i += 1) {
-            const msg = message.Message.deserialize(reader, allocator);
+            const msg = message.Message.deserialize(reader, gpa);
             batch.append(msg) catch unreachable;
         }
 

@@ -42,7 +42,7 @@ const log = std.log.scoped(.view);
 // ╚══════════════════════════════════════════════════════════════════╝
 
 pub const View = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     cache: TextureCache,
     camera: rl.Camera2D,
 
@@ -50,10 +50,10 @@ pub const View = struct {
     const screen_width = 1920;
     const screen_height = 1080;
 
-    pub fn init(allocator: *std.mem.Allocator, name: []const u8) View {
+    pub fn init(gpa: *std.mem.Allocator, name: []const u8) View {
         const view = View{
-            .allocator = allocator,
-            .cache = TextureCache.init(allocator.*),
+            .gpa = gpa,
+            .cache = TextureCache.init(gpa.*),
             .camera = rl.Camera2D{
                 .offset = rl.Vector2{ .x = screen_width / 2, .y = screen_height / 2 },
                 .target = rl.Vector2{ .x = 0, .y = 0 },
@@ -87,7 +87,7 @@ pub const View = struct {
     }
 
     pub fn pollEvents(self: *View) !std.ArrayList(FrontEvent) {
-        var list = std.ArrayList(FrontEvent).init(self.allocator.*);
+        var list = std.ArrayList(FrontEvent).init(self.gpa.*);
 
         if (Window.shouldClose()) {
             try list.append(.Quit);
@@ -99,7 +99,7 @@ pub const View = struct {
             var i: usize = 0;
             while (i < files.count) : (i += 1) {
                 const path = std.mem.span(files.paths[i]);
-                const copy = try self.allocator.dupe(u8, path);
+                const copy = try self.gpa.dupe(u8, path);
                 try list.append(.{ .Editor = .{ .FileOpen = copy } });
             }
         }

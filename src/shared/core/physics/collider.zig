@@ -44,9 +44,9 @@ pub const Collider = struct {
 pub const PrefabDTO = struct {
     colliders: []const Collider,
 
-    pub fn copy(self: PrefabDTO, allocator: *std.mem.Allocator) !PrefabDTO {
+    pub fn copy(self: PrefabDTO, gpa: *std.mem.Allocator) !PrefabDTO {
         const n = self.colliders.len;
-        var new_colliders = try allocator.alloc(Collider, n);
+        var new_colliders = try gpa.alloc(Collider, n);
 
         for (self.colliders, 0..) |c, i| {
             new_colliders[i] = Collider{
@@ -62,13 +62,13 @@ pub const PrefabDTO = struct {
         };
     }
 
-    pub fn free(self: PrefabDTO, allocator: *std.mem.Allocator) void {
-        allocator.free(self.colliders);
+    pub fn free(self: PrefabDTO, gpa: *std.mem.Allocator) void {
+        gpa.free(self.colliders);
     }
 
-    pub fn fromPrefab(prefab: *const Prefab, allocator: std.mem.Allocator) !PrefabDTO {
+    pub fn fromPrefab(prefab: *const Prefab, gpa: std.mem.Allocator) !PrefabDTO {
         const dto = PrefabDTO{
-            .colliders = try allocator.alloc(Collider, prefab.colliders.items.len),
+            .colliders = try gpa.alloc(Collider, prefab.colliders.items.len),
         };
 
         for (prefab.colliders.items, 0..) |*col, i| {
@@ -78,8 +78,8 @@ pub const PrefabDTO = struct {
         return dto;
     }
 
-    pub fn toPrefab(self: PrefabDTO, allocator: *std.mem.Allocator) !Prefab {
-        var prefab = Prefab.init(allocator);
+    pub fn toPrefab(self: PrefabDTO, gpa: *std.mem.Allocator) !Prefab {
+        var prefab = Prefab.init(gpa);
         for (self.colliders) |col| {
             try prefab.colliders.append(col);
         }
@@ -88,14 +88,14 @@ pub const PrefabDTO = struct {
 };
 
 pub const Prefab = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     colliders: std.ArrayList(Collider),
     //behavior (e.g turret, door)
 
-    pub fn init(allocator: *std.mem.Allocator) Prefab {
+    pub fn init(gpa: *std.mem.Allocator) Prefab {
         return Prefab{
-            .allocator = allocator,
-            .colliders = std.ArrayList(Collider).init(allocator.*),
+            .gpa = gpa,
+            .colliders = std.ArrayList(Collider).init(gpa.*),
         };
     }
 

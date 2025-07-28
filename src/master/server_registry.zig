@@ -25,13 +25,13 @@ const ServerInfo = @import("extra").network.ServerInfo;
 // ----------------------------
 
 pub const ServerRegistry = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     servers: std.ArrayList(ServerInfo),
 
-    pub fn init(allocator: *std.mem.Allocator) !ServerRegistry {
+    pub fn init(gpa: *std.mem.Allocator) !ServerRegistry {
         return ServerRegistry{
-            .allocator = allocator,
-            .servers = try std.ArrayList(ServerInfo).initCapacity(allocator.*, 8),
+            .gpa = gpa,
+            .servers = try std.ArrayList(ServerInfo).initCapacity(gpa.*, 8),
         };
     }
 

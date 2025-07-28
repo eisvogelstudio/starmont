@@ -55,8 +55,8 @@ pub fn send(socket: *net.Socket, batch: Batch) !void {
     }
 }
 
-pub fn receive(socket: *net.Socket, allocator: *std.mem.Allocator) ![]Batch {
-    var batches = std.ArrayList(Batch).init(allocator.*);
+pub fn receive(socket: *net.Socket, gpa: *std.mem.Allocator) ![]Batch {
+    var batches = std.ArrayList(Batch).init(gpa.*);
     var buffer: [1024]u8 = undefined;
     const readResult = socket.reader().read(buffer[0..]);
     if (readResult) |n| {
@@ -68,7 +68,7 @@ pub fn receive(socket: *net.Socket, allocator: *std.mem.Allocator) ![]Batch {
             const reader = stream.reader();
 
             while (stream.pos > stream.buffer.len) {
-                const msg = Batch.deserialize(reader, allocator);
+                const msg = Batch.deserialize(reader, gpa);
                 try batches.append(msg);
             }
         }

@@ -213,7 +213,7 @@ pub const QuadNode = struct {
     pub const merge_time = 10;
     pub const split_threshhold = 50;
 
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     owner: ?ServerId,
     pressure: f32,
     depth: u8,
@@ -223,9 +223,9 @@ pub const QuadNode = struct {
     children: ?[]*QuadNode,
     below_threshhold_since: i64,
 
-    fn init(allocator: *std.mem.Allocator, rectangle: Rect, depth: u8) QuadNode {
+    fn init(gpa: *std.mem.Allocator, rectangle: Rect, depth: u8) QuadNode {
         return QuadNode{
-            .allocator = allocator,
+            .gpa = gpa,
             .owner = null,
             .pressure = 0,
             .depth = depth,
@@ -241,9 +241,9 @@ pub const QuadNode = struct {
         if (self.children) |children| {
             for (children) |child| {
                 child.deinit();
-                self.allocator.destroy(child);
+                self.gpa.destroy(child);
             }
-            self.allocator.free(children);
+            self.gpa.free(children);
             self.children = null;
         }
     }
@@ -251,7 +251,7 @@ pub const QuadNode = struct {
     pub fn split(self: *QuadNode) void {
         if (self.children != null) return;
 
-        const alloc = self.allocator;
+        const alloc = self.gpa;
         const next_depth = self.depth + 1;
 
         self.children = alloc.alloc(*QuadNode, 4) catch unreachable;
@@ -266,7 +266,7 @@ pub const QuadNode = struct {
         for (self.children.?, 0..) |*child_ptr, i| {
             const child = alloc.create(QuadNode) catch unreachable;
             child.* = QuadNode{
-                .allocator = alloc,
+                .gpa = alloc,
                 .owner = null,
                 .pressure = split_threshhold - 1,
                 .depth = next_depth,
@@ -286,10 +286,10 @@ pub const QuadNode = struct {
         var totalPressure: f32 = 0;
         for (self.children.?) |child| {
             totalPressure += child.pressure;
-            self.allocator.destroy(child);
+            self.gpa.destroy(child);
         }
 
-        self.allocator.free(self.children.?);
+        self.gpa.free(self.children.?);
         self.children = null;
         self.pressure = totalPressure;
         self.below_threshhold_since = std.time.timestamp();
@@ -378,14 +378,14 @@ pub const QuadNode = struct {
 
 pub const QuadTree = struct {
     root: QuadNode,
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
 
     pub fn init(
-        allocator: *std.mem.Allocator,
+        gpa: *std.mem.Allocator,
     ) !QuadTree {
         return QuadTree{
-            .root = QuadNode.init(allocator, Rect{ .x = 0, .y = 0, .width = QuadNode.cells_per_axis, .height = QuadNode.cells_per_axis }, 0),
-            .allocator = allocator,
+            .root = QuadNode.init(gpa, Rect{ .x = 0, .y = 0, .width = QuadNode.cells_per_axis, .height = QuadNode.cells_per_axis }, 0),
+            .gpa = gpa,
         };
     }
 
@@ -417,20 +417,20 @@ pub const QuadTree = struct {
         return null;
     }
 
-    pub fn findNeighbour(self: *QuadNode, dir: Direction, allocator: *std.mem.Allocator) ![]*QuadNode {
+    pub fn findNeighbour(self: *QuadNode, dir: Direction, gpa: *std.mem.Allocator) ![]*QuadNode {
         const maybe_neighbour = findSameDepthNeighbor(self, dir);
 
         if (maybe_neighbour) |neighbour| {
             if (neighbour.isLeaf()) {
-                return allocator.alloc(*QuadNode, 1) catch unreachable;
+                return gpa.alloc(*QuadNode, 1) catch unreachable;
             } else {
-                var list = std.ArrayList(*QuadNode).init(allocator);
+                var list = std.ArrayList(*QuadNode).init(gpa);
                 descendDeeper(neighbour);
                 return try list.toOwnedSlice();
             }
         }
 
-        return allocator.alloc(*QuadNode, 0) catch unreachable;
+        return gpa.alloc(*QuadNode, 0) catch unreachable;
     }
 
     //fn getQuadrantInParent(node: *QuadNode) Quadrant {
