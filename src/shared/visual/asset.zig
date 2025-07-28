@@ -70,7 +70,7 @@ pub const PrefabDTO = struct {
         allocator.free(self.assets);
     }
 
-    pub fn from(prefab: *const Prefab, allocator: std.mem.Allocator) !PrefabDTO {
+    pub fn fromPrefab(prefab: *const Prefab, allocator: std.mem.Allocator) !PrefabDTO {
         const dto = PrefabDTO{
             .assets = try allocator.alloc(Asset, prefab.assets.items.len),
         };
@@ -82,7 +82,7 @@ pub const PrefabDTO = struct {
         return dto;
     }
 
-    pub fn to(self: PrefabDTO, allocator: *std.mem.Allocator) !Prefab {
+    pub fn toPrefab(self: PrefabDTO, allocator: *std.mem.Allocator) !Prefab {
         var prefab = Prefab.init(allocator);
         for (self.assets) |asset| {
             try prefab.assets.append(asset);

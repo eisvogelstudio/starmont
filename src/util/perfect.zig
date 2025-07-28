@@ -20,6 +20,7 @@ const std = @import("std");
 
 pub fn PerfectStringMap(comptime keys_input: []const []const u8) type {
     comptime {
+        @setEvalBranchQuota(10_000);
         const n = keys_input.len;
 
         var key_list: [n][]const u8 = undefined;
@@ -61,7 +62,7 @@ pub fn PerfectStringMap(comptime keys_input: []const []const u8) type {
 
             pub fn getId(key: []const u8) ?usize {
                 const i = std.hash.Murmur3_32.hashWithSeed(key, final_seed) % n;
-                if (std.mem.eql(u8, key, keys[i])) return values[i];
+                if (std.mem.eql(u8, key, keys[i])) return i;
                 return null;
             }
 
@@ -84,29 +85,29 @@ const expect = std.testing.expect;
 const expectEqualStrings = std.testing.expectEqualStrings;
 
 test "PerfectStringMap basic functionality" {
-    const MyMap = PerfectStringMap(&[_][]const u8{
+    const TestMap = PerfectStringMap(&[_][]const u8{
         "apple",
         "banana",
-        "carrot",
+        "pear",
     });
 
-    try expect(MyMap.count() == 3);
-    try expect(MyMap.has("apple"));
-    try expect(MyMap.has("banana"));
-    try expect(MyMap.has("carrot"));
-    try expect(!MyMap.has("pear"));
+    try expect(TestMap.count() == 3);
+    try expect(TestMap.has("apple"));
+    try expect(TestMap.has("banana"));
+    try expect(TestMap.has("pear"));
+    try expect(!TestMap.has("carrot"));
 
-    const id_apple = MyMap.getId("apple") orelse return error.TestFail;
-    const id_banana = MyMap.getId("banana") orelse return error.TestFail;
-    const id_carrot = MyMap.getId("carrot") orelse return error.TestFail;
+    const id_apple = TestMap.getId("apple") orelse return error.TestFail;
+    const id_banana = TestMap.getId("banana") orelse return error.TestFail;
+    const id_pear = TestMap.getId("pear") orelse return error.TestFail;
 
-    try expect(MyMap.getString(id_apple).len > 0);
-    try expectEqualStrings("apple", MyMap.getString(id_apple));
-    try expectEqualStrings("banana", MyMap.getString(id_banana));
-    try expectEqualStrings("carrot", MyMap.getString(id_carrot));
+    try expect(TestMap.getString(id_apple).len > 0);
+    try expectEqualStrings("apple", TestMap.getString(id_apple));
+    try expectEqualStrings("banana", TestMap.getString(id_banana));
+    try expectEqualStrings("pear", TestMap.getString(id_pear));
 
     // IDs müssen eindeutig sein
     try expect(id_apple != id_banana);
-    try expect(id_banana != id_carrot);
-    try expect(id_apple != id_carrot);
+    try expect(id_banana != id_pear);
+    try expect(id_apple != id_pear);
 }

@@ -40,12 +40,18 @@ const log = std.log.scoped(.control);
 const name = "editor";
 // ╚══════════════════════════════════════════════════════════════════╝
 
+const Current = struct {
+    ref: ?NodeRef = null,
+    meta: ?NodeMeta = null,
+    core: ?core.Prefab = null,
+    visual: ?visual.Prefab = null,
+};
+
 // ┌──────────────────── State ────────────────────┐
 const State = struct {
     should_stop: bool = false,
     selection: SelectionState = .{},
-    current: ?NodeMeta = null,
-    current_ref: ?NodeRef = null,
+    current: Current = Current{},
 };
 // └───────────────────────────────────────────────┘
 
@@ -192,8 +198,11 @@ pub const Control = struct {
 
         if (std.mem.endsWith(u8, path, meta_ext)) {
             const base = path[0 .. path.len - meta_ext.len];
-            self.state.current = self.cache.loadMeta(NodeRef.fromPath(util.stripBeforeStarmont(base))).toMeta(self.allocator) catch unreachable;
-            self.state.current_ref = NodeRef.fromPath(util.stripBeforeStarmont(base));
+            const ref = NodeRef.fromPath(util.stripBeforeStarmont(base));
+            self.state.current.ref = ref;
+            self.state.current.meta = self.cache.loadMeta(ref).toMeta(self.allocator) catch unreachable;
+            self.state.current.core = self.cache.loadCore(ref).toPrefab(self.allocator) catch unreachable;
+            self.state.current.visual = self.cache.loadVisual(ref).to(self.allocator) catch unreachable;
         } else if (std.mem.endsWith(u8, path, core_ext)) {
             const base = path[0 .. path.len - core_ext.len];
             _ = self.cache.loadCore(NodeRef.fromPath(util.stripBeforeStarmont(base)));
@@ -248,8 +257,10 @@ pub const Control = struct {
     fn readImage(self: *Control, path: []const u8) !void {
         if (std.mem.endsWith(u8, path, ".png")) {
             const asset = try visual.Asset.init(self.allocator, path);
-            //try self.state.current.node.?.visuals.append(asset);
-            _ = asset;
+            if (self.state.current != null) {
+                const a = self.cache.loadVisual(self.state.current_ref.?).to(self.allocator) catch unreachable;
+                a.assets.append(asset);
+            }
         } else {
             std.debug.print("unsupported file type", .{});
         }

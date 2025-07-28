@@ -74,6 +74,7 @@ pub const PrefabCache = struct {
 
     pub fn loadMeta(self: *PrefabCache, ref: no.NodeRef) *const no.NodeMetaDTO {
         const id = ref.getId();
+        std.debug.print("{any} - {s}\n", .{ ref, ref.getPath() });
 
         self.last_used.put(id, std.time.milliTimestamp()) catch unreachable;
 
