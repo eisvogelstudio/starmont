@@ -1,16 +1,4 @@
-{
-    .name = "ship",
-    .version = "0.1.0",
-    .subs = [
-    {
-        .ref = path { .value = "res/prefab/engine" },
-        .data = {
-            .offset = { .x = 12.0, .y = 34.0, },
-            .rotation = degrees { .value = 0e0 },
-        },},
-    ],
-    .data = {
-            .offset = { .x = 12.0, .y = 34.0, },
-            .rotation = degrees { .value = 0e0 },
-        },
-}
+.name = "",
+.version = "",
+.subs = [],
+.data = { .offset = { .x = 0e0, .y = 0e0 }, .rotation = degrees { .value = 0e0 } },

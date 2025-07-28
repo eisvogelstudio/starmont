@@ -84,19 +84,19 @@ const TransformState = struct {
 };
 
 pub const Control = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     view: View,
     state: State,
     cache: PrefabCache,
 
     arena_allocator: std.heap.ArenaAllocator = std.heap.ArenaAllocator.init(std.heap.page_allocator),
 
-    pub fn init(allocator: *std.mem.Allocator) Control {
+    pub fn init(gpa: *std.mem.Allocator) Control {
         const control = Control{
-            .allocator = allocator,
-            .view = View.init(allocator, name),
+            .gpa = gpa,
+            .view = View.init(gpa, name),
             .state = State{},
-            .cache = PrefabCache.init(allocator),
+            .cache = PrefabCache.init(gpa),
         };
 
         log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
@@ -110,8 +110,10 @@ pub const Control = struct {
 
         self.cache.deinit();
 
-        //if (self.state.current_ref) |cur| self.allocator.free(cur.getPath());
-        if (self.state.current) |cur| cur.deinit();
+        //if (self.state.current_ref) |cur| self.gpa.free(cur.getPath());
+        if (self.state.current.meta) |cur| cur.deinit();
+        if (self.state.current.core) |cur| _ = cur;
+        if (self.state.current.visual) |*cur| cur.deinit();
 
         self.view.deinit();
         self.arena_allocator.deinit();
@@ -125,7 +127,7 @@ pub const Control = struct {
             for (events.items) |e| {
                 if (e == .Editor) {
                     switch (e.Editor) {
-                        .FileOpen => |p| self.allocator.free(p),
+                        .FileOpen => |p| self.gpa.free(p),
                         else => {},
                     }
                 }
@@ -147,7 +149,14 @@ pub const Control = struct {
         }
 
         self.view.begin();
-        if (self.state.current != null) self.view.renderPrefab(self.cache.loadVisual(self.state.current_ref.?), self.state.selection.selected_part);
+
+        if (self.state.current.visual) |*vis| {
+            for (self.state.current.meta.?.subs.items) |sub| {
+                const fab = self.cache.loadVisual(sub.ref);
+                self.view.renderPrefabDTO(fab, sub.data, self.state.selection.selected_part);
+            }
+            self.view.renderPrefab(vis, self.state.selection.selected_part);
+        }
         self.view.end();
     }
 
@@ -175,14 +184,15 @@ pub const Control = struct {
             .FileOpen => |path| try self.openFile(path),
             .DeleteSelected => self.deleteSelected(),
             .FileSave => {
-                //if (self.state.current_path) |p| {
-                //    std.debug.print("{s}\n", .{self.state.current_path.?});
-                //    try self.savePrefab(p);
-                //}
+                if (self.state.current.ref) |p| {
+                    std.debug.print("{s}\n", .{p.getPath()});
+                    self.cache.storeMeta(self.state.current.ref.?, self.state.current.meta.?);
+                    //self.cache.storeVisual(self.state.current.ref.?, self.state.current.meta.?);
+                }
             },
             .FileSaveAs => |p| {
-                //if (self.state.current_path) |old| self.allocator.free(old);
-                //self.state.current_path = try self.allocator.dupe(u8, p);
+                //if (self.state.current_path) |old| self.gpa.free(old);
+                //self.state.current_path = try self.gpa.dupe(u8, p);
                 //std.debug.print("{s}\n", .{self.state.current_path.?});
                 //try self.savePrefab(p);
                 _ = p;
@@ -200,9 +210,9 @@ pub const Control = struct {
             const base = path[0 .. path.len - meta_ext.len];
             const ref = NodeRef.fromPath(util.stripBeforeStarmont(base));
             self.state.current.ref = ref;
-            self.state.current.meta = self.cache.loadMeta(ref).toMeta(self.allocator) catch unreachable;
-            self.state.current.core = self.cache.loadCore(ref).toPrefab(self.allocator) catch unreachable;
-            self.state.current.visual = self.cache.loadVisual(ref).to(self.allocator) catch unreachable;
+            self.state.current.meta = self.cache.loadMeta(ref).toMeta(self.gpa) catch unreachable;
+            //self.state.current.core = self.cache.loadCore(ref).toPrefab(self.gpa) catch unreachable;
+            self.state.current.visual = self.cache.loadVisual(ref).toPrefab(self.gpa) catch unreachable;
         } else if (std.mem.endsWith(u8, path, core_ext)) {
             const base = path[0 .. path.len - core_ext.len];
             _ = self.cache.loadCore(NodeRef.fromPath(util.stripBeforeStarmont(base)));
@@ -220,16 +230,16 @@ pub const Control = struct {
     //     if (std.mem.endsWith(u8, path, extention)) {
     //         self.state.current.is = true;
     //         const base = path[0 .. path.len - extention.len];
-    //         self.state.current.path = try self.allocator.dupe(u8, base[0..base.len]);
+    //         self.state.current.path = try self.gpa.dupe(u8, base[0..base.len]);
     //
     //         try self.readFile(path, true);
     //
-    //         const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}.visual.ziggy", .{base});
-    //         defer self.allocator.free(visual_path);
+    //         const visual_path = try std.fmt.allocPrint(self.gpa.*, "{s}.visual.ziggy", .{base});
+    //         defer self.gpa.free(visual_path);
     //         try self.readFile(visual_path, true);
     //
-    //         const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}.core.ziggy", .{base});
-    //         defer self.allocator.free(core_path);
+    //         const core_path = try std.fmt.allocPrint(self.gpa.*, "{s}.core.ziggy", .{base});
+    //         defer self.gpa.free(core_path);
     //         try self.readFile(core_path, true);
     //     } else {
     //         std.debug.print("open a meta file (" ++ extention ++ ") first", .{});
@@ -239,12 +249,12 @@ pub const Control = struct {
     //         const base = path[0 .. path.len - extention.len];
     //         try self.readFile(path, false);
     //
-    //         const visual_path = try std.fmt.allocPrint(self.allocator.*, "{s}visual.ziggy", .{base});
-    //         defer self.allocator.free(visual_path);
+    //         const visual_path = try std.fmt.allocPrint(self.gpa.*, "{s}visual.ziggy", .{base});
+    //         defer self.gpa.free(visual_path);
     //         try self.readFile(visual_path, false);
     //
-    //         const core_path = try std.fmt.allocPrint(self.allocator.*, "{s}core.ziggy", .{base});
-    //         defer self.allocator.free(core_path);
+    //         const core_path = try std.fmt.allocPrint(self.gpa.*, "{s}core.ziggy", .{base});
+    //         defer self.gpa.free(core_path);
     //         try self.readFile(core_path, false);
     //     } else if (std.mem.endsWith(u8, path, ".png")) {
     //         try self.readImage(path);
@@ -256,10 +266,9 @@ pub const Control = struct {
 
     fn readImage(self: *Control, path: []const u8) !void {
         if (std.mem.endsWith(u8, path, ".png")) {
-            const asset = try visual.Asset.init(self.allocator, path);
-            if (self.state.current != null) {
-                const a = self.cache.loadVisual(self.state.current_ref.?).to(self.allocator) catch unreachable;
-                a.assets.append(asset);
+            const asset = try visual.Asset.init(self.gpa, path);
+            if (self.state.current.visual) |*vis| {
+                vis.assets.append(asset) catch unreachable;
             }
         } else {
             std.debug.print("unsupported file type", .{});
@@ -269,7 +278,7 @@ pub const Control = struct {
     fn deleteSelected(self: *Control) void {
         //if (self.state.selection.selected_part) |idx| {
         //    const part = self.state.visual.orderedRemove(idx);
-        //    self.allocator.free(part.image_path);
+        //    self.gpa.free(part.image_path);
         //    self.state.selection.selected_part = null;
         //}
         _ = self;

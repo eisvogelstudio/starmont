@@ -35,15 +35,15 @@ const velocity_max: core.Velocity = .{
 };
 
 pub const Model = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     registry: core.Registry,
 
     var random = std.Random.DefaultPrng.init(0);
 
-    pub fn init(allocator: *std.mem.Allocator) Model {
+    pub fn init(gpa: *std.mem.Allocator) Model {
         const model = Model{
-            .allocator = allocator,
-            .registry = core.Registry.init(allocator, random.random()),
+            .gpa = gpa,
+            .registry = core.Registry.init(gpa, random.random()),
         };
 
         return model;

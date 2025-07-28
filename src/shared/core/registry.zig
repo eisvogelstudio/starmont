@@ -39,7 +39,7 @@ pub const Id = struct {
 };
 
 pub const Registry = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     random: std.Random,
     world: *ecs.world_t,
     tick: u64 = 0,
@@ -47,14 +47,14 @@ pub const Registry = struct {
     id_to_entity: std.AutoHashMap(Id, ecs.entity_t),
     entity_to_id: std.AutoHashMap(ecs.entity_t, Id),
 
-    pub fn init(allocator: *std.mem.Allocator, random: std.Random) Registry {
+    pub fn init(gpa: *std.mem.Allocator, random: std.Random) Registry {
         var registry = Registry{
-            .allocator = allocator,
+            .gpa = gpa,
             .random = random,
             .world = ecs.init(),
             .tick = 0,
-            .id_to_entity = std.AutoHashMap(Id, ecs.entity_t).init(allocator.*),
-            .entity_to_id = std.AutoHashMap(ecs.entity_t, Id).init(allocator.*),
+            .id_to_entity = std.AutoHashMap(Id, ecs.entity_t).init(gpa.*),
+            .entity_to_id = std.AutoHashMap(ecs.entity_t, Id).init(gpa.*),
         };
 
         registry.registerComponents();

@@ -34,6 +34,7 @@ const Window = @import("frontend").Window;
 const TextureCache = @import("frontend").TextureCache;
 const FrontEvent = @import("frontend").FrontEvent;
 const NodeMeta = @import("shared").NodeMeta;
+const NodeData = @import("shared").NodeData;
 const rl = @import("frontend").rl;
 // ------------------------------
 
@@ -42,7 +43,7 @@ const log = std.log.scoped(.view);
 // ╚══════════════════════════════════════════════════════════════════╝
 
 pub const View = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     cache: TextureCache,
     camera: rl.Camera2D,
 
@@ -50,10 +51,10 @@ pub const View = struct {
     const screen_width = 1920;
     const screen_height = 1080;
 
-    pub fn init(allocator: *std.mem.Allocator, name: []const u8) View {
+    pub fn init(gpa: *std.mem.Allocator, name: []const u8) View {
         const view = View{
-            .allocator = allocator,
-            .cache = TextureCache.init(allocator.*),
+            .gpa = gpa,
+            .cache = TextureCache.init(gpa.*),
             .camera = rl.Camera2D{
                 .offset = rl.Vector2{ .x = screen_width / 2, .y = screen_height / 2 },
                 .target = rl.Vector2{ .x = 0, .y = 0 },
@@ -87,7 +88,7 @@ pub const View = struct {
     }
 
     pub fn pollEvents(self: *View) !std.ArrayList(FrontEvent) {
-        var list = std.ArrayList(FrontEvent).init(self.allocator.*);
+        var list = std.ArrayList(FrontEvent).init(self.gpa.*);
 
         if (Window.shouldClose()) {
             try list.append(.Quit);
@@ -99,7 +100,7 @@ pub const View = struct {
             var i: usize = 0;
             while (i < files.count) : (i += 1) {
                 const path = std.mem.span(files.paths[i]);
-                const copy = try self.allocator.dupe(u8, path);
+                const copy = try self.gpa.dupe(u8, path);
                 try list.append(.{ .Editor = .{ .FileOpen = copy } });
             }
         }
@@ -129,22 +130,22 @@ pub const View = struct {
         return list;
     }
 
-    pub fn renderPrefab(self: *View, prefab: *const visual.PrefabDTO, selected: ?usize) void {
-        for (prefab.assets, 0..) |part, idx| {
-            const tex = self.cache.get(part.path) catch {
-                log.warn("texture load failed: {s}", .{part.path});
+    pub fn renderPrefab(self: *View, prefab: *const visual.Prefab, selected: ?usize) void {
+        for (prefab.assets.items, 0..) |asset, idx| {
+            const tex = self.cache.get(asset.path) catch {
+                log.warn("texture load failed: {s}", .{asset.path});
                 continue;
             };
 
             const origin = rl.Vector2{
-                .x = @as(f32, @floatFromInt(tex.width)) * part.pivot.x,
-                .y = @as(f32, @floatFromInt(tex.height)) * part.pivot.y,
+                .x = @as(f32, @floatFromInt(tex.width)) * asset.pivot.x,
+                .y = @as(f32, @floatFromInt(tex.height)) * asset.pivot.y,
             };
             const dest = rl.Rectangle{
-                .x = part.position.x,
-                .y = part.position.y,
-                .width = @as(f32, @floatFromInt(tex.width)) * part.scale.x,
-                .height = @as(f32, @floatFromInt(tex.height)) * part.scale.y,
+                .x = asset.position.x,
+                .y = asset.position.y,
+                .width = @as(f32, @floatFromInt(tex.width)) * asset.scale.x,
+                .height = @as(f32, @floatFromInt(tex.height)) * asset.scale.y,
             };
 
             rl.drawTexturePro(
@@ -152,7 +153,46 @@ pub const View = struct {
                 rl.Rectangle{ .x = 0, .y = 0, .width = @floatFromInt(tex.width), .height = @floatFromInt(tex.height) },
                 dest,
                 origin,
-                part.rotation.toDegrees(),
+                asset.rotation.toDegrees(),
+                rl.Color.white,
+            );
+
+            if (selected != null and selected.? == idx) {
+                rl.drawRectangleLines(
+                    @intFromFloat(dest.x - origin.x),
+                    @intFromFloat(dest.y - origin.y),
+                    @intFromFloat(dest.width),
+                    @intFromFloat(dest.height),
+                    rl.Color.yellow,
+                );
+            }
+        }
+    }
+
+    pub fn renderPrefabDTO(self: *View, prefab: *const visual.PrefabDTO, data: NodeData, selected: ?usize) void {
+        for (prefab.assets, 0..) |asset, idx| {
+            const tex = self.cache.get(asset.path) catch {
+                log.warn("texture load failed: {s}", .{asset.path});
+                continue;
+            };
+
+            const origin = rl.Vector2{
+                .x = @as(f32, @floatFromInt(tex.width)) * asset.pivot.x,
+                .y = @as(f32, @floatFromInt(tex.height)) * asset.pivot.y,
+            };
+            const dest = rl.Rectangle{
+                .x = asset.position.x,
+                .y = asset.position.y,
+                .width = @as(f32, @floatFromInt(tex.width)) * asset.scale.x,
+                .height = @as(f32, @floatFromInt(tex.height)) * asset.scale.y,
+            };
+
+            rl.drawTexturePro(
+                tex,
+                rl.Rectangle{ .x = 0, .y = 0, .width = @floatFromInt(tex.width), .height = @floatFromInt(tex.height) },
+                dest,
+                origin,
+                asset.rotation.toDegrees() + data.rotation.toDegrees(),
                 rl.Color.white,
             );
 

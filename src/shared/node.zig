@@ -88,41 +88,41 @@ pub const NodeMetaLink = struct {
 pub const NodeMetaDTO = struct {
     name: []const u8 = "",
     version: []const u8 = "",
-    subs: []const NodeMetaLink = &[_]NodeMetaLink{},
+    subs: []NodeMetaLink = &[_]NodeMetaLink{},
     data: NodeData = NodeData{ .offset = util.Vec2.zero(), .rotation = util.Angle.zero() },
 
-    pub fn copy(self: NodeMetaDTO, allocator: *std.mem.Allocator) !NodeMetaDTO {
+    pub fn copy(self: NodeMetaDTO, gpa: *std.mem.Allocator) !NodeMetaDTO {
         return NodeMetaDTO{
-            .name = try allocator.dupe(u8, self.name),
-            .version = try allocator.dupe(u8, self.version),
-            .subs = try allocator.dupe(NodeMetaLink, self.subs),
+            .name = try gpa.dupe(u8, self.name),
+            .version = try gpa.dupe(u8, self.version),
+            .subs = try gpa.dupe(NodeMetaLink, self.subs),
             .data = self.data,
         };
     }
 
-    pub fn free(self: *NodeMetaDTO, allocator: *std.mem.Allocator) void {
-        allocator.free(self.name);
-        allocator.free(self.version);
-        allocator.free(self.subs);
+    pub fn free(self: *NodeMetaDTO, gpa: *std.mem.Allocator) void {
+        gpa.free(self.name);
+        gpa.free(self.version);
+        gpa.free(self.subs);
     }
 
-    pub fn fromMeta(meta: *const NodeMeta, allocator: std.mem.Allocator) !NodeMetaDTO {
+    pub fn fromMeta(meta: *const NodeMeta, gpa: std.mem.Allocator) !NodeMetaDTO {
         const dto = NodeMetaDTO{
-            .name = try allocator.dupe(u8, meta.name),
-            .version = try allocator.dupe(u8, meta.version),
-            .subs = try allocator.alloc(NodeMetaLink, meta.subs.items.len),
-            .data = meta.data,
+            .name = try gpa.dupe(u8, meta.name),
+            .version = try gpa.dupe(u8, meta.version),
+            .subs = try gpa.alloc(NodeMetaLink, meta.subs.items.len),
+            //.data = meta.data,
         };
 
         for (meta.subs.items, 0..) |*link, i| {
-            dto.subs[i] = link;
+            dto.subs[i] = link.*;
         }
 
         return dto;
     }
 
-    pub fn toMeta(self: NodeMetaDTO, allocator: *std.mem.Allocator) !NodeMeta {
-        var meta = NodeMeta.init(allocator);
+    pub fn toMeta(self: NodeMetaDTO, gpa: *std.mem.Allocator) !NodeMeta {
+        var meta = NodeMeta.init(gpa);
         for (self.subs) |link| {
             try meta.subs.append(link);
         }
@@ -131,22 +131,22 @@ pub const NodeMetaDTO = struct {
 };
 
 pub const NodeMeta = struct {
-    allocator: *std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     name: []const u8 = "",
     version: []const u8 = "",
     subs: std.ArrayList(NodeMetaLink),
-    data: NodeData = NodeData{ .offset = util.Vec2.zero(), .rotation = util.Angle.zero() },
+    //data: NodeData = NodeData{ .offset = util.Vec2.zero(), .rotation = util.Angle.zero() },
 
-    pub fn init(allocator: *std.mem.Allocator) NodeMeta {
+    pub fn init(gpa: *std.mem.Allocator) NodeMeta {
         return NodeMeta{
-            .allocator = allocator,
-            .subs = std.ArrayList(NodeMetaLink).init(allocator.*),
+            .gpa = gpa,
+            .subs = std.ArrayList(NodeMetaLink).init(gpa.*),
         };
     }
 
     pub fn deinit(self: NodeMeta) void {
-        self.allocator.free(self.name);
-        self.allocator.free(self.version);
+        self.gpa.free(self.name);
+        self.gpa.free(self.version);
         self.subs.deinit();
     }
 };
