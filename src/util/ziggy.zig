@@ -23,6 +23,8 @@ const std = @import("std");
 // -------------------------
 
 pub fn load(allocator: std.mem.Allocator, path: []const u8, T: type) !?T {
+    std.debug.print("opening: {s}\n", .{path});
+
     const fs = std.fs.cwd();
     const file = fs.openFile(path, .{}) catch |err| {
         switch (err) {
@@ -41,7 +43,10 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8, T: type) !?T {
     const file_data = allocator.dupeZ(u8, buffer) catch unreachable;
     defer allocator.free(file_data);
 
-    const result = ziggy.parseLeaky(T, allocator, file_data, .{}) catch {
+    var diagnostic: ziggy.Diagnostic = ziggy.Diagnostic{ .path = path };
+    const result = ziggy.parseLeaky(T, allocator, file_data, .{ .diagnostic = &diagnostic }) catch {
+        const stderr = std.io.getStdErr().writer();
+        try stderr.print("{any}", .{diagnostic.fmt(file_data)});
         return error.InvalidFormat;
     };
 

@@ -33,7 +33,7 @@ const Input = @import("frontend").Input;
 const Window = @import("frontend").Window;
 const TextureCache = @import("frontend").TextureCache;
 const FrontEvent = @import("frontend").FrontEvent;
-const Node = @import("shared").Node;
+const NodeMeta = @import("shared").NodeMeta;
 const rl = @import("frontend").rl;
 // ------------------------------
 
@@ -129,18 +129,10 @@ pub const View = struct {
         return list;
     }
 
-    pub fn renderNode(self: *View, node: *Node, selected: ?usize) void {
-        for (node.sub_nodes.items) |*sub| {
-            self.renderNode(sub, null);
-        }
-
-        self.renderPrefab(&node.getVisual(), selected);
-    }
-
-    fn renderPrefab(self: *View, prefab: *const visual.Prefab, selected: ?usize) void {
-        for (prefab.parts, 0..) |part, idx| {
-            const tex = self.cache.get(part.image_path) catch {
-                log.warn("texture load failed: {s}", .{part.image_path});
+    pub fn renderPrefab(self: *View, prefab: *const visual.PrefabDTO, selected: ?usize) void {
+        for (prefab.assets, 0..) |part, idx| {
+            const tex = self.cache.get(part.path) catch {
+                log.warn("texture load failed: {s}", .{part.path});
                 continue;
             };
 

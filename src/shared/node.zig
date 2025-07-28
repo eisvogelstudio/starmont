@@ -23,116 +23,130 @@ const util = @import("util");
 // ------------------------------
 
 // ---------- local ----------
-const core = @import("core/core.zig");
-const visual = @import("visual/visual.zig");
+const co = @import("core/core.zig");
+const vi = @import("visual/visual.zig");
 // ---------------------------
 
-pub const NodeLink = struct {
-    file: []const u8 = "",
+pub const NodeData = struct {
     offset: util.Vec2,
     rotation: util.Angle,
 };
 
+const PrefabMap = util.PerfectStringMap(&[_][]const u8{
+    "res/prefab/other/ship",
+    "res/prefab/ship/ship",
+});
+
+pub const NodeRef = union(enum) {
+    id: struct { value: usize },
+    path: struct { value: []const u8 },
+
+    pub fn fromPath(path: []const u8) NodeRef {
+        var ref = NodeRef{ .path = .{ .value = path } };
+        ref.toId();
+        return ref;
+    }
+
+    pub fn toPath(self: *NodeRef) void {
+        switch (self) {
+            .id => |i| self.path.value = PrefabMap.getString(i.value),
+            .path => return,
+            else => unreachable,
+        }
+    }
+
+    pub fn toId(self: *NodeRef) void {
+        switch (self.*) {
+            .id => return,
+            .path => |p| {
+                const id = PrefabMap.getId(p.value) orelse @panic("invalid prefab path");
+                self.* = .{ .id = .{ .value = id } };
+            },
+        }
+    }
+
+    pub fn getPath(self: NodeRef) []const u8 {
+        return switch (self) {
+            .id => |i| PrefabMap.getString(i.value),
+            .path => |p| p.value,
+        };
+    }
+
+    pub fn getId(self: NodeRef) usize {
+        return switch (self) {
+            .id => |i| i.value,
+            .path => |p| PrefabMap.getId(p.value) orelse @panic("invalid prefab path"),
+        };
+    }
+};
+
+pub const NodeMetaLink = struct {
+    ref: NodeRef,
+    data: NodeData,
+};
+
+pub const NodeMetaDTO = struct {
+    name: []const u8 = "",
+    version: []const u8 = "",
+    subs: []const NodeMetaLink = &[_]NodeMetaLink{},
+    data: NodeData = NodeData{ .offset = util.Vec2.zero(), .rotation = util.Angle.zero() },
+
+    pub fn copy(self: NodeMetaDTO, allocator: *std.mem.Allocator) !NodeMetaDTO {
+        return NodeMetaDTO{
+            .name = try allocator.dupe(u8, self.name),
+            .version = try allocator.dupe(u8, self.version),
+            .subs = try allocator.dupe(NodeMetaLink, self.subs),
+            .data = self.data,
+        };
+    }
+
+    pub fn free(self: *NodeMetaDTO, allocator: *std.mem.Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.version);
+        allocator.free(self.subs);
+    }
+
+    pub fn fromMeta(meta: *const NodeMeta, allocator: std.mem.Allocator) !NodeMetaDTO {
+        const dto = NodeMetaDTO{
+            .name = try allocator.dupe(u8, meta.name),
+            .version = try allocator.dupe(u8, meta.version),
+            .subs = try allocator.alloc(NodeMetaLink, meta.subs.items.len),
+            .data = meta.data,
+        };
+
+        for (meta.subs.items, 0..) |*link, i| {
+            dto.subs[i] = link;
+        }
+
+        return dto;
+    }
+
+    pub fn toMeta(self: NodeMetaDTO, allocator: *std.mem.Allocator) !NodeMeta {
+        var meta = NodeMeta.init(allocator);
+        for (self.subs) |link| {
+            try meta.subs.append(link);
+        }
+        return meta;
+    }
+};
+
 pub const NodeMeta = struct {
+    allocator: *std.mem.Allocator,
     name: []const u8 = "",
-    dependencies: []const NodeLink = &[_]NodeLink{},
-};
+    version: []const u8 = "",
+    subs: std.ArrayList(NodeMetaLink),
+    data: NodeData = NodeData{ .offset = util.Vec2.zero(), .rotation = util.Angle.zero() },
 
-pub const NodeDTO = struct {
-    name: []const u8 = "",
-    dependencies: []const NodeLink = &[_]NodeLink{},
-    sub_nodes: []const NodeDTO = &[_]NodeDTO{},
-    visuals: []const visual.PrefabDTO = &[_]visual.PrefabDTO{},
-    cores: []const core.PrefabDTO = &[_]core.PrefabDTO{},
-
-    pub fn from(node: *const Node, allocator: std.mem.Allocator) !NodeDTO {
-        const sub_dtos = try allocator.alloc(NodeDTO, node.sub_nodes.items.len);
-        for (node.sub_nodes.items, 0..) |*sub, i| {
-            sub_dtos[i] = try NodeDTO.from(sub, allocator);
-        }
-
-        const visual_dtos = try allocator.alloc(visual.PrefabDTO, node.visuals.items.len);
-        for (node.visuals.items, 0..) |*v, i| {
-            visual_dtos[i] = try visual.PrefabDTO.from(v, allocator);
-        }
-
-        const core_dtos = try allocator.alloc(core.PrefabDTO, node.cores.items.len);
-        for (node.cores.items, 0..) |*c, i| {
-            core_dtos[i] = try core.PrefabDTO.from(c, allocator);
-        }
-
-        return NodeDTO{
-            .name = node.name,
-            .dependencies = &[_]NodeLink{}, // TODO if needed
-            .sub_nodes = sub_dtos,
-            .visuals = visual_dtos,
-            .cores = core_dtos,
-        };
-    }
-
-    pub fn to(self: NodeDTO, allocator: std.mem.Allocator) !Node {
-        var sub_nodes = std.ArrayList(Node).init(allocator);
-        for (self.sub_nodes) |sub_dto| {
-            try sub_nodes.append(try sub_dto.to(allocator));
-        }
-
-        var visuals = std.ArrayList(visual.Prefab).init(allocator);
-        for (self.visuals) |v| {
-            try visuals.append(try v.to(allocator));
-        }
-
-        var cores = std.ArrayList(core.Prefab).init(allocator);
-        for (self.cores) |c| {
-            try cores.append(try c.to(allocator));
-        }
-
-        return Node{
+    pub fn init(allocator: *std.mem.Allocator) NodeMeta {
+        return NodeMeta{
             .allocator = allocator,
-            .sub_nodes = sub_nodes,
-            .visuals = visuals,
-            .cores = cores,
-        };
-    }
-};
-
-pub const Node = struct {
-    allocator: std.mem.Allocator,
-    sub_nodes: std.ArrayList(Node),
-    visuals: std.ArrayList(visual.Prefab),
-    cores: std.ArrayList(core.Prefab),
-
-    pub fn init(allocator: std.mem.Allocator) Node {
-        return Node{
-            .allocator = allocator,
-            .sub_nodes = std.ArrayList(Node).init(allocator),
-            .visuals = std.ArrayList(visual.Prefab).init(allocator),
-            .cores = std.ArrayList(core.Prefab).init(allocator),
+            .subs = std.ArrayList(NodeMetaLink).init(allocator.*),
         };
     }
 
-    pub fn deinit(self: *Node) void {
-        for (self.sub_nodes.items) |*node| {
-            node.deinit();
-        }
-
-        for (self.visuals.items) |*vis| {
-            vis.deinit();
-        }
-
-        for (self.cores.items) |*cor| {
-            cor.deinit();
-        }
-
-        self.sub_nodes.deinit();
-        self.visuals.deinit();
-        self.cores.deinit();
-    }
-
-    pub fn getVisual(self: *Node) visual.Prefab {
-        return .{ .parts = self.visual.items };
-    }
-
-    pub fn getCore(self: *Node) core.Prefab {
-        return .{ .colliders = self.cores.items };
+    pub fn deinit(self: NodeMeta) void {
+        self.allocator.free(self.name);
+        self.allocator.free(self.version);
+        self.subs.deinit();
     }
 };

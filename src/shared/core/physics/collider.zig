@@ -43,11 +43,54 @@ pub const Collider = struct {
 
 pub const PrefabDTO = struct {
     colliders: []const Collider,
+
+    pub fn copy(self: PrefabDTO, allocator: *std.mem.Allocator) !PrefabDTO {
+        const n = self.colliders.len;
+        var new_colliders = try allocator.alloc(Collider, n);
+
+        for (self.colliders, 0..) |c, i| {
+            new_colliders[i] = Collider{
+                .shape = c.shape, // shallow copy (ok wenn shape kein Heap nutzt)
+                .offset = c.offset,
+                .rotation = c.rotation,
+                .is_sensor = c.is_sensor,
+            };
+        }
+
+        return PrefabDTO{
+            .colliders = new_colliders,
+        };
+    }
+
+    pub fn free(self: PrefabDTO, allocator: *std.mem.Allocator) void {
+        allocator.free(self.colliders);
+    }
+
+    pub fn fromPrefab(prefab: *const Prefab, allocator: std.mem.Allocator) !PrefabDTO {
+        const dto = PrefabDTO{
+            .colliders = try allocator.alloc(Collider, prefab.colliders.items.len),
+        };
+
+        for (prefab.colliders.items, 0..) |*col, i| {
+            dto.colliders[i] = col;
+        }
+
+        return dto;
+    }
+
+    pub fn toPrefab(self: PrefabDTO, allocator: *std.mem.Allocator) !Prefab {
+        var prefab = Prefab.init(allocator);
+        for (self.colliders) |col| {
+            try prefab.colliders.append(col);
+        }
+        return prefab;
+    }
 };
 
 pub const Prefab = struct {
     allocator: *std.mem.Allocator,
     colliders: std.ArrayList(Collider),
+    //behavior (e.g turret, door)
 
     pub fn init(allocator: *std.mem.Allocator) Prefab {
         return Prefab{
@@ -58,7 +101,7 @@ pub const Prefab = struct {
 
     pub fn deinit(self: *Prefab) void {
         for (self.colliders.items) |*c| {
-            c.deinit();
+            _ = c;
         }
         self.colliders.deinit();
     }

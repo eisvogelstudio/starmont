@@ -16,6 +16,8 @@
 
 // ╔══════════════════════════════ pack ══════════════════════════════╗
 pub const log = @import("log.zig");
+pub const PerfectStringMap = @import("perfect.zig").PerfectStringMap;
+pub const stripBeforeStarmont = @import("strip.zig").stripBeforeStarmont;
 pub const UUID4 = @import("uuid4.zig").UUID4;
 pub const ziggy = @import("ziggy.zig");
 // ┌──────────────────── geometry ────────────────────┐

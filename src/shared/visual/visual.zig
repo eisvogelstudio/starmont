@@ -16,6 +16,7 @@
 
 // ╔══════════════════════════════ pack ══════════════════════════════╗
 pub const Prefab = @import("asset.zig").Prefab;
+pub const PrefabDTO = @import("asset.zig").PrefabDTO;
 pub const Asset = @import("asset.zig").Asset;
 // ╚══════════════════════════════════════════════════════════════════╝
 

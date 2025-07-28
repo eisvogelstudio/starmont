@@ -18,6 +18,9 @@
 const std = @import("std");
 // -------------------------
 
+//const Degree = struct { value: f32 };
+//const Radian = struct { value: f32 };
+
 pub const Angle = union(enum) {
     degrees: struct { value: f32 },
     radians: struct { value: f32 },

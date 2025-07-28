@@ -27,6 +27,7 @@ pub const Identity = @import("character/identity.zig").Identity;
 // ┌──────────────────── physics ────────────────────┐
 pub const Collider = @import("physics/collider.zig").Collider;
 pub const Prefab = @import("physics/collider.zig").Prefab;
+pub const PrefabDTO = @import("physics/collider.zig").PrefabDTO;
 // └─────────────────────────────────────────────────┘
 // ┌──────────────────── world ────────────────────┐
 pub const tilemap = @import("world/tilemap.zig");
