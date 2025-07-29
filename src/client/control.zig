@@ -63,7 +63,7 @@ pub const Control = struct {
             .state = State{},
         };
 
-        log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
+        log.info("{s}-{s} v{s} started successfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
 
         return control;
@@ -74,7 +74,7 @@ pub const Control = struct {
         self.model.deinit();
         self.view.deinit();
 
-        log.info("stopped sucessfully", .{});
+        log.info("stopped successfully", .{});
     }
 
     pub fn update(self: *Control) void {

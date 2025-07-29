@@ -20,7 +20,7 @@ const testing = std.testing;
 // -------------------------
 
 // ---------- starmont --------
-const ServerId = @import("extra").network.SeverId;
+const ServerId = @import("extra").network.ServerId;
 const ServerInfo = @import("extra").network.ServerInfo;
 // ----------------------------
 

@@ -39,7 +39,7 @@ pub const Control = struct {
 
         control.server.open(11111);
 
-        log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
+        log.info("{s}-{s} v{s} started successfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
 
         return control;
@@ -48,7 +48,7 @@ pub const Control = struct {
     pub fn deinit(self: *Control) void {
         self.server.deinit();
 
-        log.info("stopped sucessfully", .{});
+        log.info("stopped successfully", .{});
     }
 
     pub fn update(self: *Control) void {
