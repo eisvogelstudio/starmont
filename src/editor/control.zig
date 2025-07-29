@@ -99,14 +99,14 @@ pub const Control = struct {
             .cache = PrefabCache.init(gpa),
         };
 
-        log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
+        log.info("{s}-{s} v{s} started successfully", .{ core.name, name, core.version });
         log.info("All your starbase are belong to us", .{});
 
         return control;
     }
 
     pub fn deinit(self: *Control) void {
-        log.info("stopped sucessfully", .{});
+        log.info("stopped successfully", .{});
 
         self.cache.deinit();
 

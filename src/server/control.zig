@@ -43,7 +43,7 @@ pub const Control = struct {
 
         control.server.open(0);
 
-        log.info("{s}-{s} v{s} started sucessfully", .{ core.name, name, core.version });
+        log.info("{s}-{s} v{s} started successfully", .{ core.name, name, core.version });
         log.info("all your starbase are belong to us", .{});
 
         return control;
@@ -53,7 +53,7 @@ pub const Control = struct {
         self.server.deinit();
         self.model.deinit();
 
-        log.info("stopped sucessfully", .{});
+        log.info("stopped successfully", .{});
     }
 
     pub fn update(self: *Control) void {
@@ -106,7 +106,7 @@ pub const Control = struct {
                             }
                         },
                         .SnapshotRequest => {
-                            std.debug.print("requsted snapshot\n", .{});
+                            std.debug.print("requested snapshot\n", .{});
                             //self.sendSnapshot();
                         },
                         else => @panic("received unexpected message"),

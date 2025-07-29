@@ -209,9 +209,9 @@ const Neightbours = struct {
 pub const QuadNode = struct {
     pub const max_depth = 10;
     pub const cells_per_axis: i32 = 1 << max_depth;
-    pub const merge_threshhold = 30;
+    pub const merge_threshold = 30;
     pub const merge_time = 10;
-    pub const split_threshhold = 50;
+    pub const split_threshold = 50;
 
     gpa: *std.mem.Allocator,
     owner: ?ServerId,
@@ -221,7 +221,7 @@ pub const QuadNode = struct {
     parent: ?*QuadNode,
     quadrant_in_parent: ?Quadrant,
     children: ?[]*QuadNode,
-    below_threshhold_since: i64,
+    below_threshold_since: i64,
 
     fn init(gpa: *std.mem.Allocator, rectangle: Rect, depth: u8) QuadNode {
         return QuadNode{
@@ -233,7 +233,7 @@ pub const QuadNode = struct {
             .parent = null,
             .quadrant_in_parent = null,
             .children = null,
-            .below_threshhold_since = std.time.timestamp(),
+            .below_threshold_since = std.time.timestamp(),
         };
     }
 
@@ -268,11 +268,11 @@ pub const QuadNode = struct {
             child.* = QuadNode{
                 .gpa = alloc,
                 .owner = null,
-                .pressure = split_threshhold - 1,
+                .pressure = split_threshold - 1,
                 .depth = next_depth,
                 .rectangle = bounds[i],
                 .children = null,
-                .below_threshhold_since = std.time.timestamp(),
+                .below_threshold_since = std.time.timestamp(),
                 .parent = self,
                 .quadrant_in_parent = Quadrant.fromInt(@intCast(i)),
             };
@@ -292,7 +292,7 @@ pub const QuadNode = struct {
         self.gpa.free(self.children.?);
         self.children = null;
         self.pressure = totalPressure;
-        self.below_threshhold_since = std.time.timestamp();
+        self.below_threshold_since = std.time.timestamp();
     }
 
     pub fn isLeaf(self: *QuadNode) bool {
@@ -314,7 +314,7 @@ pub const QuadNode = struct {
         } else {
             if (self.depth >= max_depth) return;
 
-            if (self.pressure >= split_threshhold) {
+            if (self.pressure >= split_threshold) {
                 self.split(); // create children
 
                 if (self.children) |children| {
@@ -323,19 +323,19 @@ pub const QuadNode = struct {
                         child.owner = chosen.id;
                     }
                 }
-            } else if (self.pressure > merge_threshhold) {
-                self.below_threshhold_since = now;
+            } else if (self.pressure > merge_threshold) {
+                self.below_threshold_since = now;
             }
         }
 
-        if (now - self.below_threshhold_since > merge_time) {
+        if (now - self.below_threshold_since > merge_time) {
             if (self.children) |children| {
                 for (children) |child| {
                     if (!child.isLeaf()) {
                         return;
                     }
-                    std.log.info("time: {}", .{now - child.below_threshhold_since});
-                    if (!(now - child.below_threshhold_since > merge_time)) {
+                    std.log.info("time: {}", .{now - child.below_threshold_since});
+                    if (!(now - child.below_threshold_since > merge_time)) {
                         return;
                     }
                 }
