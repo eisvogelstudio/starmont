@@ -88,20 +88,20 @@ pub fn deserializeRotation(reader: anytype) core.Rotation {
     return core.Rotation{ .value = util.deserializeAngle(reader) };
 }
 
-pub fn serializeRotationalVelocity(writer: anytype, rotv: core.RotationalVelocity) void {
+pub fn serializeAngularVelocity(writer: anytype, rotv: core.AngularVelocity) void {
     util.serializeAngle(rotv.value, writer);
 }
 
-pub fn deserializeRotationalVelocity(reader: anytype) core.RotationalVelocity {
-    return core.RotationalVelocity{ .value = util.deserializeAngle(reader) };
+pub fn deserializeAngularVelocity(reader: anytype) core.AngularVelocity {
+    return core.AngularVelocity{ .value = util.deserializeAngle(reader) };
 }
 
-pub fn serializeRotationalAcceleration(writer: anytype, rota: core.RotationalAcceleration) void {
+pub fn serializeAngularAcceleration(writer: anytype, rota: core.AngularAcceleration) void {
     util.serializeAngle(rota.value, writer);
 }
 
-pub fn deserializeRotationalAcceleration(reader: anytype) core.RotationalAcceleration {
-    return core.RotationalAcceleration{ .value = util.deserializeAngle(reader) };
+pub fn deserializeAngularAcceleration(reader: anytype) core.AngularAcceleration {
+    return core.AngularAcceleration{ .value = util.deserializeAngle(reader) };
 }
 
 pub fn serializeShipSize(writer: anytype, size: core.ShipSize) void {

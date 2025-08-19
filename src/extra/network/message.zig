@@ -1219,8 +1219,8 @@ pub const ComponentMessage = struct {
         Acceleration: core.Acceleration,
         Jerk: core.Jerk,
         Rotation: core.Rotation,
-        RotationalVelocity: core.RotationalVelocity,
-        RotationalAcceleration: core.RotationalAcceleration,
+        AngularVelocity: core.AngularVelocity,
+        AngularAcceleration: core.AngularAcceleration,
         ShipSize: core.ShipSize,
     };
 
@@ -1300,11 +1300,11 @@ pub const ComponentMessage = struct {
             .Rotation => |rot| {
                 serial.serializeRotation(writer, rot);
             },
-            .RotationalVelocity => |rotv| {
-                serial.serializeRotationalVelocity(writer, rotv);
+            .AngularVelocity => |rotv| {
+                serial.serializeAngularVelocity(writer, rotv);
             },
-            .RotationalAcceleration => |rota| {
-                serial.serializeRotationalAcceleration(writer, rota);
+            .AngularAcceleration => |rota| {
+                serial.serializeAngularAcceleration(writer, rota);
             },
             .ShipSize => |size| {
                 serial.serializeShipSize(writer, size);
@@ -1322,8 +1322,8 @@ pub const ComponentMessage = struct {
             .Acceleration => Component{ .Acceleration = serial.deserializeAcceleration(reader) },
             .Jerk => Component{ .Jerk = serial.deserializeJerk(reader) },
             .Rotation => Component{ .Rotation = serial.deserializeRotation(reader) },
-            .RotationalVelocity => Component{ .RotationalVelocity = serial.deserializeRotationalVelocity(reader) },
-            .RotationalAcceleration => Component{ .RotationalAcceleration = serial.deserializeRotationalAcceleration(reader) },
+            .AngularVelocity => Component{ .AngularVelocity = serial.deserializeAngularVelocity(reader) },
+            .AngularAcceleration => Component{ .AngularAcceleration = serial.deserializeAngularAcceleration(reader) },
             .ShipSize => Component{ .ShipSize = serial.deserializeShipSize(reader) },
         };
 
@@ -1380,11 +1380,11 @@ pub const ComponentMessage = struct {
             .Rotation => {
                 registry.setComponent(self.id, core.Rotation, self.component.Rotation);
             },
-            .RotationalVelocity => {
-                registry.setComponent(self.id, core.RotationalVelocity, self.component.RotationalVelocity);
+            .AngularVelocity => {
+                registry.setComponent(self.id, core.AngularVelocity, self.component.AngularVelocity);
             },
-            .RotationalAcceleration => {
-                registry.setComponent(self.id, core.RotationalAcceleration, self.component.RotationalAcceleration);
+            .AngularAcceleration => {
+                registry.setComponent(self.id, core.AngularAcceleration, self.component.AngularAcceleration);
             },
             .ShipSize => {
                 registry.setComponent(self.id, core.ShipSize, self.component.ShipSize);
@@ -1442,11 +1442,11 @@ pub const ComponentRemoveMessage = struct {
             .Rotation => {
                 registry.removeComponent(self.id, core.Rotation);
             },
-            .RotationalVelocity => {
-                registry.removeComponent(self.id, core.RotationalVelocity);
+            .AngularVelocity => {
+                registry.removeComponent(self.id, core.AngularVelocity);
             },
-            .RotationalAcceleration => {
-                registry.removeComponent(self.id, core.RotationalAcceleration);
+            .AngularAcceleration => {
+                registry.removeComponent(self.id, core.AngularAcceleration);
             },
             .ShipSize => {
                 registry.removeComponent(self.id, core.ShipSize);

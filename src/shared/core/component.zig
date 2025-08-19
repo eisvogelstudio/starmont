@@ -24,8 +24,8 @@ pub const ComponentType = enum {
     Acceleration,
     Jerk,
     Rotation,
-    RotationalVelocity,
-    RotationalAcceleration,
+    AngularVelocity,
+    AngularAcceleration,
     ShipSize,
 };
 
@@ -72,11 +72,11 @@ pub const Jerk = struct {
     x: f32,
     y: f32,
 
-    pub fn toVec2(self: Position) util.Vec2 {
+    pub fn toVec2(self: Jerk) util.Vec2 {
         return .{ .x = self.x, .y = self.y };
     }
 
-    pub fn fromVec2(v: util.Vec2) Position {
+    pub fn fromVec2(v: util.Vec2) Jerk {
         return .{ .x = v.x, .y = v.y };
     }
 };
@@ -85,11 +85,11 @@ pub const Rotation = struct {
     value: util.Angle,
 };
 
-pub const RotationalVelocity = struct {
+pub const AngularVelocity = struct {
     value: util.Angle,
 };
 
-pub const RotationalAcceleration = struct {
+pub const AngularAcceleration = struct {
     value: util.Angle,
 };
 

@@ -17,20 +17,29 @@
 const TagType = enum {
     Player,
     Ship,
-    Small,
-    Medium,
-    Large,
-    Capital,
+    SizeSmall,
+    SizeMedium,
+    SizeLarge,
+    SizeCapital,
     Visible,
+    MovementStatic,
+    MovementKinematic,
+    MovementPhysics,
+    MovementScripted,
 };
 
 pub const Player = struct {};
 
 pub const Ship = struct {};
 
-pub const Small = struct {};
-pub const Medium = struct {};
-pub const Large = struct {};
-pub const Capital = struct {};
+pub const SizeSmall = struct {};
+pub const SizeMedium = struct {};
+pub const SizeLarge = struct {};
+pub const SizeCapital = struct {};
 
 pub const Visible = struct {};
+
+pub const MovementStatic = struct {};
+pub const MovementKinematic = struct {};
+pub const MovementPhysics = struct {};
+pub const MovementScripted = struct {};

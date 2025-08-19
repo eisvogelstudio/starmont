@@ -29,7 +29,7 @@ const util = @import("util");
 // ---------- local ----------
 const comp = @import("component.zig");
 const tag = @import("tag.zig");
-const sys = @import("system.zig");
+const sys = @import("kinematic.zig");
 // ----------------------------
 
 const log = std.log.scoped(.model);
@@ -160,8 +160,8 @@ pub const Registry = struct {
         ecs.COMPONENT(self.world, comp.Jerk);
 
         ecs.COMPONENT(self.world, comp.Rotation);
-        ecs.COMPONENT(self.world, comp.RotationalVelocity);
-        ecs.COMPONENT(self.world, comp.RotationalAcceleration);
+        ecs.COMPONENT(self.world, comp.AngularVelocity);
+        ecs.COMPONENT(self.world, comp.AngularAcceleration);
 
         ecs.COMPONENT(self.world, comp.ShipSize);
     }
@@ -171,12 +171,17 @@ pub const Registry = struct {
 
         ecs.TAG(self.world, tag.Ship);
 
-        ecs.TAG(self.world, tag.Small);
-        ecs.TAG(self.world, tag.Medium);
-        ecs.TAG(self.world, tag.Large);
-        ecs.TAG(self.world, tag.Capital);
+        ecs.TAG(self.world, tag.SizeSmall);
+        ecs.TAG(self.world, tag.SizeMedium);
+        ecs.TAG(self.world, tag.SizeLarge);
+        ecs.TAG(self.world, tag.SizeCapital);
 
         ecs.TAG(self.world, tag.Visible);
+
+        ecs.TAG(self.world, tag.MovementStatic);
+        ecs.TAG(self.world, tag.MovementKinematic);
+        ecs.TAG(self.world, tag.MovementPhysics);
+        ecs.TAG(self.world, tag.MovementScripted);
     }
 
     fn registerSystems(self: *Registry) void {
@@ -189,11 +194,11 @@ pub const Registry = struct {
         const velocity_accelerated_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_accelerated", ecs.OnUpdate, sys.applyVelocityAccelerated);
         const velocity_dynamic_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_dynamic", ecs.OnUpdate, sys.applyVelocityDynamic);
 
-        _ = jerk_id;
+        //_ = ecs.ADD_SYSTEM(self.world, "physicsStep", ecs.OnUpdate, sys.physicsStep);
 
+        _ = jerk_id;
         _ = accel_accelerated_id;
         _ = accel_dynamic_id;
-
         _ = velocity_linear_id;
         _ = velocity_accelerated_id;
         _ = velocity_dynamic_id;

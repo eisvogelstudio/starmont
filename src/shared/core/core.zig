@@ -34,26 +34,26 @@ pub const tilemap = @import("world/tilemap.zig");
 // └───────────────────────────────────────────────┘
 // ---------- component ----------
 pub const ComponentType = @import("component.zig").ComponentType;
+pub const Position = @import("component.zig").Position;
+pub const Velocity = @import("component.zig").Velocity;
 pub const Acceleration = @import("component.zig").Acceleration;
 pub const Jerk = @import("component.zig").Jerk;
-pub const Position = @import("component.zig").Position;
 pub const Rotation = @import("component.zig").Rotation;
-pub const RotationalAcceleration = @import("component.zig").RotationalAcceleration;
-pub const RotationalVelocity = @import("component.zig").RotationalVelocity;
+pub const AngularVelocity = @import("component.zig").AngularVelocity;
+pub const AngularAcceleration = @import("component.zig").AngularAcceleration;
 pub const ShipSize = @import("component.zig").ShipSize;
-pub const Velocity = @import("component.zig").Velocity;
 // ------------------------------
 // ---------- registry ----------
 pub const Id = @import("registry.zig").Id;
 pub const Registry = @import("registry.zig").Registry;
 // ------------------------------
 // ---------- component ----------
-pub const Capital = @import("tag.zig").Capital;
-pub const Large = @import("tag.zig").Large;
-pub const Medium = @import("tag.zig").Medium;
+pub const Capital = @import("tag.zig").SizeCapital;
+pub const Large = @import("tag.zig").SizeLarge;
+pub const Medium = @import("tag.zig").SizeMedium;
 pub const Player = @import("tag.zig").Player;
 pub const Ship = @import("tag.zig").Ship;
-pub const Small = @import("tag.zig").Small;
+pub const Small = @import("tag.zig").SizeSmall;
 pub const Visible = @import("tag.zig").Visible;
 // ------------------------------
 
