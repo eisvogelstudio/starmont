@@ -32,8 +32,10 @@ pub const Error = error{
     WouldBlock,
 };
 
+const buffer_size = 4096;
+
 pub fn send(socket: *net.Socket, batch: Batch) !void {
-    var buffer: [1024]u8 = undefined;
+    var buffer: [buffer_size]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buffer);
     const writer = stream.writer();
     batch.serialize(writer);
@@ -57,7 +59,7 @@ pub fn send(socket: *net.Socket, batch: Batch) !void {
 
 pub fn receive(socket: *net.Socket, gpa: *std.mem.Allocator) ![]Batch {
     var batches = std.ArrayList(Batch).init(gpa.*);
-    var buffer: [1024]u8 = undefined;
+    var buffer: [buffer_size]u8 = undefined;
     const readResult = socket.reader().read(buffer[0..]);
     if (readResult) |n| {
         if (n == 0) {
@@ -67,7 +69,8 @@ pub fn receive(socket: *net.Socket, gpa: *std.mem.Allocator) ![]Batch {
             var stream = std.io.fixedBufferStream(buffer[0..n]);
             const reader = stream.reader();
 
-            while (stream.pos > stream.buffer.len) {
+            while (stream.pos < stream.buffer.len) {
+                std.log.info("HELLO", .{});
                 const msg = Batch.deserialize(reader, gpa);
                 try batches.append(msg);
             }

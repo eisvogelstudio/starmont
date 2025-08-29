@@ -24,6 +24,7 @@ const std = @import("std");
 
 // ---------- starmont ----------
 const core = @import("shared").core;
+const util = @import("util");
 const render = @import("frontend").render;
 const Window = @import("frontend").Window;
 const Model = @import("model").Model;
@@ -75,14 +76,28 @@ pub const View = struct {
         //rl.clearBackground(rl.Color.white);
         //rl.beginMode2D(camera);
         Window.update();
+        Window.clear();
         Window.beginFrame();
+
+        self.renderPlayers(model);
+
+        //const ship = render.Ship{
+        //    .base = render.GameObject{
+        //        .position = util.Vec2{ .x = 200, .y = 200 },
+        //        .rotation = 90.0,
+        //    },
+        //    .size = 1.0,
+        //};
+
+        //render.renderShip(ship);
+        //_ = self;
+        //_ = model;
 
         Window.endFrame();
 
-        _ = self;
-        _ = model;
+        //_ = self;
+        //_ = model;
         //self.renderShips(model);
-        //self.renderPlayers(model);
         //rl.drawFPS(100, 100);
         //rl.endMode2D();
 
@@ -195,4 +210,37 @@ pub const View = struct {
     //        }
     //    }
     //}
+
+    fn renderPlayers(self: *View, model: *Model) void {
+        std.log.info("DRAWING", .{});
+        const terms: [32]ecs.term_t = [_]ecs.term_t{
+            ecs.term_t{ .id = ecs.id(core.Position) },
+        } ++ [_]ecs.term_t{ecs.term_t{}} ** 31;
+
+        var query_desc = ecs.query_desc_t{
+            .terms = terms,
+            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
+        };
+
+        const query = ecs.query_init(model.registry.world, &query_desc) catch unreachable;
+        defer ecs.query_fini(query);
+
+        var it = ecs.query_iter(model.registry.world, query);
+
+        while (ecs.query_next(&it)) {
+            const positions: []const core.Position = ecs.field(&it, core.Position, 0).?;
+
+            for (0..it.count()) |i| {
+                const entity = it.entities()[i];
+                _ = entity;
+                //const color: rl.Color = rl.Color.green;
+                _ = self;
+                const rot = core.Rotation{ .value = util.Angle.zero() };
+                //rl.drawCircle(@intFromFloat(@mod(positions[i].x, screenWidth)), @intFromFloat(@mod(positions[i].y, screenHeight)), 10, color);
+                const obj = render.GameObject{ .position = positions[i].toVec2(), .rotation = rot.value.toRadians() };
+                const ship = render.Ship{ .base = obj, .size = 1.0 };
+                render.renderShip(ship);
+            }
+        }
+    }
 };

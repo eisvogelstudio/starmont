@@ -14,6 +14,10 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- external ----------
+const ecs = @import("zflecs");
+// ------------------------------
+
 // ---------- std ----------
 const std = @import("std");
 // -------------------------
@@ -29,6 +33,8 @@ const log = std.log.scoped(.control);
 
 const name = "server";
 
+var already = false;
+
 pub const Control = struct {
     gpa: *std.mem.Allocator,
     model: Model,
@@ -41,7 +47,7 @@ pub const Control = struct {
             .server = network.Server.init(gpa),
         };
 
-        control.server.open(0);
+        control.server.open(11111);
 
         log.info("{s}-{s} v{s} started successfully", .{ core.name, name, core.version });
         log.info("all your starbase are belong to us", .{});
@@ -107,7 +113,7 @@ pub const Control = struct {
                         },
                         .SnapshotRequest => {
                             std.debug.print("requested snapshot\n", .{});
-                            //self.sendSnapshot();
+                            self.sendSnapshot();
                         },
                         else => @panic("received unexpected message"),
                     }
@@ -121,87 +127,96 @@ pub const Control = struct {
             }
         }
 
-        //self.syncEntites();
+        if (self.server.clients.count() > 0 and !already) {
+            self.sendSnapshot();
+            already = true;
+        }
+
+        self.syncEntites();
 
         self.server.update();
     }
 
-    //fn syncEntites(self: *Control) void {
-    //    const terms: [32]ecs.term_t = [_]ecs.term_t{
-    //        ecs.term_t{ .id = ecs.id(core.Position) },
-    //    } ++ [_]ecs.term_t{ecs.term_t{}} ** 31;
-    //
-    //    var query_desc = ecs.query_desc_t{
-    //        .terms = terms,
-    //        .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
-    //    };
-    //
-    //    const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
-    //    defer ecs.query_fini(query);
-    //
-    //    var ecsIt = ecs.query_iter(self.model.world, query);
-    //
-    //    ////##### force tick
-    //    //const tick_msg = network.TickMessage.init(self.model.tick);
-    //    //
-    //    //var it = self.server.clients.iterator();
-    //    //while (it.next()) |entry| {
-    //    //    self.server.submit(entry.key_ptr.*, tick_msg) catch unreachable;
-    //    //}
-    //    ////#####
-    //
-    //    while (ecs.query_next(&ecsIt)) {
-    //        const positions: []const core.Position = ecs.field(&ecsIt, core.Position, 0).?;
-    //
-    //        for (0..ecsIt.count()) |i| {
-    //            const entity = ecsIt.entities()[i];
-    //            const id = self.model.registry.getId(entity);
-    //
-    //            const msg = network.ComponentMessage.fromPosition(id.?, positions[i]);
-    //
-    //            var it2 = self.server.clients.iterator();
-    //            while (it2.next()) |entry| {
-    //                self.server.submit(entry.key_ptr.*, msg) catch unreachable;
-    //            }
-    //        }
-    //    }
-    //}
-    //
-    //fn sendSnapshot(self: *Control) void {
-    //    const terms: [32]ecs.term_t = [_]ecs.term_t{
-    //        ecs.term_t{ .id = ecs.id(core.Position) },
-    //    } ++ [_]ecs.term_t{ecs.term_t{}} ** 31;
-    //
-    //    var query_desc = ecs.query_desc_t{
-    //        .terms = terms,
-    //        .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
-    //    };
-    //
-    //    const query = ecs.query_init(self.model.world, &query_desc) catch unreachable;
-    //    defer ecs.query_fini(query);
-    //
-    //    var ecsIt = ecs.query_iter(self.model.world, query);
-    //
-    //    while (ecs.query_next(&ecsIt)) {
-    //        const positions: []const core.Position = ecs.field(&ecsIt, core.Position, 0).?;
-    //
-    //        for (0..ecsIt.count()) |i| {
-    //            const entity = ecsIt.entities()[i];
-    //            const id = self.model.registry.getId(entity);
-    //
-    //            const createmsg = network.EntityMessage.init(id.?);
-    //            const msg = network.ComponentMessage.fromPosition(id.?, positions[i]);
-    //
-    //            var it = self.server.clients.iterator();
-    //            while (it.next()) |entry| {
-    //                self.server.submit(entry.key_ptr.*, createmsg) catch {
-    //                    continue;
-    //                };
-    //                self.server.submit(entry.key_ptr.*, msg) catch unreachable;
-    //            }
-    //        }
-    //    }
-    //}
+    fn syncEntites(self: *Control) void {
+        const terms: [32]ecs.term_t = [_]ecs.term_t{
+            ecs.term_t{ .id = ecs.id(core.Position) },
+        } ++ [_]ecs.term_t{ecs.term_t{}} ** 31;
+
+        var query_desc = ecs.query_desc_t{
+            .terms = terms,
+            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
+        };
+
+        const query = ecs.query_init(self.model.registry.world, &query_desc) catch unreachable;
+        defer ecs.query_fini(query);
+
+        var ecsIt = ecs.query_iter(self.model.registry.world, query);
+
+        ////##### force tick
+        //const tick_msg = network.TickMessage.init(self.model.tick);
+        //
+        //var it = self.server.clients.iterator();
+        //while (it.next()) |entry| {
+        //    self.server.submit(entry.key_ptr.*, tick_msg) catch unreachable;
+        //}
+        ////#####
+
+        while (ecs.query_next(&ecsIt)) {
+            const positions: []const core.Position = ecs.field(&ecsIt, core.Position, 0).?;
+
+            for (0..ecsIt.count()) |i| {
+                //log.info("synx", .{});
+                const entity = ecsIt.entities()[i];
+                const id = self.model.registry.getId(entity);
+
+                const msg = network.msg.ComponentMessage.fromPosition(id.?, positions[i]);
+
+                var it2 = self.server.clients.iterator();
+                while (it2.next()) |entry| {
+                    self.server.submit(entry.key_ptr.*, msg) catch unreachable;
+                }
+            }
+        }
+    }
+
+    fn sendSnapshot(self: *Control) void {
+        log.debug("send snapshot", .{});
+
+        const terms: [32]ecs.term_t = [_]ecs.term_t{
+            ecs.term_t{ .id = ecs.id(core.Position) },
+        } ++ [_]ecs.term_t{ecs.term_t{}} ** 31;
+
+        var query_desc = ecs.query_desc_t{
+            .terms = terms,
+            .cache_kind = ecs.query_cache_kind_t.QueryCacheAuto,
+        };
+
+        const query = ecs.query_init(self.model.registry.world, &query_desc) catch unreachable;
+        defer ecs.query_fini(query);
+
+        var ecsIt = ecs.query_iter(self.model.registry.world, query);
+
+        while (ecs.query_next(&ecsIt)) {
+            const positions: []const core.Position = ecs.field(&ecsIt, core.Position, 0).?;
+
+            for (0..ecsIt.count()) |i| {
+                log.debug("x", .{});
+                const entity = ecsIt.entities()[i];
+                const id = self.model.registry.getId(entity);
+
+                const createmsg = network.msg.EntityMessage.init(id.?);
+                const msg = network.msg.ComponentMessage.fromPosition(id.?, positions[i]);
+
+                var it = self.server.clients.iterator();
+                while (it.next()) |entry| {
+                    self.server.submit(entry.key_ptr.*, createmsg) catch {
+                        continue;
+                    };
+                    self.server.submit(entry.key_ptr.*, msg) catch unreachable;
+                }
+            }
+        }
+    }
 
     pub fn shouldStop(self: *Control) bool {
         _ = self;

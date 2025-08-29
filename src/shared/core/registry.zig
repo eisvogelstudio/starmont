@@ -29,10 +29,13 @@ const util = @import("util");
 // ---------- local ----------
 const comp = @import("component.zig");
 const tag = @import("tag.zig");
-const sys = @import("kinematic.zig");
+const kinematic = @import("kinematic.zig");
+const movement = @import("movement.zig");
+const PhysicsSpace = @import("physics/space.zig").PhysicsSpace;
+const Collider = @import("physics/collider.zig").Collider;
 // ----------------------------
 
-const log = std.log.scoped(.model);
+const log = std.log.scoped(.registry);
 
 pub const Id = struct {
     uuid: util.UUID4,
@@ -42,6 +45,7 @@ pub const Registry = struct {
     gpa: *std.mem.Allocator,
     random: std.Random,
     world: *ecs.world_t,
+    space: PhysicsSpace,
     tick: u64 = 0,
 
     id_to_entity: std.AutoHashMap(Id, ecs.entity_t),
@@ -52,6 +56,7 @@ pub const Registry = struct {
             .gpa = gpa,
             .random = random,
             .world = ecs.init(),
+            .space = PhysicsSpace.init(gpa.*),
             .tick = 0,
             .id_to_entity = std.AutoHashMap(Id, ecs.entity_t).init(gpa.*),
             .entity_to_id = std.AutoHashMap(ecs.entity_t, Id).init(gpa.*),
@@ -74,6 +79,27 @@ pub const Registry = struct {
     pub fn update(self: *Registry) void {
         self.tick += 1;
         _ = ecs.progress(self.world, 0);
+
+        const desc = ecs.query_desc_t{
+            .terms = [_]ecs.term_t{
+                term(comp.Position),
+                //term(comp.Velocity),
+                //term_optional(comp.Rotation),
+                //term_optional(comp.AngularVelocity),
+                //term_optional(comp.AngularAcceleration),
+                //term_tag(tag.MovementPhysics),
+                //term_tag(tag.SimulationLocal),
+            } ++ [_]ecs.term_t{.{}} ** (ecs.FLECS_TERM_COUNT_MAX - 1),
+        };
+
+        const query = ecs.query_init(self.world, &desc) catch unreachable;
+
+        self.space.update();
+
+        var it = ecs.query_iter(self.world, query);
+        while (ecs.iter_next(&it)) {
+            self.space.syncFromPhysics(&it);
+        }
     }
 
     pub fn getEntity(self: *Registry, id: Id) ?ecs.entity_t {
@@ -85,7 +111,7 @@ pub const Registry = struct {
     }
 
     pub fn createEntity(self: *Registry) Id {
-        const id = util.UUID4.generate(self.random);
+        const id = Id{ .uuid = util.UUID4.generate(self.random) };
         const entity = ecs.new_id(self.world);
 
         self.register(id, entity);
@@ -164,6 +190,10 @@ pub const Registry = struct {
         ecs.COMPONENT(self.world, comp.AngularAcceleration);
 
         ecs.COMPONENT(self.world, comp.ShipSize);
+        ecs.COMPONENT(self.world, comp.ShipName);
+
+        ecs.COMPONENT(self.world, Collider);
+        ecs.COMPONENT(self.world, comp.PhysicsBody);
     }
 
     fn registerTags(self: *Registry) void {
@@ -185,22 +215,129 @@ pub const Registry = struct {
     }
 
     fn registerSystems(self: *Registry) void {
-        const jerk_id = ecs.ADD_SYSTEM(self.world, "apply_jerk", ecs.OnUpdate, sys.applyJerk);
+        const filters_linear = [_]ecs.term_t{
+            term_in(comp.Velocity),
+        };
 
-        const accel_accelerated_id = ecs.ADD_SYSTEM(self.world, "apply_acceleration_accelerated", ecs.OnUpdate, sys.applyAccelerationAccelerated);
-        const accel_dynamic_id = ecs.ADD_SYSTEM(self.world, "apply_acceleration_dynamic", ecs.OnUpdate, sys.applyAccelerationDynamic);
+        const filters_accelerated = [_]ecs.term_t{
+            term_in(comp.Acceleration),
+        };
 
-        const velocity_linear_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_linear", ecs.OnUpdate, sys.applyVelocityLinear);
-        const velocity_accelerated_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_accelerated", ecs.OnUpdate, sys.applyVelocityAccelerated);
-        const velocity_dynamic_id = ecs.ADD_SYSTEM(self.world, "apply_velocity_dynamic", ecs.OnUpdate, sys.applyVelocityDynamic);
+        const filters_dynamic = [_]ecs.term_t{
+            term_in(comp.Jerk),
+        };
 
-        //_ = ecs.ADD_SYSTEM(self.world, "physicsStep", ecs.OnUpdate, sys.physicsStep);
+        _ = ecs.ADD_SYSTEM_WITH_FILTERS(
+            self.world,
+            "ensure_linear",
+            ecs.OnUpdate,
+            movement.ensureMotionChainLinear,
+            &filters_linear,
+        );
 
-        _ = jerk_id;
-        _ = accel_accelerated_id;
-        _ = accel_dynamic_id;
-        _ = velocity_linear_id;
-        _ = velocity_accelerated_id;
-        _ = velocity_dynamic_id;
+        _ = ecs.ADD_SYSTEM_WITH_FILTERS(
+            self.world,
+            "ensure_accelerated",
+            ecs.OnUpdate,
+            movement.ensureMotionChainAccelerated,
+            &filters_accelerated,
+        );
+
+        _ = ecs.ADD_SYSTEM_WITH_FILTERS(
+            self.world,
+            "ensure_dynamic",
+            ecs.OnUpdate,
+            movement.ensureMotionChainDynamic,
+            &filters_dynamic,
+        );
+
+        _ = ecs.ADD_SYSTEM(self.world, "advance_linear", ecs.OnUpdate, kinematic.advanceMovementLinear);
+        _ = ecs.ADD_SYSTEM(self.world, "advance_accelerated", ecs.OnUpdate, kinematic.advanceMovementAccelerated);
+        _ = ecs.ADD_SYSTEM(self.world, "advance_dynamic", ecs.OnUpdate, kinematic.advanceMovementDynamic);
+    }
+
+    fn termFull(
+        comptime T: type,
+        inout: ecs.inout_kind_t,
+        oper: ecs.oper_kind_t,
+    ) ecs.term_t {
+        return .{
+            .id = ecs.id(T),
+            .inout = inout,
+            .oper = oper,
+        };
+    }
+
+    fn term(comptime T: type) ecs.term_t {
+        return termFull(
+            T,
+            ecs.inout_kind_t.InOutDefault,
+            ecs.oper_kind_t.And,
+        );
+    }
+
+    fn term_optional(comptime T: type) ecs.term_t {
+        return termFull(
+            T,
+            ecs.inout_kind_t.InOutDefault,
+            ecs.oper_kind_t.Optional,
+        );
+    }
+
+    fn term_tag(comptime T: type) ecs.term_t {
+        return termFull(
+            T,
+            ecs.inout_kind_t.InOutNone,
+            ecs.oper_kind_t.And,
+        );
+    }
+
+    fn term_in(comptime T: type) ecs.term_t {
+        return termFull(T, ecs.inout_kind_t.In, ecs.oper_kind_t.And);
+    }
+
+    fn term_out(comptime T: type) ecs.term_t {
+        return termFull(T, ecs.inout_kind_t.Out, ecs.oper_kind_t.And);
+    }
+
+    fn term_filter(comptime T: type) ecs.term_t {
+        return termFull(T, ecs.inout_kind_t.EcsInOutFilter, ecs.oper_kind_t.And);
+    }
+
+    pub fn createShipDefault(self: *Registry) Id {
+        const circle = util.CircleShape.init(5.0);
+        return self.createShip(self.world, Collider.fromShape(circle));
+    }
+
+    fn createShip(self: *Registry, world: *ecs.world_t, collider: Collider) Id {
+        const ship = self.createEntity();
+        const entity = self.getEntity(ship).?;
+
+        _ = ecs.set(world, entity, comp.ShipName, comp.ShipName{ .official = "USS Ziggy" });
+
+        const body = comp.PhysicsBody{ .collider = self.createPhysicsBody(world, collider) };
+        _ = ecs.set(world, entity, comp.PhysicsBody, body);
+
+        self.space.addEntity(world, entity, true);
+
+        return ship;
+    }
+
+    fn createPhysicsBody(self: *Registry, world: *ecs.world_t, collider: Collider) Id {
+        const body = self.createEntity();
+        const entity = self.getEntity(body).?;
+
+        _ = ecs.set(world, entity, comp.Position, comp.Position{ .x = 0, .y = 0 });
+        _ = ecs.set(world, entity, comp.Velocity, comp.Velocity{ .x = 0, .y = 0 });
+        _ = ecs.set(world, entity, comp.Acceleration, comp.Acceleration{ .x = 0, .y = 0 });
+        _ = ecs.set(world, entity, comp.Jerk, comp.Jerk{ .x = 0, .y = 0 });
+        _ = ecs.set(world, entity, comp.Rotation, comp.Rotation{ .value = util.Angle.zero() });
+        _ = ecs.set(world, entity, comp.AngularVelocity, comp.AngularVelocity{ .value = util.Angle.zero() });
+        _ = ecs.set(world, entity, comp.AngularAcceleration, comp.AngularAcceleration{ .value = util.Angle.zero() });
+
+        _ = ecs.set(world, entity, Collider, collider);
+
+        self.space.addEntity(world, entity, false);
+        return body;
     }
 };

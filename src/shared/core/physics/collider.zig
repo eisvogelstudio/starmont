@@ -50,7 +50,7 @@ pub const PrefabDTO = struct {
 
         for (self.colliders, 0..) |c, i| {
             new_colliders[i] = Collider{
-                .shape = c.shape, // shallow copy (ok wenn shape kein Heap nutzt)
+                .shape = c.shape,
                 .offset = c.offset,
                 .rotation = c.rotation,
                 .is_sensor = c.is_sensor,

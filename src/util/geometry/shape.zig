@@ -44,16 +44,16 @@ pub const Shape = union(ShapeType) {
 
 // ┌──────────────────── BoxShape ────────────────────┐
 pub const BoxShape = struct {
-    size: Vec2,
+    extend: Vec2,
 
     pub fn init(width: f32, height: f32) Shape {
         return Shape{ .Box = BoxShape{
-            .size = Vec2{ .x = width, .y = height },
+            .extend = Vec2{ .x = width, .y = height },
         } };
     }
 
     pub fn fromVec2(size: Vec2) Shape {
-        return Shape{ .Box = BoxShape{ .size = size } };
+        return Shape{ .Box = BoxShape{ .extend = size } };
     }
 };
 // └──────────────────────────────────────────────────┘

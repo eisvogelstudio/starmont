@@ -114,6 +114,7 @@ pub fn build(b: *std.Build) void {
     client_mod.addImport("extra", extra_mod);
     client_mod.addImport("model", model_mod);
     client_mod.addImport("frontend", frontend_mod);
+    client_mod.addImport("zflecs", zflecs.module("root")); //TODO remove
 
     // server module
     const server_mod = b.createModule(.{
@@ -125,6 +126,7 @@ pub fn build(b: *std.Build) void {
     server_mod.addImport("shared", shared_mod);
     server_mod.addImport("extra", extra_mod);
     server_mod.addImport("model", model_mod);
+    server_mod.addImport("zflecs", zflecs.module("root")); //TODO remove
 
     // master module
     const master_mod = b.createModule(.{
@@ -212,6 +214,7 @@ pub fn build(b: *std.Build) void {
     client_exe.linkLibrary(extra_lib);
     client_exe.linkLibrary(model_lib);
     client_exe.linkLibrary(frontend_lib);
+    client_exe.linkLibrary(zflecs.artifact("flecs")); //TODO[REMOVE]
 
     b.installArtifact(client_exe);
 
@@ -224,6 +227,7 @@ pub fn build(b: *std.Build) void {
     server_exe.linkLibrary(shared_lib);
     server_exe.linkLibrary(extra_lib);
     server_exe.linkLibrary(model_lib);
+    server_exe.linkLibrary(zflecs.artifact("flecs")); //TODO[REMOVE]
 
     b.installArtifact(server_exe);
 

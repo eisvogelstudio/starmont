@@ -26,12 +26,14 @@ const TagType = enum {
     MovementKinematic,
     MovementPhysics,
     MovementScripted,
+    PhysicsAnchor,
 };
 
 pub const Player = struct {};
 
 pub const Ship = struct {};
 
+//TODO[MISSING] assert system: only one at a time
 pub const SizeSmall = struct {};
 pub const SizeMedium = struct {};
 pub const SizeLarge = struct {};
@@ -39,7 +41,14 @@ pub const SizeCapital = struct {};
 
 pub const Visible = struct {};
 
+//TODO[MISSING] assert system: only one at a time
 pub const MovementStatic = struct {};
 pub const MovementKinematic = struct {};
 pub const MovementPhysics = struct {};
 pub const MovementScripted = struct {};
+
+//TODO[MISSING] assert system: only one at a time
+pub const SimulationLocal = struct {};
+pub const SimulationGhost = struct {};
+
+pub const PhysicsAnchor = struct {};

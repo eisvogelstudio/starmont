@@ -24,6 +24,7 @@ const std = @import("std");
 
 // ---------- starmont ------
 const core = @import("shared").core;
+const util = @import("util");
 const msg = @import("extra").network.msg;
 // --------------------------
 
@@ -41,10 +42,14 @@ pub const Model = struct {
     var random = std.Random.DefaultPrng.init(0);
 
     pub fn init(gpa: *std.mem.Allocator) Model {
-        const model = Model{
+        var model = Model{
             .gpa = gpa,
             .registry = core.Registry.init(gpa, random.random()),
         };
+
+        const ship = model.registry.createShipDefault();
+
+        model.registry.space.applyForce(model.registry.getEntity(ship).?, util.Vec2{ .x = 100.0, .y = 100.0 }, null);
 
         return model;
     }

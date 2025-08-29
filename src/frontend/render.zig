@@ -22,24 +22,27 @@ const std = @import("std");
 const rl = @import("raylib");
 // ------------------------------
 
-const GameObject = struct {
-    position: rl.Vector2,
+// ---------- starmont ----------
+const util = @import("util");
+// ------------------------------
+
+pub const GameObject = struct {
+    position: util.Vec2,
     rotation: f32,
 };
 
-const Ship = struct {
+pub const Ship = struct {
     base: GameObject,
-    color: rl.Color,
     size: f32,
 };
 
-const Asteroid = struct {
+pub const Asteroid = struct {
     base: GameObject,
     radius: f32,
     rotation_speed: f32,
 };
 
-const Planet = struct {
+pub const Planet = struct {
     base: GameObject,
     radius: f32,
     atmosphere_color: rl.Color,
@@ -49,13 +52,15 @@ pub fn renderShip(ship: Ship) void {
     rl.gl.rlPushMatrix();
     rl.gl.rlTranslatef(ship.base.position.x, ship.base.position.y, 0);
     rl.gl.rlRotatef(ship.base.rotation, 0, 0, 1);
-    rl.gl.rlScalef(ship.base.scale, ship.base.scale, 1);
+    rl.gl.rlScalef(1.0, 1.0, 1.0);
 
     // Primitives statt Texturen – klassisch/minimalistisch
-    rl.gl.rlBegin(rl.TRIANGLES);
-    rl.gl.rlColor3f(ship.color.r, ship.color.g, ship.color.b);
+    rl.gl.rlBegin(rl.gl.rl_triangles);
 
-    const s = ship.size;
+    const color = rl.Color{ .a = 255, .r = 255, .b = 155, .g = 155 };
+    rl.gl.rlColor3f(color.r, color.g, color.b);
+
+    const s = ship.size * 40.0;
     rl.gl.rlVertex2f(0, -s); // Spitze
     rl.gl.rlVertex2f(-s * 0.5, s); // linkes Heck
     rl.gl.rlVertex2f(s * 0.5, s); // rechtes Heck

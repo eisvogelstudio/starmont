@@ -18,6 +18,8 @@
 const util = @import("util");
 // ---------------------------
 
+const Id = @import("registry.zig").Id;
+
 pub const ComponentType = enum {
     Position,
     Velocity,
@@ -98,4 +100,20 @@ pub const ShipSize = enum {
     Medium,
     Large,
     Capital,
+};
+
+pub const ShipName = struct {
+    official: []const u8,
+};
+
+pub const PhysicsBody = struct {
+    collider: Id,
+};
+
+pub const VisualBody = struct {
+    ref: u8, //TODO
+};
+
+pub const PhysicsSensor = struct {
+    collider: Id,
 };

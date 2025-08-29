@@ -117,17 +117,20 @@ pub const Control = struct {
 
                 self.gpa.free(batches);
             }
+            log.info("dfdfdf {any}", .{batches.len}); //TODO[remove]
 
             for (batches) |b| {
                 for (b.messages.items) |message| {
                     switch (message) {
                         .Entity => |id| {
+                            log.info("a", .{}); //TODO[remove]
                             self.model.registry.addEntity(id.id);
                         },
                         .EntityRemove => |id| {
                             self.model.registry.removeEntity(id.id);
                         },
                         .Component => |comp| {
+                            log.info("comp", .{}); //TODO[remove]
                             comp.apply(&self.model.registry);
                         },
                         .ComponentRemove => |comp| {

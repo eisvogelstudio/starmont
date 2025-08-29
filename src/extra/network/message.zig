@@ -1224,7 +1224,7 @@ pub const ComponentMessage = struct {
         ShipSize: core.ShipSize,
     };
 
-    pub fn fromPosition(id: util.UUID4, pos: core.Position) Message {
+    pub fn fromPosition(id: core.Id, pos: core.Position) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{ .Position = pos },
@@ -1233,7 +1233,7 @@ pub const ComponentMessage = struct {
         return Message{ .Component = comp };
     }
 
-    pub fn fromVelocity(id: util.UUID4, vel: core.Velocity) Message {
+    pub fn fromVelocity(id: core.Id, vel: core.Velocity) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{
@@ -1244,7 +1244,7 @@ pub const ComponentMessage = struct {
         return Message{ .Component = comp };
     }
 
-    pub fn fromAcceleration(id: util.UUID4, acc: core.Acceleration) Message {
+    pub fn fromAcceleration(id: core.Id, acc: core.Acceleration) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{
@@ -1255,7 +1255,7 @@ pub const ComponentMessage = struct {
         return Message{ .Component = comp };
     }
 
-    pub fn fromJerk(id: util.UUID4, jerk: core.Jerk) Message {
+    pub fn fromJerk(id: core.Id, jerk: core.Jerk) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{
@@ -1266,7 +1266,7 @@ pub const ComponentMessage = struct {
         return Message{ .Component = comp };
     }
 
-    pub fn fromShipSize(id: util.UUID4, size: core.ShipSize) Message {
+    pub fn fromShipSize(id: core.Id, size: core.ShipSize) Message {
         const comp = ComponentMessage{
             .id = id,
             .component = .{

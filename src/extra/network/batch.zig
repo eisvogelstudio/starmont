@@ -24,10 +24,22 @@ const message = @import("message.zig");
 const serial = @import("serial/serial.zig");
 // ---------------------------
 
+const std = @import("std");
+
+pub const BatchHeader = packed struct {
+    version: u8 = 1, // Protokollversion
+    message_type: u8, // z. B. 0 = snapshot, 1 = input, etc.
+    sequence_number: u32, // fortlaufende Nummer für Sortierung
+    timestamp_ms: u64, // client- oder serverseitige Zeitmarke
+    entity_count: u16, // wie viele Entities folgen
+    payload_size: u16, // tatsächliche Größe des Payloads in Bytes
+};
+
 pub const Batch = struct {
     gpa: *std.mem.Allocator,
     messages: std.ArrayList(message.Message),
     id: usize = 0,
+    //pub const max_size = 32;
 
     pub fn init(gpa: *std.mem.Allocator) Batch {
         const batch = Batch{
@@ -58,9 +70,9 @@ pub const Batch = struct {
     }
 
     pub fn append(self: *Batch, msg: message.Message) !void {
-        if (self.messages.items.len > std.math.maxInt(u16) - 1) {
-            return error.Overflow;
-        }
+        //if (self.messages.items.len >= max_size) {
+        //    return error.Overflow;
+        //}
 
         self.messages.append(msg) catch unreachable;
     }
@@ -73,6 +85,8 @@ pub const Batch = struct {
         const count: u16 = @intCast(self.messages.items.len);
         serial.serializeU16(writer, count);
 
+        std.log.info("batch size A: {any}", .{count});
+
         for (self.messages.items) |msg| {
             msg.serialize(writer);
         }
@@ -81,6 +95,8 @@ pub const Batch = struct {
     pub fn deserialize(reader: anytype, gpa: *std.mem.Allocator) Batch {
         const count = serial.deserializeU16(reader);
         var batch = Batch.init(gpa);
+
+        std.log.info("batch size RECEIVE: {any}", .{count});
 
         var i: usize = 0;
         while (i < count) : (i += 1) {

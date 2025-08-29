@@ -28,11 +28,11 @@ const util = @import("util");
 // ------------------------------
 
 // ---------- local ------
-const component = @import("component.zig");
+const comp = @import("component.zig");
 const tag = @import("tag.zig");
 // ------------------------
 
-pub fn applyVelocityLinear(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity) void {
+pub fn advanceMovementLinear(it: *ecs.iter_t, _: []tag.MovementKinematic, positions: []comp.Position, velocities: []comp.Velocity) void {
     const delta: f32 = it.delta_time;
 
     for (positions, velocities) |*pos, *vel| {
@@ -41,7 +41,7 @@ pub fn applyVelocityLinear(it: *ecs.iter_t, positions: []component.Position, vel
     }
 }
 
-pub fn integrateVelocityAccelerated(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity, accelerations: []component.Acceleration) void {
+pub fn advanceMovementAccelerated(it: *ecs.iter_t, _: []tag.MovementKinematic, positions: []comp.Position, velocities: []comp.Velocity, accelerations: []comp.Acceleration) void {
     const delta: f32 = it.delta_time;
     const delta2: f32 = std.math.pow(f32, delta, 2);
 
@@ -56,7 +56,7 @@ pub fn integrateVelocityAccelerated(it: *ecs.iter_t, positions: []component.Posi
     }
 }
 
-pub fn integrateMovementDynamic(it: *ecs.iter_t, positions: []component.Position, velocities: []component.Velocity, accelerations: []component.Acceleration, jerks: []component.Jerk) void {
+pub fn advanceMovementDynamic(it: *ecs.iter_t, _: []tag.MovementKinematic, positions: []comp.Position, velocities: []comp.Velocity, accelerations: []comp.Acceleration, jerks: []comp.Jerk) void {
     const delta: f32 = it.delta_time;
     const delta2: f32 = std.math.pow(f32, delta, 2);
     const delta3: f32 = std.math.pow(f32, delta, 3);
