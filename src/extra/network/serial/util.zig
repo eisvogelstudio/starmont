@@ -27,6 +27,10 @@ const primitive = @import("primitive.zig");
 // ---------------------------
 
 // ╔══════════════════════════════ UUID4 ══════════════════════════════╗
+pub fn wireSizeUUID4() usize {
+    return 16;
+}
+
 pub fn serializeUUID4(uuid: util.UUID4, writer: anytype) void {
     writer.writeAll(&uuid.bytes) catch unreachable;
 }
@@ -39,6 +43,10 @@ pub fn deserializeUUID4(reader: anytype) util.UUID4 {
 // ╚═══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ Angle ══════════════════════════════╗
+pub fn wireSizeAngle() usize {
+    return primitive.wireSizeF32();
+}
+
 pub fn serializeAngle(angle: util.Angle, writer: anytype) void {
     primitive.serializeF32(writer, angle.toDegrees());
 }

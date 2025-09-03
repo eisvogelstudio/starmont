@@ -21,55 +21,44 @@ const testing = std.testing;
 
 // ---------- local ----------
 const message = @import("message.zig");
+const Package = @import("package.zig").Package;
 const serial = @import("serial/serial.zig");
 // ---------------------------
 
-const std = @import("std");
-
-pub const BatchHeader = packed struct {
-    version: u8 = 1, // Protokollversion
-    message_type: u8, // z. B. 0 = snapshot, 1 = input, etc.
-    sequence_number: u32, // fortlaufende Nummer für Sortierung
-    timestamp_ms: u64, // client- oder serverseitige Zeitmarke
-    entity_count: u16, // wie viele Entities folgen
-    payload_size: u16, // tatsächliche Größe des Payloads in Bytes
-};
-
-pub const Batch = struct {
+pub const Update = struct {
     gpa: *std.mem.Allocator,
-    messages: std.ArrayList(message.Message),
-    id: usize = 0,
-    //pub const max_size = 32;
+    messages: std.ArrayList(Package),
+    tick: u64 = undefined,
 
-    pub fn init(gpa: *std.mem.Allocator) Batch {
-        const batch = Batch{
+    pub fn init(gpa: *std.mem.Allocator) Update {
+        const batch = Update{
             .gpa = gpa,
-            .messages = std.ArrayList(message.Message).init(gpa.*),
+            .messages = std.ArrayList(Package).init(gpa.*),
         };
 
         return batch;
     }
 
-    pub fn deinit(self: *Batch) void {
+    pub fn deinit(self: *Update) void {
         for (self.messages.items) |*msg| {
             msg.deinit();
         }
         self.messages.deinit();
     }
 
-    pub fn copy(self: *Batch, gpa: *std.mem.Allocator) Batch {
+    pub fn copy(self: *Update, gpa: *std.mem.Allocator) Update {
         var messages = std.ArrayList(message.Message).init(gpa.*);
 
         messages.appendSlice(self.messages.items) catch unreachable;
 
-        return Batch{
+        return Update{
             .gpa = gpa,
             .messages = messages,
             .id = self.id,
         };
     }
 
-    pub fn append(self: *Batch, msg: message.Message) !void {
+    pub fn append(self: *Update, msg: message.Message) !void {
         //if (self.messages.items.len >= max_size) {
         //    return error.Overflow;
         //}
@@ -77,11 +66,11 @@ pub const Batch = struct {
         self.messages.append(msg) catch unreachable;
     }
 
-    pub fn clear(self: *Batch) void {
+    pub fn clear(self: *Update) void {
         self.messages.clearRetainingCapacity();
     }
 
-    pub fn serialize(self: *const Batch, writer: anytype) void {
+    pub fn serialize(self: *const Update, writer: anytype) void {
         const count: u16 = @intCast(self.messages.items.len);
         serial.serializeU16(writer, count);
 
@@ -92,9 +81,9 @@ pub const Batch = struct {
         }
     }
 
-    pub fn deserialize(reader: anytype, gpa: *std.mem.Allocator) Batch {
+    pub fn deserialize(reader: anytype, gpa: *std.mem.Allocator) Update {
         const count = serial.deserializeU16(reader);
-        var batch = Batch.init(gpa);
+        var batch = Update.init(gpa);
 
         std.log.info("batch size RECEIVE: {any}", .{count});
 
@@ -107,7 +96,7 @@ pub const Batch = struct {
         return batch;
     }
 
-    pub fn print(self: *const Batch, writer: anytype) void {
+    pub fn print(self: *const Update, writer: anytype) void {
         writer.print("Batch ({} messages):\n", .{self.messages.items.len}) catch unreachable;
         for (self.messages.items, 0..) |msg, i| {
             writer.print("  [{}] ", .{i}) catch unreachable;

@@ -18,177 +18,278 @@
 const std = @import("std");
 // -------------------------
 
+// ---------- local ----------
+const SerializeError = @import("error.zig").SerializeError;
+const DeserializeError = @import("error.zig").DeserializeError;
+const Error = @import("error.zig").Error;
+// ---------------------------
+
+//TODO[IMPROVEMENT] make buffer the first arg in all the serialize/deserialize functions
+
+const endian = std.builtin.Endian.big;
+
 // ╔══════════════════════════════ text ══════════════════════════════╗
-pub fn serializeText(writer: anytype, text: []const u8) void {
-    serializeU64(writer, @intCast(text.len));
-    writer.writeAll(text) catch unreachable;
+const max_text_size = 1024;
+
+pub fn wireSizeText(text: []const u8) usize {
+    std.debug.assert(text.len <= max_text_size);
+
+    return @sizeOf(u64) + text.len;
 }
 
-pub fn deserializeText(reader: anytype, gpa: *std.mem.Allocator) []const u8 {
-    const len = deserializeU64(reader);
-    const text = gpa.alloc(u8, len) catch unreachable;
-    _ = reader.readAll(text) catch unreachable;
-    return text;
+pub fn serializeText(text: []const u8, buffer: []u8) SerializeError!void {
+    std.debug.assert(text.len <= max_text_size);
+
+    const need = wireSizeText(text);
+    if (buffer.len < need) return SerializeError.BufferTooSmall;
+
+    var i: usize = 0;
+    std.mem.writeInt(u64, buffer[i..][0..8], @intCast(text.len), endian);
+    i += 8;
+
+    @memcpy(buffer[i .. i + text.len], text);
+}
+
+pub fn deserializeTextWithSize(buffer: []const u8, gpa: std.mem.Allocator) Error!struct { text: []u8, size: usize } {
+    if (buffer.len < 8) return DeserializeError.Truncated;
+
+    var i: usize = 0;
+    const len = std.mem.readInt(u64, buffer[i..][0..8], endian);
+    i += 8;
+
+    if (len > max_text_size) return DeserializeError.TextTooLarge;
+    if (i + len > buffer.len) return DeserializeError.Truncated;
+
+    const text = try gpa.alloc(u8, @intCast(len));
+    @memcpy(text, buffer[i .. i + len]);
+
+    return .{ text, len };
 }
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ enum ══════════════════════════════╗
-pub fn serializeEnum(writer: anytype, comptime T: type, value: T) void {
-    writer.writeByte(@intFromEnum(value)) catch unreachable;
+pub fn wireSizeEnum(comptime T: type) usize {
+    return @sizeOf(@typeInfo(T).Enum.tag_type);
 }
 
-pub fn deserializeEnum(reader: anytype, comptime T: type) T {
-    const action_byte = reader.readByte() catch unreachable;
-    return @enumFromInt(action_byte);
+pub fn serializeEnum(comptime T: type, value: T, buffer: []u8) SerializeError!void {
+    const tag_type = @typeInfo(T).Enum.tag_type;
+    if (buffer.len < @sizeOf(tag_type)) return SerializeError.BufferTooSmall;
+    switch (tag_type) {
+        u8 => {
+            buffer[0] = @intFromEnum(value);
+            return 1;
+        },
+        u16 => {
+            std.mem.writeInt(u16, buffer[0..2], @intFromEnum(value), endian);
+            return 2;
+        },
+        u32 => {
+            std.mem.writeInt(u32, buffer[0..4], @intFromEnum(value), endian);
+            return 4;
+        },
+        u64 => {
+            std.mem.writeInt(u64, buffer[0..8], @intFromEnum(value), endian);
+            return 8;
+        },
+        else => @compileError("Unsupported enum backing type"),
+    }
+}
+
+pub fn deserializeEnum(comptime T: type, buffer: []const u8) DeserializeError!T {
+    const tag_type = @typeInfo(T).Enum.tag_type;
+    const val: usize = switch (tag_type) {
+        u8 => if (buffer.len >= 1) buffer[0] else return DeserializeError.Truncated,
+        u16 => if (buffer.len >= 2) std.mem.readInt(u16, buffer[0..2], endian) else return Error.Truncated,
+        u32 => if (buffer.len >= 4) std.mem.readInt(u32, buffer[0..4], endian) else return Error.Truncated,
+        u64 => if (buffer.len >= 8) std.mem.readInt(u64, buffer[0..8], endian) else return Error.Truncated,
+        else => @compileError("Unsupported enum backing type"),
+    };
+    if (val >= @typeInfo(T).Enum.fields.len)
+        return DeserializeError.InvalidEnumValue;
+    return @enumFromInt(val);
 }
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ bool ══════════════════════════════╗
-pub fn serializeBool(writer: anytype, boolean: bool) void {
-    const byte: u8 = if (boolean) 1 else 0;
-    writer.writeByte(byte) catch unreachable;
+pub fn wireSizeBool() usize {
+    return 1;
 }
 
-pub fn deserializeBool(reader: anytype) bool {
-    const byte = reader.readByte() catch unreachable;
-    return byte != 0;
+pub fn serializeBool(value: bool, buffer: []u8) SerializeError!void {
+    if (buffer.len < 1) return SerializeError.BufferTooSmall;
+    buffer[0] = if (value) 1 else 0;
 }
+
+pub fn deserializeBool(buffer: []const u8) DeserializeError!bool {
+    if (buffer.len < 1) return DeserializeError.Truncated;
+    return buffer[0] != 0;
+}
+
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ uint ══════════════════════════════╗
-pub fn serializeU8(writer: anytype, uint: u8) void {
-    var buf: [1]u8 = undefined;
-    buf = @bitCast(uint);
-    writer.writeAll(&buf) catch unreachable;
+pub fn wireSizeU8() usize {
+    return 1;
 }
 
-pub fn deserializeU8(reader: anytype) u8 {
-    var buf: [1]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn serializeU8(value: u8, buffer: []u8) SerializeError!void {
+    if (buffer.len < 1) return SerializeError.BufferTooSmall;
+    buffer[0] = value;
 }
 
-pub fn serializeU16(writer: anytype, uint: u16) void {
-    var buf: [2]u8 = undefined;
-    buf = @bitCast(uint);
-    writer.writeAll(&buf) catch unreachable;
+pub fn deserializeU8(buffer: []const u8) DeserializeError!u8 {
+    if (buffer.len < 1) return DeserializeError.Truncated;
+    return buffer[0];
 }
 
-pub fn deserializeU16(reader: anytype) u16 {
-    var buf: [2]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn wireSizeU16() usize {
+    return 2;
 }
 
-pub fn serializeU32(writer: anytype, uint: u32) void {
-    var buf: [4]u8 = undefined;
-    buf = @bitCast(uint);
-    writer.writeAll(&buf) catch unreachable;
+pub fn serializeU16(value: u16, buffer: []u8) SerializeError!void {
+    if (buffer.len < 2) return SerializeError.BufferTooSmall;
+    std.mem.writeInt(u16, buffer[0..2], value, endian);
 }
 
-pub fn deserializeU32(reader: anytype) u32 {
-    var buf: [4]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn deserializeU16(buffer: []const u8) DeserializeError!u16 {
+    if (buffer.len < 2) return DeserializeError.Truncated;
+    return std.mem.readInt(u16, buffer[0..2], endian);
 }
 
-pub fn serializeU64(writer: anytype, uint: u64) void {
-    var buf: [8]u8 = undefined;
-    buf = @bitCast(uint);
-    writer.writeAll(&buf) catch unreachable;
+pub fn wireSizeU32() usize {
+    return 4;
 }
 
-pub fn deserializeU64(reader: anytype) u64 {
-    var buf: [8]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn serializeU32(value: u32, buffer: []u8) SerializeError!void {
+    if (buffer.len < 4) return SerializeError.BufferTooSmall;
+    std.mem.writeInt(u32, buffer[0..4], value, endian);
+}
+
+pub fn deserializeU32(buffer: []const u8) DeserializeError!u32 {
+    if (buffer.len < 4) return DeserializeError.Truncated;
+    return std.mem.readInt(u32, buffer[0..4], endian);
+}
+
+pub fn wireSizeU64() usize {
+    return 8;
+}
+
+pub fn serializeU64(value: u64, buffer: []u8) SerializeError!void {
+    if (buffer.len < 8) return SerializeError.BufferTooSmall;
+    std.mem.writeInt(u64, buffer[0..8], value, endian);
+}
+
+pub fn deserializeU64(buffer: []const u8) DeserializeError!u64 {
+    if (buffer.len < 8) return DeserializeError.Truncated;
+    return std.mem.readInt(u64, buffer[0..8], endian);
 }
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ int ══════════════════════════════╗
-pub fn serializeI8(writer: anytype, int: i8) void {
-    var buf: [1]u8 = undefined;
-    buf = @bitCast(int);
-    writer.writeAll(&buf) catch unreachable;
+pub fn wireSizeI8() usize {
+    return 1;
 }
 
-pub fn deserializeI8(reader: anytype) i8 {
-    var buf: [1]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn serializeI8(value: i8, buffer: []u8) SerializeError!void {
+    if (buffer.len < 1) return SerializeError.BufferTooSmall;
+    buffer[0] = @bitCast(value);
 }
 
-pub fn serializeI16(writer: anytype, int: i16) void {
-    var buf: [2]u8 = undefined;
-    buf = @bitCast(int);
-    writer.writeAll(&buf) catch unreachable;
+pub fn deserializeI8(buffer: []const u8) DeserializeError!i8 {
+    if (buffer.len < 1) return DeserializeError.Truncated;
+    return @bitCast(buffer[0]);
 }
 
-pub fn deserializeI16(reader: anytype) i16 {
-    var buf: [2]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn wireSizeI16() usize {
+    return 2;
 }
 
-pub fn serializeI32(writer: anytype, int: i32) void {
-    var buf: [4]u8 = undefined;
-    buf = @bitCast(int);
-    writer.writeAll(&buf) catch unreachable;
+pub fn serializeI16(value: i16, buffer: []u8) SerializeError!void {
+    if (buffer.len < 2) return SerializeError.BufferTooSmall;
+    std.mem.writeInt(i16, buffer[0..2], value, endian);
 }
 
-pub fn deserializeI32(reader: anytype) i32 {
-    var buf: [4]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn deserializeI16(buffer: []const u8) DeserializeError!i16 {
+    if (buffer.len < 2) return DeserializeError.Truncated;
+    return std.mem.readInt(i16, buffer[0..2], endian);
 }
 
-pub fn serializeI64(writer: anytype, int: i64) void {
-    var buf: [8]u8 = undefined;
-    buf = @bitCast(int);
-    writer.writeAll(&buf) catch unreachable;
+pub fn wireSizeI32() usize {
+    return 4;
 }
 
-pub fn deserializeI64(reader: anytype) i64 {
-    var buf: [8]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn serializeI32(value: i32, buffer: []u8) SerializeError!void {
+    if (buffer.len < 4) return SerializeError.BufferTooSmall;
+    std.mem.writeInt(i32, buffer[0..4], value, endian);
+}
+
+pub fn deserializeI32(buffer: []const u8) DeserializeError!i32 {
+    if (buffer.len < 4) return DeserializeError.Truncated;
+    return std.mem.readInt(i32, buffer[0..4], endian);
+}
+
+pub fn wireSizeI64() usize {
+    return 8;
+}
+
+pub fn serializeI64(value: i64, buffer: []u8) SerializeError!void {
+    if (buffer.len < 8) return SerializeError.BufferTooSmall;
+    std.mem.writeInt(i64, buffer[0..8], value, endian);
+}
+
+pub fn deserializeI64(buffer: []const u8) DeserializeError!i64 {
+    if (buffer.len < 8) return DeserializeError.Truncated;
+    return std.mem.readInt(i64, buffer[0..8], endian);
 }
 // ╚═════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ float ══════════════════════════════╗
-pub fn serializeF16(writer: anytype, float: f16) void {
-    var buf: [2]u8 = undefined;
-    buf = @bitCast(float);
-    writer.writeAll(&buf) catch unreachable;
+pub fn wireSizeF16() usize {
+    return 2;
 }
 
-pub fn deserializeF16(reader: anytype) f16 {
-    var buf: [2]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn serializeF16(value: f16, buffer: []u8) SerializeError!void {
+    if (buffer.len < 2) return SerializeError.BufferTooSmall;
+    const raw: [2]u8 = @bitCast(value);
+    @memcpy(buffer[0..2], raw[0..2]);
 }
 
-pub fn serializeF32(writer: anytype, float: f32) void {
-    var buf: [4]u8 = undefined;
-    buf = @bitCast(float);
-    writer.writeAll(&buf) catch unreachable;
+pub fn deserializeF16(buffer: []const u8) DeserializeError!f16 {
+    if (buffer.len < 2) return DeserializeError.Truncated;
+    const raw: [2]u8 = buffer[0..2].*;
+    return @bitCast(raw);
 }
 
-pub fn deserializeF32(reader: anytype) f32 {
-    var buf: [4]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn wireSizeF32() usize {
+    return 4;
 }
 
-pub fn serializeF64(writer: anytype, float: f64) void {
-    var buf: [8]u8 = undefined;
-    buf = @bitCast(float);
-    writer.writeAll(&buf) catch unreachable;
+pub fn serializeF32(value: f32, buffer: []u8) SerializeError!void {
+    if (buffer.len < 4) return SerializeError.BufferTooSmall;
+    const raw: [4]u8 = @bitCast(value);
+    @memcpy(buffer[0..4], raw[0..4]);
 }
 
-pub fn deserializeF64(reader: anytype) f64 {
-    var buf: [8]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return @bitCast(buf);
+pub fn deserializeF32(buffer: []const u8) DeserializeError!f32 {
+    if (buffer.len < 4) return DeserializeError.Truncated;
+    const raw: [4]u8 = buffer[0..4].*;
+    return @bitCast(raw);
+}
+
+pub fn wireSizeF64() usize {
+    return 8;
+}
+
+pub fn serializeF64(value: f64, buffer: []u8) SerializeError!void {
+    if (buffer.len < 8) return SerializeError.BufferTooSmall;
+    const raw: [8]u8 = @bitCast(value);
+    @memcpy(buffer[0..8], raw[0..8]);
+}
+
+pub fn deserializeF64(buffer: []const u8) DeserializeError!f64 {
+    if (buffer.len < 8) return DeserializeError.Truncated;
+    const raw: [8]u8 = buffer[0..8].*;
+    return @bitCast(raw);
 }
 // ╚═══════════════════════════════════════════════════════════════════╝

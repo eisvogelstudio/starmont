@@ -26,6 +26,7 @@ Use the following standardized tags:
 - TODO[FIXME]          - A critical issue that must be fixed urgently
 - TODO[SECURITY]       - Security risk or input validation concern
 - TODO[MISSING]        - A feature is unimplemented
+- TODO[IMPROVE]        - A feature is implemented but needs improvement
 
 - TODO[OPTIMISATION]   - Potential for performance or memory improvement
 - TODO[REFACTOR]       - Structural cleanup or code organization, no behavior change

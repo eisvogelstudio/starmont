@@ -14,9 +14,18 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- local ----------
-pub usingnamespace @import("core.zig");
-pub usingnamespace @import("error.zig");
-pub usingnamespace @import("primitive.zig");
-pub usingnamespace @import("util.zig");
+// ---------- zig ----------
+const std = @import("std");
 // -------------------------
+
+pub const SerializeError = error{
+    BufferTooSmall,
+};
+
+pub const DeserializeError = error{
+    Truncated,
+    InvalidEnumValue, // handle only when deserializing enums
+    TextTooLarge, // handle only when deserializing text
+};
+
+pub const Error = SerializeError || DeserializeError || std.mem.Allocator.Error;

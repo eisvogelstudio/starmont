@@ -50,24 +50,62 @@ const TimedBatch = struct {
     stamp: i64,
 };
 
+const Protocol = enum {
+    tcp,
+    udp,
+};
+
+const Connection = struct {
+    is_fallback: bool = false,
+    tcp: net.Socket = undefined,
+    udp: net.Socket = undefined,
+    last_seen_ns: i64 = 0,
+    fallback_ns: i64 = 0,
+
+    const udp_timeout_ns = 1000;
+    const udp_try_again_ns = udp_timeout_ns * 10;
+
+    pub fn update(self: *Connection) !void {
+        const now = std.time.nanoTimestamp();
+
+        if (now - self.last_seen_ns >= udp_timeout_ns) {
+            self.is_fallback = true;
+            return error.FallbacK;
+        } else if (now - self.fallback_ns >= udp_timeout_ns) {
+            self.is_fallback = false;
+        }
+    }
+
+    pub fn send(self: *Connection, protocol: Protocol, data: []const u8) !void {
+        try self.update();
+
+        if (protocol == .tcp or self.is_fallback) {
+            self.tcp.send(data);
+        } else {
+            self.udp.send(data);
+        }
+    }
+};
+
 pub const Server = struct {
     gpa: *std.mem.Allocator,
-    socket: net.Socket = undefined,
-    is_opened: bool = false,
-    clients: std.AutoHashMap(u64, net.Socket),
-    batches: std.AutoHashMap(u64, Batch),
-    batchesToSend: std.ArrayList(TimedBatch),
-    batchesReceived: std.ArrayList(TimedBatch),
+    tcp_listerner: net.Socket = undefined,
+    udp_socket: net.Socket = undefined,
+    is_open: bool = false,
+    connections: std.AutoHashMap(u64, Connection),
+    next_id: u64 = 0,
+    //batches: std.AutoHashMap(u64, Batch),
+    //batchesToSend: std.ArrayList(TimedBatch),
+    //batchesReceived: std.ArrayList(TimedBatch),
     last: i64 = 0,
-    identifier: u64 = 0,
 
     pub fn init(gpa: *std.mem.Allocator) Server {
         const server = Server{
             .gpa = gpa,
-            .clients = std.AutoHashMap(u64, net.Socket).init(gpa.*),
-            .batches = std.AutoHashMap(u64, Batch).init(gpa.*),
-            .batchesToSend = std.ArrayList(TimedBatch).init(gpa.*),
-            .batchesReceived = std.ArrayList(TimedBatch).init(gpa.*),
+            .connections = std.AutoHashMap(u64, Connection).init(gpa.*),
+            //.batches = std.AutoHashMap(u64, Batch).init(gpa.*),
+            //.batchesToSend = std.ArrayList(TimedBatch).init(gpa.*),
+            //.batchesReceived = std.ArrayList(TimedBatch).init(gpa.*),
         };
 
         net.init() catch unreachable;
@@ -76,15 +114,17 @@ pub const Server = struct {
     }
 
     pub fn deinit(self: *Server) void {
-        self.close();
+        if (self.is_open) {
+            self.close();
+        }
 
         net.deinit();
 
-        self.batchesReceived.deinit();
-        self.batchesToSend.deinit();
+        //self.batchesReceived.deinit();
+        //self.batchesToSend.deinit();
+        //self.batches.deinit();
 
-        self.batches.deinit();
-        self.clients.deinit();
+        self.connections.deinit();
     }
 
     pub fn update(self: *Server) void {
@@ -94,37 +134,64 @@ pub const Server = struct {
         self.receive();
     }
 
+    fn create_tcp(port: u16) net.Socket {
+        var socket: net.Socket = net.Socket.create(.ipv4, .tcp) catch unreachable;
+        socket.enablePortReuse(true) catch unreachable;
+        socket.bindToPort(port) catch unreachable;
+        socket.setReadTimeout(100) catch unreachable; // 100ns
+        socket.setWriteTimeout(100) catch unreachable; // 100ns
+        socket.listen() catch unreachable;
+
+        return socket;
+    }
+
+    fn create_udp(port: u16) net.Socket {
+        var socket: net.Socket = net.Socket.create(.ipv4, .udp) catch unreachable;
+        socket.enablePortReuse(true) catch unreachable;
+        socket.bindToPort(port) catch unreachable;
+        socket.setReadTimeout(100) catch unreachable; // 100ns
+        socket.setWriteTimeout(100) catch unreachable; // 100ns
+
+        return socket;
+    }
+
     pub fn open(self: *Server, port: u16) void {
-        self.socket = net.Socket.create(.ipv4, .tcp) catch unreachable;
-        self.socket.enablePortReuse(true) catch unreachable;
-        self.socket.bindToPort(port) catch unreachable;
-        self.socket.setReadTimeout(100) catch unreachable; // 100ns
-        self.socket.setWriteTimeout(100) catch unreachable; // 100ns
+        std.debug.assert(!self.is_open);
 
-        self.socket.listen() catch unreachable;
+        log.info("server ip is {}", .{self.tcp_listerner.endpoint.?.address});
 
-        log.info("server listening on port {}", .{port});
+        self.tcp_listerner = create_tcp(port);
+        log.info("server listening on tcp port {}", .{self.tcp_listerner.endpoint.?.port});
 
-        self.is_opened = true;
+        self.udp_socket = create_udp(0);
+        log.info("server listening on udp port {}", .{self.udp_socket.endpoint.?.port});
+
+        self.is_open = true;
     }
 
     pub fn close(self: *Server) void {
-        self.socket.close();
+        std.debug.assert(self.is_open);
 
-        var it = self.clients.iterator();
+        self.tcp_listerner.close();
+        self.udp_socket.close();
+
+        log.info("server closed", .{});
+
+        var it = self.connections.iterator();
         while (it.next()) |entry| {
-            const client = entry.value_ptr.*;
-            client.close();
+            //const client = entry.value_ptr.*;
+            //client.close();
+            _ = entry;
         }
 
-        self.clients.deinit();
+        self.connections.deinit();
 
-        self.is_opened = false;
+        self.is_open = false;
     }
 
-    pub fn accept(self: *Server) void {
+    pub fn tcp_accept(self: *Server) void {
         while (true) {
-            const client = self.socket.accept() catch |err| {
+            const client = self.tcp_listerner.accept() catch |err| {
                 if (err == error.WouldBlock) {
                     break;
                 } else {
@@ -132,10 +199,10 @@ pub const Server = struct {
                 }
             };
 
-            log.info("client #{d} connected", .{self.identifier});
-            self.clients.put(self.identifier, client) catch unreachable;
-            self.batches.put(self.identifier, Batch.init(self.gpa)) catch unreachable;
-            self.identifier += 1;
+            log.info("client #{d} connected", .{self.next_id});
+            self.connections.put(self.next_id, client) catch unreachable;
+            self.batches.put(self.next_id, Batch.init(self.gpa)) catch unreachable;
+            self.next_id += 1;
         }
     }
 
@@ -144,7 +211,7 @@ pub const Server = struct {
 
         var delete = std.ArrayList(u64).init(self.gpa.*);
 
-        var it = self.clients.iterator();
+        var it = self.connections.iterator();
         while (it.next()) |entry| {
             var client = entry.value_ptr.*;
 
@@ -169,7 +236,7 @@ pub const Server = struct {
         }
 
         for (delete.items) |key| {
-            _ = self.clients.remove(key);
+            _ = self.connections.remove(key);
             _ = self.batches.remove(key);
             log.info("client #{d} disconnected", .{key});
         }
@@ -186,7 +253,7 @@ pub const Server = struct {
 
         self.last = now;
 
-        var it = self.clients.iterator();
+        var it = self.connections.iterator();
         while (it.next()) |entry| {
             self.batches.getPtr(entry.key_ptr.*).?.id = entry.key_ptr.*;
 
@@ -208,7 +275,7 @@ pub const Server = struct {
                 continue;
             }
 
-            if (self.clients.getPtr(timedBatch.*.batch.id)) |id| {
+            if (self.connections.getPtr(timedBatch.*.batch.id)) |id| {
                 primitive.send(id, timedBatch.*.batch) catch continue;
             } else {
                 continue;
@@ -248,13 +315,13 @@ pub const Server = struct {
     }
 
     pub fn getPort(self: *Server) ?u16 {
-        if (self.socket.endpoint) |end| {
+        if (self.tcp_listerner.endpoint) |end| {
             return end.port;
         }
     }
 
     pub fn getAddress(self: *Server, gpa: std.mem.Allocator) ?[]const u8 {
-        if (self.socket.endpoint) |end| {
+        if (self.tcp_listerner.endpoint) |end| {
             return std.fmt.allocPrint(gpa, "{}", .{end.address}) catch null;
         }
         return null;
