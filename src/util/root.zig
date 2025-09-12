@@ -14,9 +14,14 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- zig ----------
+const std = @import("std");
+// -------------------------
+
 // ╔══════════════════════════════ pack ══════════════════════════════╗
 pub const log = @import("log.zig");
 pub const PerfectStringMap = @import("perfect.zig").PerfectStringMap;
+pub const RingBuffer = @import("ringbuffer.zig").RingBuffer;
 pub const stripBeforeStarmont = @import("strip.zig").stripBeforeStarmont;
 pub const UUID4 = @import("uuid4.zig").UUID4;
 pub const ziggy = @import("ziggy.zig");
@@ -41,3 +46,9 @@ test {
     //TODO[TEST]
 }
 // ╚══════════════════════════════════════════════════════════════════╝
+
+pub fn seqGreater(comptime T: type, a: T, b: T) bool {
+    const Signed = std.meta.Int(.signed, @bitSizeOf(T));
+    const s: Signed = @intCast(a - b);
+    return s > 0;
+}

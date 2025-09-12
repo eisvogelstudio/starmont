@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────
 
 // ╔══════════════════════════════ pack ══════════════════════════════╗
-pub const Client = @import("client.zig").Client;
+//pub const Client = @import("client.zig").Client;
 pub const msg = @import("message.zig");
 pub const serial = @import("serial/serial.zig");
 pub const Server = @import("server.zig").Server;

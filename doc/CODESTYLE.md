@@ -12,6 +12,8 @@ Never commit unformatted code.
 Follow the Zig official naming style:
 <https://ziglang.org/documentation/0.14.1/#Style-Guide>
 
+Use full, descriptive names at the top level (e.g. messages instead of msg). Abbreviations are acceptable in nested or inner scopes, as long as they follow naturally (e.g. message → msg → m).
+
 ## TODO Tagging Convention
 
 All `TODO` comments **must** use a structured format:
@@ -22,21 +24,21 @@ All `TODO` comments **must** use a structured format:
 
 Use the following standardized tags:
 
-- TODO[BUG]            - A known bug that causes incorrect behavior
-- TODO[FIXME]          - A critical issue that must be fixed urgently
-- TODO[SECURITY]       - Security risk or input validation concern
-- TODO[MISSING]        - A feature is unimplemented
-- TODO[IMPROVE]        - A feature is implemented but needs improvement
+- BUG           - A known bug that causes incorrect behavior
+- FIXME         - A critical issue that must be fixed urgently
+- SECURITY      - Security risk or input validation concern
+- MISSING       - A feature is unimplemented
+- IMPROVE       - A feature is implemented but needs improvement
 
-- TODO[OPTIMISATION]   - Potential for performance or memory improvement
-- TODO[REFACTOR]       - Structural cleanup or code organization, no behavior change
-- TODO[REMOVE]         - Code marked for deletion in future cleanup
-- TODO[ARCH]           - Architectural concern or large-scale structural decision
+- OPTIMISATION  - Potential for performance or memory improvement
+- REFACTOR      - Structural cleanup or code organization, no behavior change
+- REMOVE        - Code marked for deletion in future cleanup
+- ARCH          - Architectural concern or large-scale structural decision
 
-- TODO[TEST]           - Missing, incomplete, or weak tests
-- TODO[DOC]            - Missing or outdated documentation
+- TEST          - Missing, incomplete, or weak tests
+- DOC           - Missing or outdated documentation
 
-- TODO[DEBUG]          - Temporary debug code or logging to be removed
+- DEBUG         - Temporary debug code or logging to be removed
 
 Additional context should be added after the tag when appropriate:
 
@@ -48,8 +50,21 @@ If no fitting tag applies, use a generic TODO without a tag as a fallback, but t
 
 These tags are intended for internal development use and should be periodically reviewed and cleaned up before releases.
 
+## Visual Seperators
 
 Use logical groupings with clear visual separators to maintain structure in source files:
+
+```zig
+// ╔══════════════════════════════ level 1 ══════════════════════════════╗
+
+// ╚═════════════════════════════════════════════════════════════════════╝
+
+// ┌──────────────────── level 2 ────────────────────┐
+// └─────────────────────────────────────────────────┘
+
+// ---------- level 3 ----------
+// -----------------------------
+```
 
 ## Import Ordering
 
@@ -74,15 +89,3 @@ const util = @import("util");
 // relative path in same module
 // ----------------------------
 ```
-
-## Visual Seperators
-
-// ╔══════════════════════════════ level 1 ══════════════════════════════╗
-
-// ╚═════════════════════════════════════════════════════════════════════╝
-
-// ┌──────────────────── level 2 ────────────────────┐
-// └─────────────────────────────────────────────────┘
-
-// ---------- level 3 ----------
-// -----------------------------

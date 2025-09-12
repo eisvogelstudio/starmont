@@ -27,6 +27,28 @@ const util = @import("util");
 const serial = @import("serial/serial.zig");
 // ---------------------------
 
+pub const Channel = enum(u8) {
+    reliabel,
+    unreliable,
+
+    pub const Class = enum { reliable, unreliable };
+    pub const Priority = enum { high, mid, low };
+
+    pub fn class(self: Channel) Class {
+        return switch (self) {
+            .reliabel => Class.reliable,
+            .unreliable => Class.unreliable,
+        };
+    }
+
+    pub fn priority(self: Channel) Priority {
+        return switch (self) {
+            .reliabel => .high,
+            .unreliable => .low,
+        };
+    }
+};
+
 //TODO[IMPROVE] write functions
 
 pub const AssignMessage = struct {

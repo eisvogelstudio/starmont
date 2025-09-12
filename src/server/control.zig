@@ -65,76 +65,76 @@ pub const Control = struct {
     pub fn update(self: *Control) void {
         self.model.update();
 
-        self.server.accept();
-        const data = self.server.withdraw(self.gpa);
+        //self.server.accept();
+        //const data = self.server.withdraw(self.gpa);
+        //
+        //if (data) |batches| {
+        //    defer {
+        //        for (batches) |*b| {
+        //            b.*.deinit();
+        //        }
+        //        self.gpa.free(batches);
+        //    }
+        //
+        //    for (batches) |b| {
+        //        for (b.messages.items) |msg| {
+        //            //check if is valid
+        //            //apply/apply best effort version
+        //
+        //            switch (msg) {
+        //                .Action => |action| {
+        //                    switch (action.action) {
+        //                        //.SpawnPlayer => {
+        //                        //self.model.createEntity(id);
+        //                        //const cmsg = network.EntityMessage.init(id);
+        //
+        //                        //var it = self.server.clients.iterator();
+        //                        //while (it.next()) |entry| {
+        //                        //    self.server.submit(entry.key_ptr.*, cmsg) catch unreachable;
+        //                        // }
+        //                        //},
+        //                        //.MoveLeft => {
+        //                        //    self.model.setComponent(id, core.Velocity, .{ .x = -100, .y = 0 });
+        //                        //},
+        //                        //.MoveRight => {
+        //                        //    self.model.setComponent(id, core.Velocity, .{ .x = 100, .y = 0 });
+        //                        //},
+        //                        //.MoveForward => {
+        //                        //    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = -100 });
+        //                        //},
+        //                        //.MoveBackward => {
+        //                        //    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = 100 });
+        //                        //},
+        //                        //.Fire => {
+        //                        //    //nothing
+        //                        //},
+        //                        else => @panic("received unexpected message"),
+        //                    }
+        //                },
+        //                .SnapshotRequest => {
+        //                    std.debug.print("requested snapshot\n", .{});
+        //                    self.sendSnapshot();
+        //                },
+        //                else => @panic("received unexpected message"),
+        //            }
+        //        }
+        //    }
+        //} else |err| {
+        //    switch (err) {
+        //        error.WouldBlock => {
+        //            //nothing
+        //        },
+        //    }
+        //}
 
-        if (data) |batches| {
-            defer {
-                for (batches) |*b| {
-                    b.*.deinit();
-                }
-                self.gpa.free(batches);
-            }
+        //if (self.server.clients.count() > 0 and !already) {
+        //    self.sendSnapshot();
+        //    already = true;
+        //}
 
-            for (batches) |b| {
-                for (b.messages.items) |msg| {
-                    //check if is valid
-                    //apply/apply best effort version
+        //self.syncEntites();
 
-                    switch (msg) {
-                        .Action => |action| {
-                            switch (action.action) {
-                                //.SpawnPlayer => {
-                                //self.model.createEntity(id);
-                                //const cmsg = network.EntityMessage.init(id);
-
-                                //var it = self.server.clients.iterator();
-                                //while (it.next()) |entry| {
-                                //    self.server.submit(entry.key_ptr.*, cmsg) catch unreachable;
-                                // }
-                                //},
-                                //.MoveLeft => {
-                                //    self.model.setComponent(id, core.Velocity, .{ .x = -100, .y = 0 });
-                                //},
-                                //.MoveRight => {
-                                //    self.model.setComponent(id, core.Velocity, .{ .x = 100, .y = 0 });
-                                //},
-                                //.MoveForward => {
-                                //    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = -100 });
-                                //},
-                                //.MoveBackward => {
-                                //    self.model.setComponent(id, core.Velocity, .{ .x = 0, .y = 100 });
-                                //},
-                                //.Fire => {
-                                //    //nothing
-                                //},
-                                else => @panic("received unexpected message"),
-                            }
-                        },
-                        .SnapshotRequest => {
-                            std.debug.print("requested snapshot\n", .{});
-                            self.sendSnapshot();
-                        },
-                        else => @panic("received unexpected message"),
-                    }
-                }
-            }
-        } else |err| {
-            switch (err) {
-                error.WouldBlock => {
-                    //nothing
-                },
-            }
-        }
-
-        if (self.server.clients.count() > 0 and !already) {
-            self.sendSnapshot();
-            already = true;
-        }
-
-        self.syncEntites();
-
-        self.server.update();
+        //self.server.update();
     }
 
     fn syncEntites(self: *Control) void {

@@ -51,7 +51,7 @@ pub const Control = struct {
     gpa: *std.mem.Allocator,
     model: Model,
     view: View,
-    client: network.Client,
+    //client: network.Client,
     state: State,
 
     pub fn init(gpa: *std.mem.Allocator) Control {
@@ -59,7 +59,7 @@ pub const Control = struct {
             .gpa = gpa,
             .model = Model.init(gpa),
             .view = View.init(gpa),
-            .client = network.Client.init(gpa),
+            //.client = network.Client.init(gpa),
             .state = State{},
         };
 
@@ -70,7 +70,7 @@ pub const Control = struct {
     }
 
     pub fn deinit(self: *Control) void {
-        self.client.deinit();
+        //self.client.deinit();
         self.model.deinit();
         self.view.deinit();
 
@@ -85,74 +85,74 @@ pub const Control = struct {
         self.model.update();
         self.view.update(&self.model);
 
-        if (!self.client.is_connected) {
-            self.client.connect("127.0.0.1", 11111) catch |err| {
-                switch (err) {
-                    error.Cooldown => {
-                        //nothing
-                    },
-                    else => {
-                        log.warn("could not connect to server", .{});
-                    },
-                }
-            };
-        }
+        //if (!self.client.is_connected) {
+        //    self.client.connect("127.0.0.1", 11111) catch |err| {
+        //        switch (err) {
+        //            error.Cooldown => {
+        //                //nothing
+        //            },
+        //            else => {
+        //                log.warn("could not connect to server", .{});
+        //            },
+        //        }
+        //    };
+        //}
 
-        if (!self.client.is_connected) {
-            return;
-        }
-
-        if (self.state.should_request_snapshot) {
-            self.client.submit(network.msg.SnapshotRequestMessage.init());
-            self.state.should_request_snapshot = false;
-        }
-
-        // Receive messages
-        const data = self.client.receive();
-        if (data) |batches| {
-            defer {
-                for (batches) |*b| {
-                    b.*.deinit();
-                }
-
-                self.gpa.free(batches);
-            }
-            log.info("dfdfdf {any}", .{batches.len}); //TODO[remove]
-
-            for (batches) |b| {
-                for (b.messages.items) |message| {
-                    switch (message) {
-                        .Entity => |id| {
-                            log.info("a", .{}); //TODO[remove]
-                            self.model.registry.addEntity(id.id);
-                        },
-                        .EntityRemove => |id| {
-                            self.model.registry.removeEntity(id.id);
-                        },
-                        .Component => |comp| {
-                            log.info("comp", .{}); //TODO[remove]
-                            comp.apply(&self.model.registry);
-                        },
-                        .ComponentRemove => |comp| {
-                            comp.apply(&self.model.registry);
-                        },
-                        else => @panic("received unexpected message"),
-                    }
-                }
-            }
-        } else |err| {
-            switch (err) {
-                error.WouldBlock => {
-                    //nothing
-                },
-                error.ClosedConnection => {
-                    log.info("connection closed by server", .{});
-                },
-                else => {
-                    std.debug.print("receive error: {}\n", .{err});
-                },
-            }
-        }
+        //if (!self.client.is_connected) {
+        //    return;
+        //}
+        //
+        //if (self.state.should_request_snapshot) {
+        //    self.client.submit(network.msg.SnapshotRequestMessage.init());
+        //    self.state.should_request_snapshot = false;
+        //}
+        //
+        //// Receive messages
+        //const data = self.client.receive();
+        //if (data) |batches| {
+        //    defer {
+        //        for (batches) |*b| {
+        //            b.*.deinit();
+        //        }
+        //
+        //        self.gpa.free(batches);
+        //    }
+        //    log.info("dfdfdf {any}", .{batches.len}); //TODO[remove]
+        //
+        //    for (batches) |b| {
+        //        for (b.messages.items) |message| {
+        //            switch (message) {
+        //                .Entity => |id| {
+        //                    log.info("a", .{}); //TODO[remove]
+        //                    self.model.registry.addEntity(id.id);
+        //                },
+        //                .EntityRemove => |id| {
+        //                    self.model.registry.removeEntity(id.id);
+        //                },
+        //                .Component => |comp| {
+        //                    log.info("comp", .{}); //TODO[remove]
+        //                    comp.apply(&self.model.registry);
+        //                },
+        //                .ComponentRemove => |comp| {
+        //                    comp.apply(&self.model.registry);
+        //                },
+        //                else => @panic("received unexpected message"),
+        //            }
+        //        }
+        //    }
+        //} else |err| {
+        //    switch (err) {
+        //        error.WouldBlock => {
+        //            //nothing
+        //        },
+        //        error.ClosedConnection => {
+        //            log.info("connection closed by server", .{});
+        //        },
+        //        else => {
+        //            std.debug.print("receive error: {}\n", .{err});
+        //        },
+        //    }
+        //}
 
         // Construct and send a message
         //const msg = util.ComponentMessage.fromShipSize(.{ .id = 0 }, .Large);
@@ -160,7 +160,7 @@ pub const Control = struct {
         //    std.debug.print("send error: {}\n", .{err});
         //};
 
-        self.client.update();
+        //self.client.update();
     }
 
     pub fn shouldStop(self: *Control) bool {
@@ -176,8 +176,8 @@ pub const Control = struct {
     }
 
     fn sendActions(self: *Control) void {
-        if (!self.client.is_connected) return;
-
+        //if (!self.client.is_connected) return;
+        _ = self;
         //for (actions.items) |a| {
         //    self.client.submit(network.ActionMessage.init(a));
         //}

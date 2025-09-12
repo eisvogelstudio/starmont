@@ -69,35 +69,46 @@ pub fn deserializeTextWithSize(buffer: []const u8, gpa: std.mem.Allocator) Error
 
 // ╔══════════════════════════════ enum ══════════════════════════════╗
 pub fn wireSizeEnum(comptime T: type) usize {
-    return @sizeOf(@typeInfo(T).Enum.tag_type);
-}
-
-pub fn serializeEnum(comptime T: type, value: T, buffer: []u8) SerializeError!void {
-    const tag_type = @typeInfo(T).Enum.tag_type;
-    if (buffer.len < @sizeOf(tag_type)) return SerializeError.BufferTooSmall;
+    const tag_type = @typeInfo(T).@"enum".tag_type;
     switch (tag_type) {
         u8 => {
-            buffer[0] = @intFromEnum(value);
             return 1;
         },
         u16 => {
-            std.mem.writeInt(u16, buffer[0..2], @intFromEnum(value), endian);
             return 2;
         },
         u32 => {
-            std.mem.writeInt(u32, buffer[0..4], @intFromEnum(value), endian);
             return 4;
         },
         u64 => {
-            std.mem.writeInt(u64, buffer[0..8], @intFromEnum(value), endian);
             return 8;
         },
         else => @compileError("Unsupported enum backing type"),
     }
 }
 
+pub fn serializeEnum(comptime T: type, value: T, buffer: []u8) SerializeError!void {
+    const tag_type = @typeInfo(T).@"enum".tag_type;
+    if (buffer.len < @sizeOf(tag_type)) return SerializeError.BufferTooSmall;
+    switch (tag_type) {
+        u8 => {
+            buffer[0] = @intFromEnum(value);
+        },
+        u16 => {
+            std.mem.writeInt(u16, buffer[0..2], @intFromEnum(value), endian);
+        },
+        u32 => {
+            std.mem.writeInt(u32, buffer[0..4], @intFromEnum(value), endian);
+        },
+        u64 => {
+            std.mem.writeInt(u64, buffer[0..8], @intFromEnum(value), endian);
+        },
+        else => @compileError("Unsupported enum backing type"),
+    }
+}
+
 pub fn deserializeEnum(comptime T: type, buffer: []const u8) DeserializeError!T {
-    const tag_type = @typeInfo(T).Enum.tag_type;
+    const tag_type = @typeInfo(T).@"enum".tag_type;
     const val: usize = switch (tag_type) {
         u8 => if (buffer.len >= 1) buffer[0] else return DeserializeError.Truncated,
         u16 => if (buffer.len >= 2) std.mem.readInt(u16, buffer[0..2], endian) else return Error.Truncated,

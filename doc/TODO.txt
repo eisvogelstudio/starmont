@@ -1,0 +1,17 @@
+# imports
+- make sure order is external->zig->starmont->local
+- remove unneccesary imports
+- use consistent names
+
+# remove usingnamespace
+- 0.15.1 does not have usingnamespace
+- import all public manually
+
+# errors
+- ensure consistent, zig-style error names
+- add explicit error-sets where possible
+
+# proper error handling
+- get rid of the many 'catch unreachable' if it can happen and can be handled
+
+# use std.time.Instant or Timer instead of std.time-stampXXX

@@ -27,85 +27,82 @@ const util = @import("util");
 // ------------------------------
 
 // ---------- local ----------
-const Batch = @import("batch.zig").Batch;
 const message = @import("message.zig");
-const primitive = @import("primitive.zig");
+const Link = @import("udp.zig").Link;
 // ---------------------------
 
 const log = std.log.scoped(.network);
 
-const hz = 10;
-const interval = 1000 / hz;
+const hz: u32 = 10;
+const interval_ns: u64 = std.time.ns_per_s / hz;
 
-const lag_ms = 200;
-const delay = lag_ms / 2;
+const lag_ms: u32 = 200;
+const delay_ms: u32 = lag_ms / 2;
 
 pub const ServerInfo = struct {
     uuid: util.UUID4,
     load: f32,
 };
 
-const TimedBatch = struct {
-    batch: Batch,
-    stamp: i64,
-};
+const Address = net.Address;
 
 const Protocol = enum {
-    tcp,
-    udp,
+    tcp, // for auth
+    udp, // for game
 };
 
-const Connection = struct {
-    is_fallback: bool = false,
-    tcp: net.Socket = undefined,
-    udp: net.Socket = undefined,
-    last_seen_ns: i64 = 0,
-    fallback_ns: i64 = 0,
+const State = enum {
+    auth_pending,
+    connected,
+    disconnected,
+};
+
+const Session = struct {
+    address: Address,
+    udp_link: Link,
+    tcp: net.Socket,
 
     const udp_timeout_ns = 1000;
     const udp_try_again_ns = udp_timeout_ns * 10;
 
-    pub fn update(self: *Connection) !void {
-        const now = std.time.nanoTimestamp();
-
-        if (now - self.last_seen_ns >= udp_timeout_ns) {
-            self.is_fallback = true;
-            return error.FallbacK;
-        } else if (now - self.fallback_ns >= udp_timeout_ns) {
-            self.is_fallback = false;
-        }
+    pub fn init(gpa: std.mem.Allocator, tcp: net.Socket) Session {
+        return Session{
+            .udp_link = Link.init(gpa),
+            .tcp = tcp,
+        };
     }
 
-    pub fn send(self: *Connection, protocol: Protocol, data: []const u8) !void {
-        try self.update();
+    pub fn update(self: *Session) !void {
+        //const now = std.time.microTimestamp();
 
-        if (protocol == .tcp or self.is_fallback) {
-            self.tcp.send(data);
-        } else {
-            self.udp.send(data);
+        self.udp_link.update();
+    }
+
+    pub fn send(self: *Session, protocol: Protocol, data: []const u8) !void {
+        switch (protocol) {
+            .tcp => try self.tcp.send(data),
+            .udp => {
+                const sock = self.udp orelse return error.Unavailable;
+                try sock.send(data);
+            },
         }
     }
 };
 
 pub const Server = struct {
     gpa: *std.mem.Allocator,
+
     tcp_listerner: net.Socket = undefined,
-    udp_socket: net.Socket = undefined,
+
     is_open: bool = false,
-    connections: std.AutoHashMap(u64, Connection),
+
+    sessions: std.AutoHashMap(u64, Session),
     next_id: u64 = 0,
-    //batches: std.AutoHashMap(u64, Batch),
-    //batchesToSend: std.ArrayList(TimedBatch),
-    //batchesReceived: std.ArrayList(TimedBatch),
-    last: i64 = 0,
 
     pub fn init(gpa: *std.mem.Allocator) Server {
         const server = Server{
             .gpa = gpa,
-            .connections = std.AutoHashMap(u64, Connection).init(gpa.*),
-            //.batches = std.AutoHashMap(u64, Batch).init(gpa.*),
-            //.batchesToSend = std.ArrayList(TimedBatch).init(gpa.*),
-            //.batchesReceived = std.ArrayList(TimedBatch).init(gpa.*),
+            .sessions = std.AutoHashMap(u64, Session).init(gpa.*),
         };
 
         net.init() catch unreachable;
@@ -120,51 +117,62 @@ pub const Server = struct {
 
         net.deinit();
 
-        //self.batchesReceived.deinit();
-        //self.batchesToSend.deinit();
-        //self.batches.deinit();
-
-        self.connections.deinit();
+        self.sessions.deinit();
     }
 
     pub fn update(self: *Server) void {
-        self.stage();
-        self.send();
+        var it = self.sessions.valueIterator();
+        while (it.next()) |connection| {
+            connection.update() catch unreachable;
+        }
 
-        self.receive();
+        //self.stage();
+        //self.send();
+
+        //self.receive();
+        //_ = self;
     }
 
     fn create_tcp(port: u16) net.Socket {
         var socket: net.Socket = net.Socket.create(.ipv4, .tcp) catch unreachable;
         socket.enablePortReuse(true) catch unreachable;
         socket.bindToPort(port) catch unreachable;
-        socket.setReadTimeout(100) catch unreachable; // 100ns
-        socket.setWriteTimeout(100) catch unreachable; // 100ns
-        socket.listen() catch unreachable;
+        socket.setReadTimeout(100) catch unreachable;
+        socket.setWriteTimeout(100) catch unreachable;
 
         return socket;
     }
 
-    fn create_udp(port: u16) net.Socket {
-        var socket: net.Socket = net.Socket.create(.ipv4, .udp) catch unreachable;
-        socket.enablePortReuse(true) catch unreachable;
-        socket.bindToPort(port) catch unreachable;
-        socket.setReadTimeout(100) catch unreachable; // 100ns
-        socket.setWriteTimeout(100) catch unreachable; // 100ns
+    pub fn getLocalIPv4() ?net.EndPoint {
+        // 1) Create a UDP socket (no traffic will be sent)
+        var s = net.Socket.create(.ipv4, .udp) catch return null;
+        defer s.close();
 
-        return socket;
+        // 2) "Connect" to a public address to force route selection (no packets sent)
+        //    Any reachable IP/port works; Google DNS is a common choice.
+        const dst = net.EndPoint{
+            .address = .{ .ipv4 = .init(8, 8, 8, 8) },
+            .port = 53,
+        };
+        s.connect(dst) catch return null;
+
+        // 3) Query the chosen local endpoint
+        const lep = s.getLocalEndPoint() catch return null;
+
+        // 4) Format as string for logging/UI
+        return lep;
     }
 
     pub fn open(self: *Server, port: u16) void {
         std.debug.assert(!self.is_open);
 
-        log.info("server ip is {}", .{self.tcp_listerner.endpoint.?.address});
-
         self.tcp_listerner = create_tcp(port);
-        log.info("server listening on tcp port {}", .{self.tcp_listerner.endpoint.?.port});
+        self.tcp_listerner.listen() catch unreachable;
 
-        self.udp_socket = create_udp(0);
-        log.info("server listening on udp port {}", .{self.udp_socket.endpoint.?.port});
+        const end = self.tcp_listerner.getLocalEndPoint() catch unreachable;
+
+        log.info("server ip is {}", .{getLocalIPv4().?.address});
+        log.info("server listening on tcp port {}", .{end.port});
 
         self.is_open = true;
     }
@@ -173,23 +181,23 @@ pub const Server = struct {
         std.debug.assert(self.is_open);
 
         self.tcp_listerner.close();
-        self.udp_socket.close();
+        //self.udp_socket.close();
 
         log.info("server closed", .{});
 
-        var it = self.connections.iterator();
+        var it = self.sessions.iterator();
         while (it.next()) |entry| {
             //const client = entry.value_ptr.*;
             //client.close();
             _ = entry;
         }
 
-        self.connections.deinit();
+        self.sessions.deinit();
 
         self.is_open = false;
     }
 
-    pub fn tcp_accept(self: *Server) void {
+    pub fn accept(self: *Server) void {
         while (true) {
             const client = self.tcp_listerner.accept() catch |err| {
                 if (err == error.WouldBlock) {
@@ -200,118 +208,15 @@ pub const Server = struct {
             };
 
             log.info("client #{d} connected", .{self.next_id});
-            self.connections.put(self.next_id, client) catch unreachable;
-            self.batches.put(self.next_id, Batch.init(self.gpa)) catch unreachable;
+
+            const connection = Session.init(self.gpa);
+            connection.tcp = client;
+
+            connection.update();
+
+            self.sessions.put(self.next_id, connection) catch unreachable;
             self.next_id += 1;
         }
-    }
-
-    fn receive(self: *Server) void {
-        const now = std.time.milliTimestamp();
-
-        var delete = std.ArrayList(u64).init(self.gpa.*);
-
-        var it = self.connections.iterator();
-        while (it.next()) |entry| {
-            var client = entry.value_ptr.*;
-
-            const batches = primitive.receive(&client, self.gpa) catch |err| {
-                if (err == error.ClosedConnection) {
-                    delete.append(entry.key_ptr.*) catch unreachable;
-                    continue;
-                } else if (err == error.WouldBlock) {
-                    continue;
-                } else {
-                    unreachable;
-                }
-            };
-
-            for (batches) |*b| {
-                b.*.id = entry.key_ptr.*;
-
-                const timedBatch = TimedBatch{ .batch = b.*, .stamp = now };
-
-                self.batchesReceived.append(timedBatch) catch unreachable;
-            }
-        }
-
-        for (delete.items) |key| {
-            _ = self.connections.remove(key);
-            _ = self.batches.remove(key);
-            log.info("client #{d} disconnected", .{key});
-        }
-
-        delete.deinit();
-    }
-
-    fn stage(self: *Server) void {
-        const now = std.time.milliTimestamp();
-
-        if (self.last != 0 and (now - self.last) < interval) {
-            return;
-        }
-
-        self.last = now;
-
-        var it = self.connections.iterator();
-        while (it.next()) |entry| {
-            self.batches.getPtr(entry.key_ptr.*).?.id = entry.key_ptr.*;
-
-            const timedBatch = TimedBatch{ .batch = self.batches.getPtr(entry.key_ptr.*).?.copy(self.gpa), .stamp = now };
-
-            self.batchesToSend.append(timedBatch) catch unreachable;
-
-            self.batches.getPtr(entry.key_ptr.*).?.clear();
-        }
-    }
-
-    fn send(self: *Server) void {
-        const now = std.time.milliTimestamp();
-
-        var delete = std.ArrayList(usize).init(self.gpa.*);
-
-        for (self.batchesToSend.items, 0..) |*timedBatch, i| {
-            if (now - timedBatch.*.stamp < delay) {
-                continue;
-            }
-
-            if (self.connections.getPtr(timedBatch.*.batch.id)) |id| {
-                primitive.send(id, timedBatch.*.batch) catch continue;
-            } else {
-                continue;
-            }
-
-            timedBatch.*.batch.deinit();
-
-            delete.append(i) catch unreachable;
-        }
-
-        for (delete.items, 0..) |index, i| {
-            _ = self.batchesToSend.swapRemove(index - i);
-        }
-
-        delete.deinit();
-    }
-
-    pub fn withdraw(self: *Server, gpa: *std.mem.Allocator) ![]Batch {
-        const now = std.time.milliTimestamp();
-        var all = std.ArrayList(Batch).init(gpa.*);
-
-        for (self.batchesReceived.items) |*timedBatch| {
-            if (now - timedBatch.*.stamp < delay) {
-                all.append(timedBatch.*.batch.copy(self.gpa)) catch unreachable;
-            }
-        }
-
-        if (0 == all.items.len) {
-            return error.WouldBlock;
-        }
-
-        return all.toOwnedSlice() catch unreachable;
-    }
-
-    pub fn submit(self: *Server, client: usize, msg: message.Message) !void {
-        self.batches.getPtr(client).?.append(msg) catch unreachable;
     }
 
     pub fn getPort(self: *Server) ?u16 {
