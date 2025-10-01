@@ -24,6 +24,8 @@ const util = @import("util");
 
 // ---------- local ----------
 const primitive = @import("primitive.zig");
+const SerializeError = @import("error.zig").SerializeError;
+const DeserializeError = @import("error.zig").DeserializeError;
 // ---------------------------
 
 // ╔══════════════════════════════ UUID4 ══════════════════════════════╗
@@ -31,15 +33,17 @@ pub fn wireSizeUUID4() usize {
     return 16;
 }
 
-pub fn serializeUUID4(uuid: util.UUID4, writer: anytype) void {
-    writer.writeAll(&uuid.bytes) catch unreachable;
+pub fn serializeUUID4(uuid: util.UUID4, buffer: []u8) !void {
+    if (buffer.len < 16) return SerializeError.BufferTooSmall;
+    const raw: [16]u8 = @bitCast(uuid);
+    @memcpy(buffer[0..16], raw[0..16]);
 }
 
-pub fn deserializeUUID4(reader: anytype) util.UUID4 {
-    var buf: [16]u8 = undefined;
-    _ = reader.readAll(&buf) catch unreachable;
-    return util.UUID4{ .bytes = buf };
+pub fn deserializeUUID4(buffer: []const u8) !util.UUID4 {
+    if (buffer.len < 16) return DeserializeError.Truncated;
+    return util.UUID4{ .bytes = buffer[0..16].* };
 }
+
 // ╚═══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ Angle ══════════════════════════════╗
@@ -47,24 +51,24 @@ pub fn wireSizeAngle() usize {
     return primitive.wireSizeF32();
 }
 
-pub fn serializeAngle(angle: util.Angle, writer: anytype) void {
-    primitive.serializeF32(writer, angle.toDegrees());
+pub fn serializeAngle(angle: util.Angle, buffer: []u8) !void {
+    try primitive.serializeF32(angle.toDegrees(), buffer);
 }
 
-pub fn deserializeAngle(reader: anytype) util.Angle {
-    return util.Angle.fromDegrees(primitive.deserializeF32(reader));
+pub fn deserializeAngle(buffer: []const u8) !util.Angle {
+    return util.Angle.fromDegrees(try primitive.deserializeF32(buffer));
 }
 // ╚═══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ Vec2 ══════════════════════════════╗
-pub fn serializeVec2(self: util.Vec2, writer: anytype) void {
-    primitive.serializeF32(writer, self.x);
-    primitive.serializeF32(writer, self.y);
+pub fn serializeVec2(self: util.Vec2, buffer: []u8) void {
+    primitive.serializeF32(self.x, buffer);
+    primitive.serializeF32(self.y, buffer);
 }
 
-pub fn deserializeVec2(reader: anytype) util.Vec2 {
-    const x = primitive.deserializeF32(reader);
-    const y = primitive.deserializeF32(reader);
+pub fn deserializeVec2(buffer: []const u8) util.Vec2 {
+    const x = primitive.deserializeF32(buffer);
+    const y = primitive.deserializeF32(buffer);
     return util.Vec2{ .x = x, .y = y };
 }
 // ╚══════════════════════════════════════════════════════════════════╝

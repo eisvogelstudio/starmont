@@ -51,7 +51,7 @@ pub const Control = struct {
     gpa: *std.mem.Allocator,
     model: Model,
     view: View,
-    //client: network.Client,
+    client: network.Client,
     state: State,
 
     pub fn init(gpa: *std.mem.Allocator) Control {
@@ -59,7 +59,7 @@ pub const Control = struct {
             .gpa = gpa,
             .model = Model.init(gpa),
             .view = View.init(gpa),
-            //.client = network.Client.init(gpa),
+            .client = network.Client.init(gpa),
             .state = State{},
         };
 
@@ -70,7 +70,7 @@ pub const Control = struct {
     }
 
     pub fn deinit(self: *Control) void {
-        //self.client.deinit();
+        self.client.deinit();
         self.model.deinit();
         self.view.deinit();
 
@@ -83,20 +83,20 @@ pub const Control = struct {
         self.sendActions();
 
         self.model.update();
-        self.view.update(&self.model);
+        //self.view.update(&self.model);
 
-        //if (!self.client.is_connected) {
-        //    self.client.connect("127.0.0.1", 11111) catch |err| {
-        //        switch (err) {
-        //            error.Cooldown => {
-        //                //nothing
-        //            },
-        //            else => {
-        //                log.warn("could not connect to server", .{});
-        //            },
-        //        }
-        //    };
-        //}
+        if (!self.client.is_connected) {
+            self.client.connect("127.0.0.1", 11111) catch |err| {
+                switch (err) {
+                    error.Cooldown => {
+                        //nothing
+                    },
+                    else => {
+                        log.warn("could not connect to server", .{});
+                    },
+                }
+            };
+        }
 
         //if (!self.client.is_connected) {
         //    return;
@@ -160,7 +160,7 @@ pub const Control = struct {
         //    std.debug.print("send error: {}\n", .{err});
         //};
 
-        //self.client.update();
+        self.client.update();
     }
 
     pub fn shouldStop(self: *Control) bool {

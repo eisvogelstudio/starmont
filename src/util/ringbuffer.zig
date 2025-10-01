@@ -105,11 +105,11 @@ pub fn RingBuffer(comptime T: type) type {
 
                 const first = @min(self.len, if (cap == 0) self.len else cap - head);
                 if (first > 0) {
-                    std.mem.copy(T, new_buf[0..first], self.buf[head .. head + first]);
+                    std.mem.copyForwards(T, new_buf[0..first], self.buf[head .. head + first]);
                 }
                 const rest = self.len - first;
                 if (rest > 0) {
-                    std.mem.copy(T, new_buf[first .. first + rest], self.buf[0..rest]);
+                    std.mem.copyForwards(T, new_buf[first .. first + rest], self.buf[0..rest]);
                 }
             }
 

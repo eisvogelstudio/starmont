@@ -45,35 +45,33 @@ const CHANNEL_COUNT = @typeInfo(Channel).@"enum".fields.len;
 const mtu = Package.max_byte;
 
 pub const PriorityScheme = struct {
+    pub const ClassesType = [6][]const Channel;
     pub const Order = enum { send, receive };
 
-    pub fn classses(order: Order) [6][]const Channel {
-        var REL_HIGH = [_]Channel{};
-        var REL_MID = [_]Channel{};
-        var REL_LOW = [_]Channel{};
-        var UNR_HIGH = [_]Channel{};
-        var UNR_MID = [_]Channel{};
-        var UNR_LOW = [_]Channel{};
+    fn build(comptime class: Channel.Class, comptime priority: Channel.Priority) [CHANNEL_COUNT]Channel {
+        comptime {
+            var buf: [CHANNEL_COUNT]Channel = undefined;
+            var len: usize = 0;
 
-        for (0..CHANNEL_COUNT) |i| {
-            const channel: Channel = @enumFromInt(i);
-            switch (channel.class()) {
-                .reliable => {
-                    switch (channel.priority()) {
-                        .high => REL_HIGH = REL_HIGH ++ [_]Channel{channel},
-                        .mid => REL_MID = REL_MID ++ [_]Channel{channel},
-                        .low => REL_LOW = REL_LOW ++ [_]Channel{channel},
-                    }
-                },
-                .unreliable => {
-                    switch (channel.priority()) {
-                        .high => UNR_HIGH = UNR_HIGH ++ [_]Channel{channel},
-                        .mid => UNR_MID = UNR_MID ++ [_]Channel{channel},
-                        .low => UNR_LOW = UNR_LOW ++ [_]Channel{channel},
-                    }
-                },
+            for (std.meta.fields(Channel)) |field| {
+                const c = @field(Channel, field.name);
+                if (c.class() == class and c.priority() == priority) {
+                    buf[len] = c;
+                    len += 1;
+                }
             }
+
+            return buf;
         }
+    }
+
+    pub fn classes(order: Order) ClassesType {
+        const REL_HIGH = comptime build(.reliable, .high);
+        const REL_MID = comptime build(.reliable, .mid);
+        const REL_LOW = comptime build(.reliable, .low);
+        const UNR_HIGH = comptime build(.unreliable, .high);
+        const UNR_MID = comptime build(.unreliable, .mid);
+        const UNR_LOW = comptime build(.unreliable, .low);
 
         return switch (order) {
             .send => .{ &UNR_HIGH, &UNR_MID, &UNR_LOW, &REL_HIGH, &REL_MID, &REL_LOW },
@@ -92,13 +90,13 @@ pub const Inbox = struct {
     pub fn init(gpa: std.mem.Allocator, channel: Channel) Inbox {
         return Inbox{
             .channel = channel,
-            .available = std.AutoHashMap(Identifier, void).init(gpa),
+            .available = std.AutoHashMap(u16, void).init(gpa),
         };
     }
 
     pub fn append(self: *Inbox, ident: Identifier) void {
         self.markReceived(ident.sequence);
-        self.available.put(ident.sequence, {});
+        self.available.put(ident.sequence, {}) catch unreachable;
     }
 
     pub fn pop(self: *Inbox) ?Identifier {
@@ -112,9 +110,18 @@ pub const Inbox = struct {
         return null;
     }
 
+    pub fn peek(self: *Inbox) ?Identifier {
+        if (self.available.contains(self.next_expected)) {
+            const ident = Identifier{ .channel = self.channel, .sequence = self.next_expected };
+            return ident;
+        }
+
+        return null;
+    }
+
     fn markReceived(self: *Inbox, seq: u16) void {
         if (util.seqGreater(u16, seq, self.ack_head)) {
-            const shift = seq - self.ack_head;
+            const shift: u5 = @intCast(seq - self.ack_head);
             if (shift >= 32) {
                 self.ack_bits = 1;
             } else {
@@ -122,9 +129,9 @@ pub const Inbox = struct {
             }
             self.ack_head = seq;
         } else {
-            const diff = self.ack_head - seq;
+            const diff: u5 = @intCast(self.ack_head - seq);
             if (diff < 32) {
-                self.ack_bits |= (1 << diff);
+                self.ack_bits |= (@as(u32, 1) << diff);
             }
         }
     }
@@ -140,16 +147,19 @@ pub const Outbox = struct {
     head: Identifier,
 
     pub fn init(gpa: std.mem.Allocator, channel: Channel, buffer: *Buffer) Outbox {
-        var outbox = Outbox{
+        const ident = Identifier{ .channel = channel, .sequence = 0 };
+
+        const outbox = Outbox{
             .channel = channel,
             .buffer = buffer,
             .old = std.AutoHashMap(Identifier, void).init(gpa),
+            .unfinished = ident,
+            .head = ident,
         };
 
-        const ident = Identifier{ .channel = channel, .sequence = 0 };
-        buffer.put(ident, Package{});
-        outbox.unfinished = ident;
-        outbox.head = ident;
+        buffer.put(ident, Package{}) catch unreachable;
+
+        return outbox;
     }
 
     pub fn deinit(self: *Outbox) void {
@@ -157,13 +167,13 @@ pub const Outbox = struct {
     }
 
     pub fn append(self: *Outbox, msg: Message) void {
-        const package = self.buffer.*.get(self.unfinished).?;
+        var package = self.buffer.getPtr(self.unfinished).?;
 
         package.append(msg) catch |err| {
             switch (err) {
                 PackageError.OutOfSpace => {
                     self.finishPackage();
-                    self.append(msg) catch unreachable;
+                    self.append(msg);
                 },
                 else => unreachable,
             }
@@ -171,7 +181,7 @@ pub const Outbox = struct {
     }
 
     pub fn hasPackage(self: Outbox) bool {
-        if (self.unfinished == self.head) {
+        if (self.unfinished.equals(self.head)) {
             return false;
         } else {
             return true;
@@ -183,24 +193,24 @@ pub const Outbox = struct {
             return null;
         }
 
-        return self.buffer.get(self.head).?.wireSize();
+        return self.buffer.getPtr(self.head).?.wireSize();
     }
 
     pub fn pop(self: *Outbox) ?Identifier {
-        if (self.unfinished == self.head) {
+        if (self.unfinished.equals(self.head)) {
             return null;
         }
 
-        const head = self.head;
-        self.head = head.successor();
+        const current = self.head;
+        self.head = current.successor();
 
-        self.old.put(head, {});
+        self.old.put(current, {}) catch unreachable;
 
-        return head;
+        return current;
     }
 
     fn finishPackage(self: *Outbox) void {
-        const package = self.buffer.*.get(self.unfinished).?;
+        const package = self.buffer.getPtr(self.unfinished).?;
 
         if (package.msg_count == 0) {
             return;
@@ -208,26 +218,29 @@ pub const Outbox = struct {
 
         const finished = self.unfinished;
         self.unfinished = finished.successor();
-        self.buffer.put(self.unfinished, Package{});
+        self.buffer.put(self.unfinished, Package{}) catch unreachable;
     }
 };
 
 pub const Link = struct {
-    gpa: std.mem.Allocator,
+    gpa: *std.mem.Allocator,
     socket: net.Socket,
+    endpoint: ?net.EndPoint = null,
 
     out_buffer: Buffer,
     in_buffer: Buffer,
     outwait: util.RingBuffer(TimedIdentifier),
     inwait: util.RingBuffer(TimedIdentifier),
 
-    outbox: [CHANNEL_COUNT]Outbox,
-    inbox: [CHANNEL_COUNT]Inbox,
+    outbox: [CHANNEL_COUNT]Outbox = undefined,
+    inbox: [CHANNEL_COUNT]Inbox = undefined,
 
     out_pacer: OutPacer,
     out_scheduler: OutScheduler = OutScheduler.init(),
     in_pacer: InPacer,
-    in_scheduler: OutScheduler,
+    in_scheduler: InScheduler = InScheduler.init(),
+
+    unfinished: ?Identifier = null,
 
     const io_delay_us = 0;
     const receive_max = 1024;
@@ -243,22 +256,23 @@ pub const Link = struct {
         return socket;
     }
 
-    pub fn init(gpa: std.mem.Allocator) Link {
-        const link = Link{
+    pub fn init(gpa: *std.mem.Allocator) *Link {
+        var link = gpa.create(Link) catch unreachable;
+        link.* = Link{
             .gpa = gpa,
-            .socket = create_udp(),
-            .out_buffer = Buffer.init(gpa),
-            .in_buffer = Buffer.init(gpa),
-            .outwait = util.RingBuffer(TimedIdentifier).init(gpa, 2),
-            .inwait = util.RingBuffer(TimedIdentifier).init(gpa, 2),
+            .socket = create_udp(22222),
+            .out_buffer = Buffer.init(gpa.*),
+            .in_buffer = Buffer.init(gpa.*),
+            .outwait = util.RingBuffer(TimedIdentifier).init(gpa.*, 2) catch unreachable,
+            .inwait = util.RingBuffer(TimedIdentifier).init(gpa.*, 2) catch unreachable,
             .out_pacer = OutPacer.init(20 * mtu, 2 * mtu, 20, 2),
             .in_pacer = InPacer.init(4, 4 * mtu),
         };
 
         for (0..CHANNEL_COUNT) |i| {
             const channel: Channel = @enumFromInt(i);
-            link.outbox[i].init(gpa, channel, &link.out_buffer);
-            link.inbox[i].init(gpa, gpa, channel, &link.in_buffer, &link.inwait);
+            link.outbox[i] = Outbox.init(gpa.*, channel, &link.out_buffer);
+            link.inbox[i] = Inbox.init(gpa.*, channel);
         }
 
         return link;
@@ -274,6 +288,8 @@ pub const Link = struct {
             defer self.outbox[i].deinit();
             defer self.inbox[i].deinit();
         }
+
+        self.gpa.free(self);
     }
 
     pub fn update(self: *Link) void {
@@ -281,104 +297,98 @@ pub const Link = struct {
 
         // in receive
         var rcount: i32 = 0;
-        while (self.receive(now_us) catch unreachable) {
+        while (self.receive() catch unreachable) {
             rcount += 1;
             if (rcount == receive_max) break;
-
-            const found2 = true;
-            while (found2) {
-                if (self.inwait.peekFront().?.until_us >= now_us) {
-                    const ident = self.inwait.popFront().?.ident;
-                    const idx = @intFromEnum(ident.channel);
-                    self.inbox[idx].append(ident);
-                } else {
-                    found2 = false;
-                }
-            }
         }
 
-        // in - process
-        self.in_drain();
+        // in - process (inbox -> schedule -> inwait)
+        self.in_drain(now_us);
 
-        // out - process
+        // out - process (outbox -> schedule -> outwait)
         self.out_burst(now_us);
 
-        const found = true;
+        var found = true;
         while (found) {
-            if (self.outwait.peekFront().?.until_us >= now_us) {
-                const ident = self.outwait.popFront().?.ident;
-                self.send(ident);
+            if (self.outwait.peekFront()) |peek| {
+                if (peek.until_us >= now_us) {
+                    const ident = self.outwait.popFront().?.ident;
+                    std.debug.print("send\n", .{});
+                    self.send(ident) catch continue;
+                } else {
+                    found = false;
+                }
             } else {
                 found = false;
             }
         }
     }
 
-    fn queue(self: *Link, ident: Identifier, now_us: i64) bool {
-        if (io_delay_us == 0) {
-            self.send(ident);
-        } else {
-            const timed = TimedIdentifier{ .until_us = now_us + io_delay_us, .ident = ident };
-            self.outwait.pushBack(timed);
-        }
-    }
-
-    fn out_burst(self: *Link, now_us: u64) void {
+    fn out_burst(self: *Link, now_us: i64) void {
         self.out_scheduler.start_burst(); // refill deficit credits for this burst
 
-        var progress = true;
-        while (progress) {
-            progress = false;
+        while (true) {
+            var progress = false;
 
-            const classes = self.scheduler.priority_classes();
+            const classes = PriorityScheme.classes(.send);
             for (classes) |class_indices| {
-                for (class_indices) |ch_idx| {
-                    var outbox = &self.outbox[ch_idx];
+                for (class_indices) |channel| {
+                    const ch_idx = @intFromEnum(channel);
 
+                    var outbox = &self.outbox[ch_idx];
                     outbox.finishPackage();
 
-                    if (!outbox.hasPackage()) continue; // nothing to send on this channel
+                    if (!outbox.hasPackage()) continue; // nothing to send on this channel;
 
-                    const need = outbox.peekPackageSize();
+                    const need = outbox.peekPackageSize().?;
 
                     if (!self.out_scheduler.can_send(ch_idx, need)) continue;
                     if (!self.out_pacer.is_allowed(now_us, need, 1)) continue;
 
-                    if (outbox.pop()) |ident| {
-                        self.queue(ident, now_us);
+                    std.debug.print("XB\n", .{});
 
-                        self.scheduler.on_sent(ch_idx, need); // account for scheduler
+                    if (outbox.pop()) |ident| {
+                        const timed = TimedIdentifier{ .until_us = now_us + io_delay_us, .ident = ident };
+                        self.outwait.pushBack(timed) catch unreachable;
+
+                        self.out_scheduler.on_sent(ch_idx, need); // account for scheduler
                         self.out_pacer.consume(need, 1); // account for pacer
                         progress = true;
                     }
                 }
             }
 
-            if (!progress) break; // stop if no packet was sent in this iteration
+            if (!progress) break;
         }
     }
 
-    fn in_drain(self: *Link) void {
+    fn in_drain(self: *Link, now_us: i64) void {
         self.in_pacer.start_tick();
         self.in_scheduler.start_tick();
 
         while (true) {
             var progress = false;
 
-            const classes = self.in_scheduler.priority_classes(.ascending);
+            const classes = PriorityScheme.classes(.receive);
             for (classes) |class_indices| {
-                for (class_indices) |ch_idx| {
-                    var rx = &self.rx_queues[ch_idx];
+                for (class_indices) |channel| {
+                    const ch_idx = @intFromEnum(channel);
+
+                    var inbox = &self.inbox[ch_idx];
 
                     while (true) {
-                        const need_opt = rx.peek_size(); // ?usize
-                        const need = if (need_opt) |n| n else break;
+                        const ident = inbox.peek() orelse break;
+
+                        const package = self.in_buffer.getPtr(ident).?;
+                        const need = package.wireSize();
 
                         if (!self.in_scheduler.can_take(ch_idx, need)) break;
                         if (!self.in_pacer.allow(need)) break;
 
-                        const frame = rx.pop() orelse break;
-                        self.inbox[ch_idx].append(frame); // reliable macht intern next_expected
+                        _ = inbox.pop() orelse unreachable;
+
+                        const timed = TimedIdentifier{ .until_us = now_us + io_delay_us, .ident = ident };
+                        self.inwait.pushBack(timed) catch unreachable;
 
                         self.in_scheduler.on_taken(ch_idx, need);
                         self.in_pacer.consume(need);
@@ -386,80 +396,73 @@ pub const Link = struct {
                     }
                 }
             }
-            if (!progress) break; // nichts mehr sinnvoll zu verarbeiten
+
+            if (!progress) break;
         }
     }
 
     pub fn submit(self: *Link, channel: Channel, message: Message) void {
         const idx = @intFromEnum(channel);
-        self.outbox[idx].append(message) catch unreachable;
+        self.outbox[idx].append(message);
     }
-
-    //pub fn withdraw(self: *Link) ?Package {
-    //    const classes = PriorityScheme.classes(.ascending); // reliable first
-    //    for (classes) |class_indices| {
-    //        for (class_indices) |ch_idx| {
-    //            var inbox = &self.inbox[ch_idx];
-    //            if (inbox.pop()) |package| {
-    //                return package;
-    //            }
-    //        }
-    //    }
-    //    return null;
-    //}
 
     pub fn withdraw(self: *Link) ?Message {
-        // Priorität: reliable → unreliable
-        const classes = self.in_scheduler.priority_classes(.ascending);
-
-        // Ein Sweep über alle Klassen/Channels
-        inline for (classes) |class_indices| {
-            for (class_indices) |ch_idx| {
-                var ib = &self.inbox[ch_idx];
-
-                if (!ib.has_ready()) continue;
-
-                const need = ib.peek_ready_size();
-                if (!self.in_scheduler.can_take(ch_idx, need)) continue; // DRR/Quota
-                if (!self.in_pacer.allow(need)) continue; // Tick-Budget
-
-                if (ib.pop()) |msg| {
-                    self.in_scheduler.on_taken(ch_idx, need);
-                    self.in_pacer.consume(need);
-                    return msg;
+        if (self.unfinished) |ident| {
+            var package = self.in_buffer.getPtr(ident);
+            const message = package.?.pop(self.gpa) catch unreachable;
+            if (0 == package.?.msg_count) {
+                _ = self.in_buffer.remove(ident);
+                const now_us = std.time.microTimestamp();
+                if (self.inwait.peekFront().?.until_us >= now_us) {
+                    self.unfinished = self.inwait.popFront().?.ident;
+                } else {
+                    self.unfinished = null;
                 }
             }
+            return message;
+        } else {
+            return null;
         }
-        return null;
     }
 
-    fn send(self: *Link, ident: Identifier) void {
-        const package = self.out_buffer.get(ident).?;
-        package.send(self.socket);
+    fn send(self: *Link, ident: Identifier) !void {
+        var package = self.out_buffer.getPtr(ident).?;
+
+        const idx = @intFromEnum(ident.channel);
+        const ack = Ack{ .bits = self.inbox[idx].ack_bits, .head = self.inbox[idx].ack_head };
+        try package.sendTo(ident, ack, &self.socket, self.endpoint.?);
 
         // package is kept in case resend is necessary
     }
 
-    fn receive(self: *Link, now_us: i64) !bool {
-        const package = Package.receive(&self.socket) catch |err| {
+    fn receive(self: *Link) !bool {
+        var endpoint: net.EndPoint = undefined;
+        const package = Package.receiveFrom(&self.socket, &endpoint) catch |err| {
             switch (err) {
                 error.WouldBlock => return false,
                 else => unreachable,
             }
         };
 
+        self.endpoint = endpoint;
+
         const header = try package.deserializeHeader();
 
         const ident = Identifier{ .channel = header.channel, .sequence = header.sequence };
 
+        std.debug.print("receive\n", .{});
+
         try self.in_buffer.put(ident, package);
 
-        if (io_delay_us == 0) {
-            self.dispatch(ident, now_us);
-        } else {
-            const timed = TimedIdentifier{ .until_us = now_us + io_delay_us, .ident = ident };
-            self.inwait.pushBack(timed);
-        }
+        const idx = @intFromEnum(ident.channel);
+        self.inbox[idx].append(ident);
+
+        //if (io_delay_us == 0) {
+        //    self.dispatch(ident, now_us);
+        //} else {
+        //    const timed = TimedIdentifier{ .until_us = now_us + io_delay_us, .ident = ident };
+        //    self.inwait.pushBack(timed);
+        //}
 
         return true;
     }
@@ -495,15 +498,13 @@ pub const OutPacer = struct {
 
         const dt_ns: u128 = @intCast(dt);
         if (self.bytes_per_sec != 0) {
-            const add_b: f32 = (self.bytes_per_sec * dt_ns) / std.time.ns_per_s;
-            const add: usize = @intCast(@min(add_b, std.math.maxInt(usize)));
+            const add: u128 = (self.bytes_per_sec * dt_ns) / std.time.ns_per_s;
             self.byte_tokens = @min(self.byte_tokens + add, self.max_burst_bytes);
         }
         if (self.pkts_per_sec != 0) {
-            const add_p: f32 = (self.pkts_per_sec * dt_ns) / std.time.ns_per_s;
-            const add: usize = @intCast(@min(add_p, std.math.maxInt(u32)));
+            const add: u128 = (self.pkts_per_sec * dt_ns) / std.time.ns_per_s;
             const sum = self.pkt_tokens + add;
-            self.pkt_tokens = if (sum > self.max_burst_pkts) self.max_burst_pkts else sum;
+            self.pkt_tokens = if (sum > self.max_burst_pkts) self.max_burst_pkts else @intCast(sum);
         }
     }
 
@@ -565,8 +566,7 @@ pub const OutScheduler = struct {
 
     pub fn start_burst(self: *OutScheduler) void {
         self.sent_this_burst = .{0} ** CHANNEL_COUNT;
-        inline for (@typeInfo(Channel).Enum.fields) |f| {
-            const i = f.value;
+        for (0..CHANNEL_COUNT) |i| {
             self.deficit[i] += self.quantum[i];
         }
     }
@@ -579,10 +579,6 @@ pub const OutScheduler = struct {
     pub fn on_sent(self: *OutScheduler, ch_idx: usize, size: usize) void {
         self.deficit[ch_idx] -= size;
         self.sent_this_burst[ch_idx] += 1;
-    }
-
-    pub fn priority_classes(_: *OutScheduler, order: PriorityScheme.Order) PriorityScheme.ClassesType {
-        return PriorityScheme.classes(order);
     }
 };
 
@@ -617,7 +613,6 @@ pub const InPacer = struct {
 };
 
 // ---- In (ingress) Scheduler (DRR + Limits) -------------------------
-// ---- In (ingress) Scheduler (DRR + Limits) -------------------------
 pub const InScheduler = struct {
     deficit: [CHANNEL_COUNT]usize = .{0} ** CHANNEL_COUNT,
     quantum: [CHANNEL_COUNT]usize = .{0} ** CHANNEL_COUNT,
@@ -627,10 +622,8 @@ pub const InScheduler = struct {
     pub fn init() InScheduler {
         var s = InScheduler{};
 
-        inline for (@typeInfo(Channel).Enum.fields) |f| {
-            const ch: Channel = @enumFromInt(f.value);
-            const idx = f.value;
-
+        for (0..CHANNEL_COUNT) |i| {
+            const ch: Channel = @enumFromInt(i);
             // Basiswerte
             var q = mtu;
             var max_pkts: u32 = 1;
@@ -653,8 +646,8 @@ pub const InScheduler = struct {
                 },
             }
 
-            s.quantum[idx] = q;
-            s.max_pkts_per_tick_ch[idx] = max_pkts;
+            s.quantum[i] = q;
+            s.max_pkts_per_tick_ch[i] = max_pkts;
         }
 
         return s;
@@ -662,8 +655,7 @@ pub const InScheduler = struct {
 
     pub fn start_tick(self: *InScheduler) void {
         self.taken_this_tick = .{0} ** CHANNEL_COUNT;
-        inline for (@typeInfo(Channel).Enum.fields) |f| {
-            const i = f.value;
+        for (0..CHANNEL_COUNT) |i| {
             self.deficit[i] += self.quantum[i];
         }
     }
@@ -676,9 +668,5 @@ pub const InScheduler = struct {
     pub fn on_taken(self: *InScheduler, ch_idx: usize, size: usize) void {
         self.deficit[ch_idx] -= size;
         self.taken_this_tick[ch_idx] += 1;
-    }
-
-    pub fn priority_classes(_: *InScheduler, order: PriorityScheme.Order) PriorityScheme.ClassesType {
-        return PriorityScheme.classes(order);
     }
 };

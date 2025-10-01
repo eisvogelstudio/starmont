@@ -33,6 +33,7 @@ const serial = @import("serial/serial.zig");
 // ---------------------------
 
 fn magicFrom(tag: []const u8) comptime_int {
+    @setEvalBranchQuota(10_000);
     var out: [32]u8 = undefined;
     std.crypto.hash.sha2.Sha256.hash(tag, &out, .{});
     return std.mem.readInt(u32, out[0..4], .big);
@@ -78,9 +79,9 @@ pub const Ack = struct {
         return serial.wireSizeU16() + serial.wireSizeU32();
     }
 
-    pub fn serialize(self: Ack, buffer: []u8) void {
-        serial.serializeU16(self.head, buffer) catch unreachable;
-        serial.serializeU32(self.bits, buffer) catch unreachable;
+    pub fn serialize(self: Ack, buffer: []u8) !void {
+        try serial.serializeU16(self.head, buffer);
+        try serial.serializeU32(self.bits, buffer);
     }
 
     pub fn deserialize(buffer: []const u8) Ack {
@@ -107,7 +108,7 @@ pub const Header = struct {
     sequence: u16,
     ack: Ack,
 
-    pub const MAGIC = magicFrom("all your starbase are belong to us");
+    pub const MAGIC: u32 = magicFrom("all your starbase are belong to us");
     pub const VERSION = 1;
 
     pub fn wireSize() usize {
@@ -115,33 +116,55 @@ pub const Header = struct {
     }
 
     pub fn serialize(self: *const Header, buffer: []u8) serial.SerializeError!void {
-        try serial.serializeU32(self.magic, buffer);
-        try serial.serializeU8(self.version, buffer);
-        try serial.serializeEnum(Channel, self.channel, buffer);
-        try serial.serializeU16(self.sequence, buffer);
-        try self.ack.serialize(buffer);
+        var off: usize = 0;
+
+        try serial.serializeU32(self.magic, buffer[off..]);
+        off += serial.wireSizeU32();
+
+        try serial.serializeU8(self.version, buffer[off..]);
+        off += serial.wireSizeU8();
+
+        try serial.serializeEnum(Channel, self.channel, buffer[off..]);
+        off += serial.wireSizeEnum(Channel);
+
+        try serial.serializeU16(self.sequence, buffer[off..]);
+        off += serial.wireSizeU16();
+
+        try self.ack.serialize(buffer[off..]);
     }
 
     pub fn deserialize(buffer: []const u8) serial.DeserializeError!Header {
         var header: Header = undefined;
+        var off: usize = 0;
 
-        header.magic = try serial.deserializeU32(buffer);
-        header.version = try serial.deserializeU8(buffer);
-        header.channel = try serial.deserializeEnum(Channel, buffer);
-        header.sequence = try serial.deserializeU16(buffer);
-        header.ack = Ack.deserialize(buffer);
+        header.magic = try serial.deserializeU32(buffer[off..]);
+        off += serial.wireSizeU32();
+
+        header.version = try serial.deserializeU8(buffer[off..]);
+        off += serial.wireSizeU8();
+
+        header.channel = try serial.deserializeEnum(Channel, buffer[off..]);
+        off += serial.wireSizeEnum(Channel);
+
+        header.sequence = try serial.deserializeU16(buffer[off..]);
+        off += serial.wireSizeU16();
+
+        header.ack = Ack.deserialize(buffer[off..]);
 
         return header;
     }
 };
 
-pub const Identifier = struct {
+pub const Identifier = packed struct {
     sequence: u16,
     channel: Channel,
 
     pub fn successor(self: Identifier) Identifier {
-        self.sequence +|= 1;
-        return self;
+        return Identifier{ .sequence = self.sequence +| 1, .channel = self.channel };
+    }
+
+    pub fn equals(self: Identifier, other: Identifier) bool {
+        return self.channel == other.channel and self.sequence == other.sequence;
     }
 };
 
@@ -167,7 +190,7 @@ pub const Package = struct {
         return Package{};
     }
 
-    pub fn wireSize(self: *Package) usize() {
+    pub fn wireSize(self: Package) usize {
         return self.offset;
     }
 
@@ -181,18 +204,20 @@ pub const Package = struct {
         self.msg_count += 1;
     }
 
-    pub fn pop(self: *Package, gpa: *std.mem.Allocator) Error!Message {
+    pub fn pop(self: *Package, gpa: *std.mem.Allocator) !Message {
         if (self.msg_count == 0) return PackageError.Empty;
 
         self.msg_count -= 1;
 
-        const msg = try Message.deserialize(self.buffer, gpa);
+        const msg = try Message.deserialize(&self.buffer, gpa);
         self.offset += msg.wireSize();
 
         std.debug.assert(self.offset <= max_byte);
+
+        return msg;
     }
 
-    pub fn send(self: Package, identifier: Identifier, ack: Ack, socket: *net.Socket) NetError!void {
+    pub fn sendTo(self: *Package, identifier: Identifier, ack: Ack, socket: *net.Socket, endpoint: net.EndPoint) NetError!void {
         const header = Header{
             .magic = Header.MAGIC,
             .version = Header.VERSION,
@@ -201,33 +226,38 @@ pub const Package = struct {
             .ack = ack,
         };
 
-        header.serialize(self.buffer[0..Header.wireSize()]);
+        std.debug.print("send {*}\n", .{self});
+
+        header.serialize(self.buffer[0..Header.wireSize()]) catch unreachable;
 
         serial.serializeU8(self.msg_count, self.buffer[Header.wireSize() .. Header.wireSize() + serial.wireSizeU8()]) catch unreachable;
-        socket.send(self.buffer) catch return NetError.SendFailed;
+        _ = socket.sendTo(endpoint, self.buffer[0..self.offset]) catch return NetError.SendFailed;
     }
 
-    pub fn receive(socket: *net.Socket) Error!Package {
+    pub fn receiveFrom(socket: *net.Socket, endpoint: *net.EndPoint) Error!Package {
         var package = Package{};
+
+        const result = socket.receiveFrom(&package.buffer) catch |err| {
+            switch (err) {
+                error.WouldBlock => return NetError.WouldBlock,
+                else => unreachable,
+            }
+        };
+        endpoint.* = result.sender;
 
         package.offset += Header.wireSize();
 
         package.msg_count = try serial.deserializeU8(package.buffer[package.offset .. package.offset + serial.wireSizeU8()]);
         package.offset += serial.wireSizeU8();
 
-        _ = socket.receive(&package.buffer) catch |err| {
-            switch (err) {
-                error.ConnectionResetByPeer => return NetError.ClosedConnection,
-                error.WouldBlock => return NetError.WouldBlock,
-                else => unreachable,
-            }
-        };
+        return package;
     }
 
     pub fn deserializeHeader(self: Package) Error!Header {
         const header = try Header.deserialize(self.buffer[0..Header.wireSize()]);
 
         if (header.magic != Header.MAGIC) {
+            std.debug.print("rec {} - exp {}\n", .{ header.magic, Header.MAGIC });
             return PackageError.GarbargeReceived;
         }
 

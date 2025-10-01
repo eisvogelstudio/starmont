@@ -65,7 +65,7 @@ pub const Control = struct {
     pub fn update(self: *Control) void {
         self.model.update();
 
-        //self.server.accept();
+        self.server.accept();
         //const data = self.server.withdraw(self.gpa);
         //
         //if (data) |batches| {
@@ -134,7 +134,7 @@ pub const Control = struct {
 
         //self.syncEntites();
 
-        //self.server.update();
+        self.server.update();
     }
 
     fn syncEntites(self: *Control) void {

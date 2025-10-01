@@ -50,7 +50,7 @@ pub fn serializeText(text: []const u8, buffer: []u8) SerializeError!void {
     @memcpy(buffer[i .. i + text.len], text);
 }
 
-pub fn deserializeTextWithSize(buffer: []const u8, gpa: std.mem.Allocator) Error!struct { text: []u8, size: usize } {
+pub fn deserializeText(buffer: []const u8, gpa: std.mem.Allocator) Error![]u8 {
     if (buffer.len < 8) return DeserializeError.Truncated;
 
     var i: usize = 0;
@@ -63,63 +63,83 @@ pub fn deserializeTextWithSize(buffer: []const u8, gpa: std.mem.Allocator) Error
     const text = try gpa.alloc(u8, @intCast(len));
     @memcpy(text, buffer[i .. i + len]);
 
-    return .{ text, len };
+    return text;
 }
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ enum ══════════════════════════════╗
+//pub fn wireSizeEnum(comptime T: type) usize {
+//    const tag_type = @typeInfo(T).@"enum".tag_type;
+//    switch (tag_type) {
+//        u8 => {
+//            return 1;
+//        },
+//        u16 => {
+//            return 2;
+//        },
+//        u32 => {
+//            return 4;
+//        },
+//        u64 => {
+//            return 8;
+//        },
+//        else => @compileError(std.fmt.comptimePrint("Unsupported enum backing type: '{s}'", .{@typeName(tag_type)})),
+//    }
+//}
 pub fn wireSizeEnum(comptime T: type) usize {
-    const tag_type = @typeInfo(T).@"enum".tag_type;
-    switch (tag_type) {
-        u8 => {
-            return 1;
-        },
-        u16 => {
-            return 2;
-        },
-        u32 => {
-            return 4;
-        },
-        u64 => {
-            return 8;
-        },
-        else => @compileError("Unsupported enum backing type"),
+    const info = @typeInfo(T);
+    if (info != .@"enum") {
+        @compileError("wireSizeEnum requires an enum type, got " ++ @typeName(T));
     }
+    const tag_type = info.@"enum".tag_type;
+    const bits = @typeInfo(tag_type).int.bits;
+    return (bits + 7) / 8;
 }
 
 pub fn serializeEnum(comptime T: type, value: T, buffer: []u8) SerializeError!void {
-    const tag_type = @typeInfo(T).@"enum".tag_type;
-    if (buffer.len < @sizeOf(tag_type)) return SerializeError.BufferTooSmall;
-    switch (tag_type) {
-        u8 => {
-            buffer[0] = @intFromEnum(value);
-        },
-        u16 => {
-            std.mem.writeInt(u16, buffer[0..2], @intFromEnum(value), endian);
-        },
-        u32 => {
-            std.mem.writeInt(u32, buffer[0..4], @intFromEnum(value), endian);
-        },
-        u64 => {
-            std.mem.writeInt(u64, buffer[0..8], @intFromEnum(value), endian);
-        },
-        else => @compileError("Unsupported enum backing type"),
+    const info = @typeInfo(T);
+    if (info != .@"enum") {
+        @compileError("serializeEnum requires an enum type, got " ++ @typeName(T));
+    }
+
+    const size = wireSizeEnum(T);
+
+    if (buffer.len < size)
+        return SerializeError.BufferTooSmall;
+
+    const int_val = @intFromEnum(value);
+
+    // byteweise schreiben
+    var tmp: u64 = int_val;
+    for (0..size) |i| {
+        buffer[i] = @intCast(tmp & 0xFF);
+        tmp >>= 8;
     }
 }
 
 pub fn deserializeEnum(comptime T: type, buffer: []const u8) DeserializeError!T {
-    const tag_type = @typeInfo(T).@"enum".tag_type;
-    const val: usize = switch (tag_type) {
-        u8 => if (buffer.len >= 1) buffer[0] else return DeserializeError.Truncated,
-        u16 => if (buffer.len >= 2) std.mem.readInt(u16, buffer[0..2], endian) else return Error.Truncated,
-        u32 => if (buffer.len >= 4) std.mem.readInt(u32, buffer[0..4], endian) else return Error.Truncated,
-        u64 => if (buffer.len >= 8) std.mem.readInt(u64, buffer[0..8], endian) else return Error.Truncated,
-        else => @compileError("Unsupported enum backing type"),
-    };
-    if (val >= @typeInfo(T).Enum.fields.len)
+    const info = @typeInfo(T);
+    if (info != .@"enum") {
+        @compileError("deserializeEnum requires an enum type, got " ++ @typeName(T));
+    }
+
+    const size = wireSizeEnum(T);
+
+    if (buffer.len < size)
+        return DeserializeError.Truncated;
+
+    var raw: usize = 0;
+    for (0..size) |i| {
+        const off: u6 = @intCast(i);
+        raw |= (@as(usize, buffer[i]) << (8 * off));
+    }
+
+    if (raw >= @typeInfo(T).@"enum".fields.len)
         return DeserializeError.InvalidEnumValue;
-    return @enumFromInt(val);
+
+    return @enumFromInt(raw);
 }
+
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ bool ══════════════════════════════╗

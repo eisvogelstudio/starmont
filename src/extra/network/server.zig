@@ -58,14 +58,13 @@ const State = enum {
 };
 
 const Session = struct {
-    address: Address,
-    udp_link: Link,
+    udp_link: *Link,
     tcp: net.Socket,
 
     const udp_timeout_ns = 1000;
     const udp_try_again_ns = udp_timeout_ns * 10;
 
-    pub fn init(gpa: std.mem.Allocator, tcp: net.Socket) Session {
+    pub fn init(gpa: *std.mem.Allocator, tcp: net.Socket) Session {
         return Session{
             .udp_link = Link.init(gpa),
             .tcp = tcp,
@@ -78,14 +77,8 @@ const Session = struct {
         self.udp_link.update();
     }
 
-    pub fn send(self: *Session, protocol: Protocol, data: []const u8) !void {
-        switch (protocol) {
-            .tcp => try self.tcp.send(data),
-            .udp => {
-                const sock = self.udp orelse return error.Unavailable;
-                try sock.send(data);
-            },
-        }
+    pub fn deinit(self: *Session) void {
+        self.udp_link.deinit();
     }
 };
 
@@ -124,8 +117,18 @@ pub const Server = struct {
         var it = self.sessions.valueIterator();
         while (it.next()) |connection| {
             connection.update() catch unreachable;
-        }
+            //connection.tcp.send()
+            var found = false;
+            while (connection.udp_link.withdraw()) |msg| {
+                std.debug.print("{any}", .{msg});
+                found = true;
+            }
 
+            if (!found) continue;
+
+            connection.udp_link.submit(.reliabel, message.PingMessage.init(1, 1));
+            std.debug.print("submit {any}", .{connection.udp_link.outbox.len});
+        }
         //self.stage();
         //self.send();
 
@@ -209,10 +212,8 @@ pub const Server = struct {
 
             log.info("client #{d} connected", .{self.next_id});
 
-            const connection = Session.init(self.gpa);
-            connection.tcp = client;
-
-            connection.update();
+            var connection = Session.init(self.gpa, client);
+            connection.update() catch unreachable;
 
             self.sessions.put(self.next_id, connection) catch unreachable;
             self.next_id += 1;

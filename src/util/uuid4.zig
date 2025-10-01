@@ -18,7 +18,8 @@
 const std = @import("std");
 // -------------------------
 
-pub const UUID4 = struct {
+// extern for guranteed memory layout
+pub const UUID4 = extern struct {
     bytes: [16]u8,
 
     pub fn generate(random: std.Random) UUID4 {
