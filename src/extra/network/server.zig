@@ -28,7 +28,9 @@ const util = @import("util");
 
 // ---------- local ----------
 const message = @import("message.zig");
-const Link = @import("udp.zig").Link;
+const udp = @import("udp.zig");
+const Link = udp.Link;
+const Package = @import("package.zig").Package;
 // ---------------------------
 
 const log = std.log.scoped(.network);
@@ -90,12 +92,20 @@ pub const Server = struct {
     is_open: bool = false,
 
     sessions: std.AutoHashMap(u64, Session),
+    endpoint_to_id: std.AutoHashMap(net.EndPoint, u64),
+    id_to_endpoint: std.AutoHashMap(u64, net.EndPoint),
+
     next_id: u64 = 0,
+
+    udp: net.Socket,
 
     pub fn init(gpa: *std.mem.Allocator) Server {
         const server = Server{
             .gpa = gpa,
             .sessions = std.AutoHashMap(u64, Session).init(gpa.*),
+            .endpoint_to_id = std.AutoHashMap(net.EndPoint, u64).init(gpa.*),
+            .id_to_endpoint = std.AutoHashMap(u64, net.EndPoint).init(gpa.*),
+            .udp = udp.create_socket(24711),
         };
 
         net.init() catch unreachable;
@@ -108,26 +118,61 @@ pub const Server = struct {
             self.close();
         }
 
-        net.deinit();
+        defer self.sessions.deinit();
+        defer self.endpoint_to_id.deinit();
+        defer self.id_to_endpoint.deinit();
+        defer self.udp.close();
 
-        self.sessions.deinit();
+        defer net.deinit();
+    }
+
+    pub fn receiveAll(self: *Server) void {
+        //TODO[IMPROVE]: limit and per client limit instead of while(true)
+        while (true) {
+            const result = Package.receiveFrom(&self.udp) catch |err| switch (err) {
+                error.WouldBlock => return,
+                else => return, // oder: loggen, nicht einfach unreachable
+            };
+
+            // Lookup: kennt der Server diesen Absender schon?
+            if (self.endpoint_to_id.get(result.sender)) |id| {
+                if (self.sessions.get(id)) |*session| {
+                    session.udp_link.receive(result.package);
+                } else {
+                    // Inkonsistenz: endpoint hat ID, aber keine Session
+                    log.warn("UDP received for unknown session id={d}", .{id});
+                }
+            } else {
+                // Neuer Client → Session anlegen oder verwerfen
+                log.info("UDP from unknown endpoint {}, ignoring", .{result.sender});
+            }
+        }
     }
 
     pub fn update(self: *Server) void {
+        self.receiveAll();
+
         var it = self.sessions.valueIterator();
+
+        var i: u64 = 0;
         while (it.next()) |connection| {
             connection.update() catch unreachable;
+
+            while (true) {
+                const progress = connection.udp_link.send(&self.udp, self.id_to_endpoint.get(i).?) catch unreachable;
+                if (!progress) {
+                    break;
+                }
+            }
             //connection.tcp.send()
-            var found = false;
             while (connection.udp_link.withdraw()) |msg| {
-                std.debug.print("{any}", .{msg});
-                found = true;
+                std.debug.print("withdraw: {any}\n", .{msg});
+
+                connection.udp_link.submit(.reliabel, message.PongMessage.init(1, 1));
+                std.debug.print("submit!  outbox_len: {any} outwait_len: {}\n", .{ connection.udp_link.outbox.len, connection.udp_link.outwait.len });
             }
 
-            if (!found) continue;
-
-            connection.udp_link.submit(.reliabel, message.PingMessage.init(1, 1));
-            std.debug.print("submit {any}", .{connection.udp_link.outbox.len});
+            i = i + 1;
         }
         //self.stage();
         //self.send();
@@ -210,13 +255,21 @@ pub const Server = struct {
                 }
             };
 
-            log.info("client #{d} connected", .{self.next_id});
+            const id = self.next_id;
+            self.next_id += 1;
+
+            log.info("client #{d} connected", .{id});
+
+            const endpoint = client.getRemoteEndPoint() catch unreachable;
+            const ip = endpoint.address;
+            _ = ip;
 
             var connection = Session.init(self.gpa, client);
+            //self.endpoint_to_id.put(client.endpoint.?, id) catch unreachable;
+            //self.id_to_endpoint.put(id, client.endpoint.?) catch unreachable;
             connection.update() catch unreachable;
 
-            self.sessions.put(self.next_id, connection) catch unreachable;
-            self.next_id += 1;
+            self.sessions.put(id, connection) catch unreachable;
         }
     }
 

@@ -74,7 +74,7 @@ pub const AssignMessage = struct {
         try serial.serializeU64(self.quad, buffer[0..self.wireSize()]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!AssignMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!AssignMessage {
         const quad = try serial.deserializeU64(buffer[0..serial.wireSizeU64()]);
         return AssignMessage{ .quad = quad };
     }
@@ -105,7 +105,7 @@ pub const UnassignMessage = struct {
         try serial.serializeU64(self.quad, buffer[0..self.wireSize()]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!UnassignMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!UnassignMessage {
         const quad = try serial.deserializeU64(buffer[0..serial.wireSizeU64()]);
         return UnassignMessage{ .quad = quad };
     }
@@ -138,7 +138,7 @@ pub const NeighbourMessage = struct {
         try serial.serializeU64(self.quad, buffer[0..8]);
     }
 
-    fn deserialize(buffer: []const u8, gpa: std.mem.Allocator) serial.Error!NeighbourMessage {
+    fn deserialize(buffer: []const u8, gpa: *std.mem.Allocator) serial.Error!NeighbourMessage {
         _ = gpa;
 
         if (buffer.len < serial.wireSizeU64()) return serial.DeserializeError.Truncated;
@@ -171,7 +171,7 @@ pub const MasterInfoMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!MasterInfoMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!MasterInfoMessage {
         _ = buffer;
         return MasterInfoMessage{};
     }
@@ -202,7 +202,7 @@ pub const MasterDebugMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!MasterDebugMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!MasterDebugMessage {
         _ = buffer;
         return MasterDebugMessage{};
     }
@@ -233,7 +233,7 @@ pub const RegisterMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!RegisterMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!RegisterMessage {
         _ = buffer;
         return RegisterMessage{};
     }
@@ -264,7 +264,7 @@ pub const UnregisterMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!UnregisterMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!UnregisterMessage {
         _ = buffer;
         return UnregisterMessage{};
     }
@@ -297,7 +297,7 @@ pub const HeartbeatMessage = struct {
         try serial.serializeF32(self.load, buffer[0..serial.wireSizeF32()]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!HeartbeatMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!HeartbeatMessage {
         if (buffer.len < serial.wireSizeF32()) return serial.DeserializeError.Truncated;
         const load = try serial.deserializeF32(buffer[0..serial.wireSizeF32()]);
         return HeartbeatMessage{ .load = load };
@@ -335,7 +335,7 @@ pub const QuadInfoMessage = struct {
         try serial.serializeF32(self.pressure, buffer[offset .. offset + p]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!QuadInfoMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!QuadInfoMessage {
         var offset: usize = 0;
         const q = serial.wireSizeU64();
         if (buffer.len < offset + q) return serial.DeserializeError.Truncated;
@@ -376,7 +376,7 @@ pub const EntityHandoverMessage = struct {
         try serial.serializeId(self.id, buffer[0..serial.wireSizeId()]);
     }
 
-    fn deserialize(buffer: []const u8) !EntityHandoverMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EntityHandoverMessage {
         if (buffer.len < serial.wireSizeId()) return serial.DeserializeError.Truncated;
         const id = try serial.deserializeId(buffer[0..serial.wireSizeId()]);
         return EntityHandoverMessage{ .id = id };
@@ -412,7 +412,7 @@ pub const EntityClaimMessage = struct {
         try serial.serializeId(self.id, buffer[0..serial.wireSizeId()]);
     }
 
-    fn deserialize(buffer: []const u8) !EntityClaimMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EntityClaimMessage {
         if (buffer.len < serial.wireSizeId()) return serial.DeserializeError.Truncated;
         const id = try serial.deserializeId(buffer[0..serial.wireSizeId()]);
         return EntityClaimMessage{ .id = id };
@@ -446,7 +446,7 @@ pub const EntityFailoverMessage = struct {
         try serial.serializeId(self.id, buffer[0..serial.wireSizeId()]);
     }
 
-    fn deserialize(buffer: []const u8) !EntityFailoverMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EntityFailoverMessage {
         if (buffer.len < serial.wireSizeId()) return serial.DeserializeError.Truncated;
         const id = try serial.deserializeId(buffer[0..serial.wireSizeId()]);
         return EntityFailoverMessage{ .id = id };
@@ -476,7 +476,7 @@ pub const ServerInfoMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!ServerInfoMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!ServerInfoMessage {
         _ = buffer;
         return ServerInfoMessage{};
     }
@@ -506,7 +506,7 @@ pub const ServerDebugMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!ServerDebugMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!ServerDebugMessage {
         _ = buffer;
         return ServerDebugMessage{};
     }
@@ -536,7 +536,7 @@ pub const ClientInfoMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!ClientInfoMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!ClientInfoMessage {
         _ = buffer;
         return ClientInfoMessage{};
     }
@@ -566,7 +566,7 @@ pub const EditorInfoMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!EditorInfoMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!EditorInfoMessage {
         _ = buffer;
         return EditorInfoMessage{};
     }
@@ -597,8 +597,8 @@ pub const CommandMessage = struct {
         try serial.serializeText(self.command, buffer[0..self.wireSize()]);
     }
 
-    fn deserialize(buffer: []const u8, gpa: std.mem.Allocator) !CommandMessage {
-        const cmd = try serial.deserializeText(buffer, gpa);
+    fn deserialize(buffer: []const u8, gpa: *std.mem.Allocator) !CommandMessage {
+        const cmd = try serial.deserializeText(buffer, gpa.*);
         return CommandMessage{ .command = cmd };
     }
 
@@ -885,7 +885,7 @@ pub const PingMessage = struct {
         try serial.serializeI64(self.time, buffer[offset .. offset + time_size]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!PingMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!PingMessage {
         var offset: usize = 0;
         const nonce_size = serial.wireSizeU64();
         if (buffer.len < offset + nonce_size) return serial.DeserializeError.Truncated;
@@ -933,7 +933,7 @@ pub const PongMessage = struct {
         try serial.serializeI64(self.time, buffer[offset .. offset + time_size]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!PongMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!PongMessage {
         var offset: usize = 0;
         const nonce_size = serial.wireSizeU64();
         if (buffer.len < offset + nonce_size) return serial.DeserializeError.Truncated;
@@ -1075,7 +1075,7 @@ pub const AuthChallengeMessage = struct {
         try serial.serializeU64(self.auth_id, buffer[0..serial.wireSizeU64()]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!AuthChallengeMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!AuthChallengeMessage {
         if (buffer.len < serial.wireSizeU64()) return serial.DeserializeError.Truncated;
         const auth_id = try serial.deserializeU64(buffer[0..serial.wireSizeU64()]);
         return AuthChallengeMessage{ .auth_id = auth_id };
@@ -1111,7 +1111,7 @@ pub const AuthResultMessage = struct {
         try serial.serializeU64(self.auth_id, buffer[0..serial.wireSizeU64()]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!AuthResultMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!AuthResultMessage {
         if (buffer.len < serial.wireSizeU64()) return serial.DeserializeError.Truncated;
         const auth_id = try serial.deserializeU64(buffer[0..serial.wireSizeU64()]);
         return AuthResultMessage{ .auth_id = auth_id };
@@ -1153,7 +1153,7 @@ pub const AuthResponseMessage = struct {
         try serial.serializeBool(self.is_success, buffer[offset .. offset + bool_size]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!AuthResponseMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!AuthResponseMessage {
         var offset: usize = 0;
         const id_size = serial.wireSizeU64();
         if (buffer.len < offset + id_size) return serial.DeserializeError.Truncated;
@@ -1204,7 +1204,7 @@ pub const TickMessage = struct {
         try serial.serializeI64(self.time, buffer[offset .. offset + time_size]);
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!TickMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!TickMessage {
         var offset: usize = 0;
         const tick_size = serial.wireSizeU64();
         if (buffer.len < offset + tick_size) return serial.DeserializeError.Truncated;
@@ -1244,7 +1244,7 @@ pub const StaticMessage = struct {
         try serial.serializePosition(self.position, buffer[0..serial.wireSizePosition()]);
     }
 
-    fn deserialize(buffer: []const u8) !StaticMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !StaticMessage {
         if (buffer.len < serial.wireSizePosition()) return serial.DeserializeError.Truncated;
         const pos = try serial.deserializePosition(buffer[0..serial.wireSizePosition()]);
         return StaticMessage{ .position = pos };
@@ -1289,7 +1289,7 @@ pub const LinearMessage = struct {
         try serial.serializeVelocity(self.velocity, buffer[offset .. offset + vel_size]);
     }
 
-    fn deserialize(buffer: []const u8) !LinearMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !LinearMessage {
         var offset: usize = 0;
         const pos_size = serial.wireSizePosition();
         if (buffer.len < offset + pos_size) return serial.DeserializeError.Truncated;
@@ -1351,7 +1351,7 @@ pub const AcceleratedMessage = struct {
         try serial.serializeAcceleration(self.acceleration, buffer[offset .. offset + acc_size]);
     }
 
-    fn deserialize(buffer: []const u8) !AcceleratedMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !AcceleratedMessage {
         var offset: usize = 0;
 
         const pos_size = serial.wireSizePosition();
@@ -1434,7 +1434,7 @@ pub const DynamicMessage = struct {
         try serial.serializeJerk(self.jerk, buffer[offset .. offset + jerk_size]);
     }
 
-    fn deserialize(buffer: []const u8) !DynamicMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !DynamicMessage {
         var offset: usize = 0;
 
         const pos_size = serial.wireSizePosition();
@@ -1512,7 +1512,7 @@ pub const ActionMessage = struct {
         try serial.serializeEnum(core.Action, self.action, buffer[offset .. offset + action_size]);
     }
 
-    fn deserialize(buffer: []const u8) !ActionMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !ActionMessage {
         var offset: usize = 0;
 
         const id_size = serial.wireSizeId();
@@ -1558,7 +1558,7 @@ pub const EntityMessage = struct {
         try serial.serializeId(self.id, buffer[0..self.wireSize()]);
     }
 
-    fn deserialize(buffer: []const u8) !EntityMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EntityMessage {
         if (buffer.len < serial.wireSizeId()) return serial.DeserializeError.Truncated;
         const id = try serial.deserializeId(buffer[0..serial.wireSizeId()]);
         return EntityMessage{ .id = id };
@@ -1593,7 +1593,7 @@ pub const EntityRemoveMessage = struct {
         try serial.serializeId(self.id, buffer[0..self.wireSize()]);
     }
 
-    fn deserialize(buffer: []const u8) !EntityRemoveMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EntityRemoveMessage {
         if (buffer.len < serial.wireSizeId()) return serial.DeserializeError.Truncated;
         const id = try serial.deserializeId(buffer[0..serial.wireSizeId()]);
         return EntityRemoveMessage{ .id = id };
@@ -1720,7 +1720,7 @@ pub const ComponentMessage = struct {
         }
     }
 
-    fn deserialize(buffer: []const u8) !ComponentMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !ComponentMessage {
         var offset: usize = 0;
 
         const id_size = serial.wireSizeId();
@@ -1873,7 +1873,7 @@ pub const ComponentRemoveMessage = struct {
         try serial.serializeEnum(core.ComponentType, self.component, buffer[offset .. offset + comp_sz]);
     }
 
-    fn deserialize(buffer: []const u8) !ComponentRemoveMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !ComponentRemoveMessage {
         var offset: usize = 0;
         const id_sz = serial.wireSizeId();
         if (buffer.len < offset + id_sz) return serial.DeserializeError.Truncated;
@@ -1939,7 +1939,7 @@ pub const SnapshotRequestMessage = struct {
         _ = buffer;
     }
 
-    fn deserialize(buffer: []const u8) serial.DeserializeError!SnapshotRequestMessage {
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!SnapshotRequestMessage {
         _ = buffer;
         return SnapshotRequestMessage{};
     }
@@ -2058,125 +2058,8 @@ pub const Message = union(MessageType) {
 
     pub fn deinit(self: Message) void {
         switch (self) {
-            .Assign => |assign| {
-                assign.deinit();
-            },
-            .Unassign => |unassign| {
-                unassign.deinit();
-            },
-            .Neighbour => |neighbour| {
-                neighbour.deinit();
-            },
-            .MasterInfo => |info| {
-                info.deinit();
-            },
-            .MasterDebug => |debug| {
-                debug.deinit();
-            },
-            .Register => |register| {
-                register.deinit();
-            },
-            .Unregister => |unregister| {
-                unregister.deinit();
-            },
-            .Heartbeat => |beat| {
-                beat.deinit();
-            },
-            .QuadInfo => |info| {
-                info.deinit();
-            },
-            .EntityHandover => |id| {
-                id.deinit();
-            },
-            .EntityClaim => |id| {
-                id.deinit();
-            },
-            .EntityFailover => |id| {
-                id.deinit();
-            },
-            .ServerInfo => |info| {
-                info.deinit();
-            },
-            .ServerDebug => |debug| {
-                debug.deinit();
-            },
-            .ClientInfo => |info| {
-                info.deinit();
-            },
-            .EditorInfo => |info| {
-                info.deinit();
-            },
-            .Command => |cmd| {
-                cmd.deinit();
-            },
-            .Notice => |note| {
-                note.deinit();
-            },
-            .Forward => |forward| {
-                forward.deinit();
-            },
-            .Alpha => |alpha| {
-                alpha.deinit();
-            },
-            .Omega => |omega| {
-                omega.deinit();
-            },
-            .Kick => |kick| {
-                kick.deinit();
-            },
-            .Ping => |ping| {
-                ping.deinit();
-            },
-            .Pong => |pong| {
-                pong.deinit();
-            },
-            .VersionCheck => |vers| {
-                vers.deinit();
-            },
-            .VersionResult => |vers| {
-                vers.deinit();
-            },
-            .AuthChallenge => |auth| {
-                auth.deinit();
-            },
-            .AuthResult => |auth| {
-                auth.deinit();
-            },
-            .AuthResponse => |auth| {
-                auth.deinit();
-            },
-            .Tick => |tick| {
-                tick.deinit();
-            },
-            .Static => |static| {
-                static.deinit();
-            },
-            .Linear => |linear| {
-                linear.deinit();
-            },
-            .Accelerated => |accelerated| {
-                accelerated.deinit();
-            },
-            .Dynamic => |dynamic| {
-                dynamic.deinit();
-            },
-            .Action => |action| {
-                action.deinit();
-            },
-            .Entity => |entity| {
-                entity.deinit();
-            },
-            .EntityRemove => |entity| {
-                entity.deinit();
-            },
-            .Component => |comp| {
-                comp.deinit();
-            },
-            .ComponentRemove => |comp| {
-                comp.deinit();
-            },
-            .SnapshotRequest => |snap| {
-                snap.deinit();
+            inline else => |msg| {
+                msg.deinit();
             },
         }
     }
@@ -2185,467 +2068,49 @@ pub const Message = union(MessageType) {
         var size: usize = serial.wireSizeEnum(MessageType);
 
         size += switch (self) {
-            .Assign => |assign| assign.wireSize(),
-            .Unassign => |unassign| unassign.wireSize(),
-            .Neighbour => |neighbour| neighbour.wireSize(),
-            .MasterInfo => |info| info.wireSize(),
-            .MasterDebug => |debug| debug.wireSize(),
-            .Register => |register| register.wireSize(),
-            .Unregister => |unregister| unregister.wireSize(),
-            .Heartbeat => |beat| beat.wireSize(),
-            .QuadInfo => |info| info.wireSize(),
-            .EntityHandover => |id| id.wireSize(),
-            .EntityClaim => |id| id.wireSize(),
-            .EntityFailover => |id| id.wireSize(),
-            .ServerInfo => |info| info.wireSize(),
-            .ServerDebug => |debug| debug.wireSize(),
-            .ClientInfo => |info| info.wireSize(),
-            .EditorInfo => |info| info.wireSize(),
-            .Command => |cmd| cmd.wireSize(),
-            .Notice => |note| note.wireSize(),
-            .Forward => |forward| forward.wireSize(),
-            .Alpha => |alpha| alpha.wireSize(),
-            .Omega => |omega| omega.wireSize(),
-            .Kick => |kick| kick.wireSize(),
-            .Ping => |ping| ping.wireSize(),
-            .Pong => |pong| pong.wireSize(),
-            .VersionCheck => |vers| vers.wireSize(),
-            .VersionResult => |vers| vers.wireSize(),
-            .AuthChallenge => |auth| auth.wireSize(),
-            .AuthResult => |auth| auth.wireSize(),
-            .AuthResponse => |auth| auth.wireSize(),
-            .Tick => |tick| tick.wireSize(),
-            .Static => |st| st.wireSize(),
-            .Linear => |lin| lin.wireSize(),
-            .Accelerated => |acc| acc.wireSize(),
-            .Dynamic => |dyn| dyn.wireSize(),
-            .Action => |action| action.wireSize(),
-            .Entity => |id| id.wireSize(),
-            .EntityRemove => |id| id.wireSize(),
-            .Component => |comp| comp.wireSize(),
-            .ComponentRemove => |comp| comp.wireSize(),
-            .SnapshotRequest => |snap| snap.wireSize(),
+            inline else => |msg| msg.wireSize(),
         };
 
         return size;
     }
 
     pub fn serialize(self: Message, buffer: []u8) !void {
-        try serial.serializeEnum(MessageType, self, buffer);
+        var offset: usize = 0;
+
+        try serial.serializeEnum(MessageType, self, buffer[offset..]);
+        offset += serial.wireSizeEnum(MessageType);
+
         switch (self) {
-            .Assign => |assign| {
-                try assign.serialize(buffer);
-            },
-            .Unassign => |unassign| {
-                try unassign.serialize(buffer);
-            },
-            .Neighbour => |neighbour| {
-                try neighbour.serialize(buffer);
-            },
-            .MasterInfo => |info| {
-                try info.serialize(buffer);
-            },
-            .MasterDebug => |debug| {
-                try debug.serialize(buffer);
-            },
-            .Register => |register| {
-                try register.serialize(buffer);
-            },
-            .Unregister => |unregister| {
-                try unregister.serialize(buffer);
-            },
-            .Heartbeat => |beat| {
-                try beat.serialize(buffer);
-            },
-            .QuadInfo => |info| {
-                try info.serialize(buffer);
-            },
-            .EntityHandover => |id| {
-                try id.serialize(buffer);
-            },
-            .EntityClaim => |id| {
-                try id.serialize(buffer);
-            },
-            .EntityFailover => |id| {
-                try id.serialize(buffer);
-            },
-            .ServerInfo => |info| {
-                try info.serialize(buffer);
-            },
-            .ServerDebug => |debug| {
-                try debug.serialize(buffer);
-            },
-            .ClientInfo => |info| {
-                try info.serialize(buffer);
-            },
-            .EditorInfo => |info| {
-                try info.serialize(buffer);
-            },
-            .Command => |cmd| {
-                try cmd.serialize(buffer);
-            },
-            .Notice => |note| {
-                try note.serialize(buffer);
-            },
-            .Forward => |forward| {
-                try forward.serialize(buffer);
-            },
-            .Alpha => |alpha| {
-                try alpha.serialize(buffer);
-            },
-            .Omega => |omega| {
-                try omega.serialize(buffer);
-            },
-            .Kick => |kick| {
-                try kick.serialize(buffer);
-            },
-            .Ping => |ping| {
-                try ping.serialize(buffer);
-            },
-            .Pong => |pong| {
-                try pong.serialize(buffer);
-            },
-            .VersionCheck => |vers| {
-                try vers.serialize(buffer);
-            },
-            .VersionResult => |vers| {
-                try vers.serialize(buffer);
-            },
-            .AuthChallenge => |auth| {
-                try auth.serialize(buffer);
-            },
-            .AuthResult => |auth| {
-                try auth.serialize(buffer);
-            },
-            .AuthResponse => |auth| {
-                try auth.serialize(buffer);
-            },
-            .Tick => |tick| {
-                try tick.serialize(buffer);
-            },
-            .Static => |static| {
-                try static.serialize(buffer);
-            },
-            .Linear => |linear| {
-                try linear.serialize(buffer);
-            },
-            .Accelerated => |accelerated| {
-                try accelerated.serialize(buffer);
-            },
-            .Dynamic => |dynamic| {
-                try dynamic.serialize(buffer);
-            },
-            .Action => |action| {
-                try action.serialize(buffer);
-            },
-            .Entity => |id| {
-                try id.serialize(buffer);
-            },
-            .EntityRemove => |id| {
-                try id.serialize(buffer);
-            },
-            .Component => |comp| {
-                try comp.serialize(buffer);
-            },
-            .ComponentRemove => |comp| {
-                try comp.serialize(buffer);
-            },
-            .SnapshotRequest => |snap| {
-                try snap.serialize(buffer);
+            inline else => |msg| {
+                const size = msg.wireSize();
+                try msg.serialize(buffer[offset .. offset + size]);
+                offset += size;
             },
         }
     }
 
     pub fn deserialize(buffer: []const u8, gpa: *std.mem.Allocator) !Message {
-        const message_type: MessageType = serial.deserializeEnum(MessageType, buffer) catch unreachable;
-        switch (message_type) {
-            .Assign => {
-                const assign = try AssignMessage.deserialize(buffer);
-                return Message{ .Assign = assign };
-            },
-            .Unassign => {
-                const unassign = try UnassignMessage.deserialize(buffer);
-                return Message{ .Unassign = unassign };
-            },
-            .Neighbour => {
-                const neighbour = NeighbourMessage.deserialize(buffer, gpa.*) catch unreachable;
-                return Message{ .Neighbour = neighbour };
-            },
-            .MasterInfo => {
-                const info = try MasterInfoMessage.deserialize(buffer);
-                return Message{ .MasterInfo = info };
-            },
-            .MasterDebug => {
-                const debug = try MasterDebugMessage.deserialize(buffer);
-                return Message{ .MasterDebug = debug };
-            },
-            .Register => {
-                const register = try RegisterMessage.deserialize(buffer);
-                return Message{ .Register = register };
-            },
-            .Unregister => {
-                const unregister = try UnregisterMessage.deserialize(buffer);
-                return Message{ .Unregister = unregister };
-            },
-            .Heartbeat => {
-                const beat = try HeartbeatMessage.deserialize(buffer);
-                return Message{ .Heartbeat = beat };
-            },
-            .QuadInfo => {
-                const info = try QuadInfoMessage.deserialize(buffer);
-                return Message{ .QuadInfo = info };
-            },
-            .EntityHandover => {
-                const id = try EntityHandoverMessage.deserialize(buffer);
-                return Message{ .EntityHandover = id };
-            },
-            .EntityClaim => {
-                const id = try EntityClaimMessage.deserialize(buffer);
-                return Message{ .EntityClaim = id };
-            },
-            .EntityFailover => {
-                const id = try EntityFailoverMessage.deserialize(buffer);
-                return Message{ .EntityFailover = id };
-            },
-            .ServerInfo => {
-                const info = try ServerInfoMessage.deserialize(buffer);
-                return Message{ .ServerInfo = info };
-            },
-            .ServerDebug => {
-                const debug = try ServerDebugMessage.deserialize(buffer);
-                return Message{ .ServerDebug = debug };
-            },
-            .ClientInfo => {
-                const info = try ClientInfoMessage.deserialize(buffer);
-                return Message{ .ClientInfo = info };
-            },
-            .EditorInfo => {
-                const info = try EditorInfoMessage.deserialize(buffer);
-                return Message{ .EditorInfo = info };
-            },
-            .Command => {
-                const cmd = try CommandMessage.deserialize(buffer, gpa.*);
-                return Message{ .Command = cmd };
-            },
-            .Notice => {
-                const note = try NoticeMessage.deserialize(buffer, gpa);
-                return Message{ .Notice = note };
-            },
-            .Forward => {
-                const forward = try ForwardMessage.deserialize(buffer, gpa);
-                return Message{ .Forward = forward };
-            },
-            .Alpha => {
-                const alpha = try AlphaMessage.deserialize(buffer, gpa);
-                return Message{ .Alpha = alpha };
-            },
-            .Omega => {
-                const omega = try OmegaMessage.deserialize(buffer, gpa);
-                return Message{ .Omega = omega };
-            },
-            .Kick => {
-                const kick = try KickMessage.deserialize(buffer, gpa);
-                return Message{ .Kick = kick };
-            },
-            .Ping => {
-                const ping = try PingMessage.deserialize(buffer);
-                return Message{ .Ping = ping };
-            },
-            .Pong => {
-                const pong = try PongMessage.deserialize(buffer);
-                return Message{ .Pong = pong };
-            },
-            .VersionCheck => {
-                const vers = try VersionCheckMessage.deserialize(buffer, gpa);
-                return Message{ .VersionCheck = vers };
-            },
-            .VersionResult => {
-                const vers = try VersionResultMessage.deserialize(buffer, gpa);
-                return Message{ .VersionResult = vers };
-            },
-            .AuthChallenge => {
-                const auth = try AuthChallengeMessage.deserialize(buffer);
-                return Message{ .AuthChallenge = auth };
-            },
-            .AuthResult => {
-                const auth = try AuthResultMessage.deserialize(buffer);
-                return Message{ .AuthResult = auth };
-            },
-            .AuthResponse => {
-                const auth = try AuthResponseMessage.deserialize(buffer);
-                return Message{ .AuthResponse = auth };
-            },
-            .Tick => {
-                const tick = try TickMessage.deserialize(buffer);
-                return Message{ .Tick = tick };
-            },
-            .Static => {
-                const pos = try StaticMessage.deserialize(buffer);
-                return Message{ .Static = pos };
-            },
-            .Linear => {
-                const vel = try LinearMessage.deserialize(buffer);
-                return Message{ .Linear = vel };
-            },
-            .Accelerated => {
-                const acc = try AcceleratedMessage.deserialize(buffer);
-                return Message{ .Accelerated = acc };
-            },
-            .Dynamic => {
-                const dyn = try DynamicMessage.deserialize(buffer);
-                return Message{ .Dynamic = dyn };
-            },
-            .Action => {
-                const act = try ActionMessage.deserialize(buffer);
-                return Message{ .Action = act };
-            },
-            .Entity => {
-                const id = try EntityMessage.deserialize(buffer);
-                return Message{ .Entity = id };
-            },
-            .EntityRemove => {
-                const id = try EntityRemoveMessage.deserialize(buffer);
-                return Message{ .EntityRemove = id };
-            },
-            .Component => {
-                const comp = try ComponentMessage.deserialize(buffer);
-                return Message{ .Component = comp };
-            },
-            .ComponentRemove => {
-                const comp = try ComponentRemoveMessage.deserialize(buffer);
-                return Message{ .ComponentRemove = comp };
-            },
-            .SnapshotRequest => {
-                const snap = try SnapshotRequestMessage.deserialize(buffer);
-                return Message{ .SnapshotRequest = snap };
-            },
+        var offset: usize = 0;
+
+        const T = MessageType;
+        const tag = try serial.deserializeEnum(T, buffer[offset..]);
+        offset += serial.wireSizeEnum(T);
+
+        inline for (@typeInfo(Message).@"union".fields) |field| {
+            if (@field(T, field.name) == tag) {
+                const Payload = field.type;
+                const val = try Payload.deserialize(buffer[offset..], gpa);
+                return @unionInit(Message, field.name, val);
+            }
         }
+
+        unreachable;
     }
 
     pub fn print(self: Message, writer: anytype) void {
         switch (self) {
-            .Assign => |assign| {
-                assign.write(writer);
-            },
-            .Unassign => |unassign| {
-                unassign.write(writer);
-            },
-            .Neighbour => |neighbour| {
-                neighbour.write(writer);
-            },
-            .MasterInfo => |info| {
-                info.write(writer);
-            },
-            .MasterDebug => |debug| {
-                debug.write(writer);
-            },
-            .Register => |register| {
-                register.write(writer);
-            },
-            .Unregister => |unregister| {
-                unregister.write(writer);
-            },
-            .Heartbeat => |beat| {
-                beat.write(writer);
-            },
-            .QuadInfo => |info| {
-                info.write(writer);
-            },
-            .EntityHandover => |id| {
-                id.write(writer);
-            },
-            .EntityHandover => |id| {
-                id.write(writer);
-            },
-            .EntityClaim => |id| {
-                id.write(writer);
-            },
-            .EntityFailover => |id| {
-                id.write(writer);
-            },
-            .ServerInfo => |info| {
-                info.write(writer);
-            },
-            .ServerDebug => |debug| {
-                debug.write(writer);
-            },
-            .ClientInfo => |info| {
-                info.write(writer);
-            },
-            .EditorInfo => |info| {
-                info.write(writer);
-            },
-            .Command => |cmd| {
-                cmd.write(writer);
-            },
-            .Notice => |note| {
-                note.write(writer);
-            },
-            .Forward => |forward| {
-                forward.write(writer);
-            },
-            .Alpha => |alpha| {
-                alpha.write(writer);
-            },
-            .Omega => |omega| {
-                omega.write(writer);
-            },
-            .Kick => |kick| {
-                kick.write(writer);
-            },
-            .Ping => |ping| {
-                ping.write(writer);
-            },
-            .Pong => |pong| {
-                pong.write(writer);
-            },
-            .VersionCheck => |vers| {
-                vers.write(writer);
-            },
-            .VersionResult => |vers| {
-                vers.write(writer);
-            },
-            .AuthChallenge => |auth| {
-                auth.write(writer);
-            },
-            .AuthResult => |auth| {
-                auth.write(writer);
-            },
-            .AuthResponse => |auth| {
-                auth.write(writer);
-            },
-            .Tick => |tick| {
-                tick.write(writer);
-            },
-            .Static => |static| {
-                static.write(writer);
-            },
-            .Linear => |linear| {
-                linear.write(writer);
-            },
-            .Accelerated => |accelerated| {
-                accelerated.write(writer);
-            },
-            .Dynamic => |dynamic| {
-                dynamic.write(writer);
-            },
-            .Action => |action| {
-                action.write(writer);
-            },
-            .Entity => |id| {
-                id.write(writer);
-            },
-            .EntityRemove => |id| {
-                id.write(writer);
-            },
-            .Component => |comp| {
-                comp.write(writer);
-            },
-            .ComponentRemove => |comp| {
-                comp.write(writer);
-            },
-            .SnapshotRequest => |snap| {
-                snap.write(writer);
+            else => |msg| {
+                msg.write(writer);
             },
         }
     }

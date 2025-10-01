@@ -25,7 +25,8 @@ const std = @import("std");
 // ---------- local ----------
 //const Batch = @import("batch.zig").Batch;
 const message = @import("message.zig");
-const Link = @import("udp.zig").Link;
+const udp = @import("udp.zig");
+const Link = udp.Link;
 //const primitive = @import("primitive.zig");
 // ---------------------------
 
@@ -44,9 +45,12 @@ pub const Client = struct {
     stamp: i64 = 0,
     last: i64 = 0,
 
+    udp: net.Socket,
+
     pub fn init(gpa: *std.mem.Allocator) Client {
         const client = Client{
             .gpa = gpa,
+            .udp = udp.create_socket(0),
         };
 
         net.init() catch unreachable;
@@ -63,12 +67,20 @@ pub const Client = struct {
     pub fn update(self: *Client) void {
         if (!self.is_connected) return;
 
+        const server_endpoint = net.EndPoint.parse("127.0.0.1:24711") catch unreachable;
+        while (true) {
+            const progress = self.udp_link.send(&self.udp, server_endpoint) catch unreachable;
+            if (!progress) {
+                break;
+            }
+        }
+
         self.udp_link.submit(.reliabel, message.PingMessage.init(1, 1));
         self.udp_link.update();
         //std.debug.print("update\n", .{});
 
         while (self.udp_link.withdraw()) |msg| {
-            std.debug.print("{any}", .{msg});
+            std.debug.print("withdraw: {any}\n", .{msg});
         }
 
         const now = std.time.milliTimestamp();
@@ -101,7 +113,6 @@ pub const Client = struct {
         tcp_socket.setWriteTimeout(100) catch unreachable; // 100ns
 
         self.udp_link = Link.init(self.gpa);
-        self.udp_link.endpoint = net.EndPoint.parse("127.0.0.1:22222") catch unreachable;
 
         self.tcp = tcp_socket;
         self.is_connected = true;

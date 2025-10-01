@@ -48,7 +48,10 @@ test {
 // ╚══════════════════════════════════════════════════════════════════╝
 
 pub fn seqGreater(comptime T: type, a: T, b: T) bool {
-    const Signed = std.meta.Int(.signed, @bitSizeOf(T));
-    const s: Signed = @intCast(a - b);
-    return s > 0;
+    const U = std.meta.Int(.unsigned, @bitSizeOf(T));
+    const bits8x = 7 + @bitSizeOf(T) / 8;
+    const mask: U = (@as(U, 1) << bits8x) - 1;
+    const half: U = @as(U, 1) << (bits8x - 1);
+
+    return ((a -% b) & mask) < half;
 }

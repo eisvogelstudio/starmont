@@ -38,6 +38,8 @@ const Channel = @import("message.zig").Channel;
 const Ack = @import("package.zig").Ack;
 // ---------------------------
 
+const log = std.log.scoped(.network);
+
 const Buffer = std.AutoHashMap(Identifier, Package);
 
 const CHANNEL_COUNT = @typeInfo(Channel).@"enum".fields.len;
@@ -120,18 +122,22 @@ pub const Inbox = struct {
     }
 
     fn markReceived(self: *Inbox, seq: u16) void {
+        // wenn seq neuer ist als ack_head → Fenster verschieben
         if (util.seqGreater(u16, seq, self.ack_head)) {
-            const shift: u5 = @intCast(seq - self.ack_head);
+            const shift: u16 = seq - self.ack_head; // Abstand nach vorne
             if (shift >= 32) {
+                // alles Alte fliegt raus, nur aktuelles gesetzt
                 self.ack_bits = 1;
             } else {
-                self.ack_bits = (self.ack_bits << shift) | 1;
+                // shift Bits nach links, setze Bit0 für seq
+                self.ack_bits = (self.ack_bits << @intCast(shift)) | 1;
             }
             self.ack_head = seq;
         } else {
-            const diff: u5 = @intCast(self.ack_head - seq);
+            // Nachzügler, prüfe Abstand nach hinten
+            const diff: u16 = self.ack_head - seq;
             if (diff < 32) {
-                self.ack_bits |= (@as(u32, 1) << diff);
+                self.ack_bits |= (@as(u32, 1) << @intCast(diff));
             }
         }
     }
@@ -167,8 +173,7 @@ pub const Outbox = struct {
     }
 
     pub fn append(self: *Outbox, msg: Message) void {
-        var package = self.buffer.getPtr(self.unfinished).?;
-
+        var package: *Package = self.buffer.getPtr(self.unfinished).?;
         package.append(msg) catch |err| {
             switch (err) {
                 PackageError.OutOfSpace => {
@@ -222,10 +227,29 @@ pub const Outbox = struct {
     }
 };
 
+const Debug = struct {
+    last_us: i64 = 0,
+    tx_pkts: usize = 0,
+    rx_pkts: usize = 0,
+    tx_bytes: usize = 0,
+    rx_bytes: usize = 0,
+    lost_pkts: usize = 0,
+    dup_pkts: usize = 0,
+    recv_invalid: usize = 0,
+};
+
+pub fn create_socket(port: u16) net.Socket {
+    var socket: net.Socket = net.Socket.create(.ipv4, .udp) catch unreachable;
+    socket.enablePortReuse(true) catch unreachable;
+    socket.bindToPort(port) catch unreachable;
+    socket.setReadTimeout(100) catch unreachable;
+    socket.setWriteTimeout(100) catch unreachable;
+
+    return socket;
+}
+
 pub const Link = struct {
     gpa: *std.mem.Allocator,
-    socket: net.Socket,
-    endpoint: ?net.EndPoint = null,
 
     out_buffer: Buffer,
     in_buffer: Buffer,
@@ -242,29 +266,20 @@ pub const Link = struct {
 
     unfinished: ?Identifier = null,
 
+    debug: Debug = Debug{},
+
     const io_delay_us = 0;
     const receive_max = 1024;
     const process_max = 1024;
-
-    fn create_udp(port: u16) net.Socket {
-        var socket: net.Socket = net.Socket.create(.ipv4, .udp) catch unreachable;
-        socket.enablePortReuse(true) catch unreachable;
-        socket.bindToPort(port) catch unreachable;
-        socket.setReadTimeout(100) catch unreachable;
-        socket.setWriteTimeout(100) catch unreachable;
-
-        return socket;
-    }
 
     pub fn init(gpa: *std.mem.Allocator) *Link {
         var link = gpa.create(Link) catch unreachable;
         link.* = Link{
             .gpa = gpa,
-            .socket = create_udp(22222),
             .out_buffer = Buffer.init(gpa.*),
             .in_buffer = Buffer.init(gpa.*),
-            .outwait = util.RingBuffer(TimedIdentifier).init(gpa.*, 2) catch unreachable,
-            .inwait = util.RingBuffer(TimedIdentifier).init(gpa.*, 2) catch unreachable,
+            .outwait = util.RingBuffer(TimedIdentifier).init(gpa.*, 4) catch unreachable,
+            .inwait = util.RingBuffer(TimedIdentifier).init(gpa.*, 4) catch unreachable,
             .out_pacer = OutPacer.init(20 * mtu, 2 * mtu, 20, 2),
             .in_pacer = InPacer.init(4, 4 * mtu),
         };
@@ -295,33 +310,32 @@ pub const Link = struct {
     pub fn update(self: *Link) void {
         const now_us = std.time.microTimestamp();
 
-        // in receive
-        var rcount: i32 = 0;
-        while (self.receive() catch unreachable) {
-            rcount += 1;
-            if (rcount == receive_max) break;
+        if (now_us - self.debug.last_us >= 200000) {
+            self.debug.last_us = now_us;
+
+            log.debug(
+                "udp_stats: tx={d}pkts({d}B) rx={d}pkts({d}B) lost={d} dup={d}",
+                .{ self.debug.tx_pkts, self.debug.tx_bytes, self.debug.rx_pkts, self.debug.rx_bytes, self.debug.lost_pkts, self.debug.dup_pkts },
+            );
+
+            for (0..CHANNEL_COUNT) |i| {
+                const ch: Channel = @enumFromInt(i);
+                log.debug("\tch={any}\tack_head={d}\tbits=0b{b:0>32}", .{ ch, self.inbox[i].ack_head, self.inbox[i].ack_bits });
+            }
         }
+
+        // in receive
+        //var rcount: i32 = 0;
+        //while (self.receive() catch unreachable) {
+        //    rcount += 1;
+        //    if (rcount == receive_max) break;
+        //}
 
         // in - process (inbox -> schedule -> inwait)
         self.in_drain(now_us);
 
         // out - process (outbox -> schedule -> outwait)
         self.out_burst(now_us);
-
-        var found = true;
-        while (found) {
-            if (self.outwait.peekFront()) |peek| {
-                if (peek.until_us >= now_us) {
-                    const ident = self.outwait.popFront().?.ident;
-                    std.debug.print("send\n", .{});
-                    self.send(ident) catch continue;
-                } else {
-                    found = false;
-                }
-            } else {
-                found = false;
-            }
-        }
     }
 
     fn out_burst(self: *Link, now_us: i64) void {
@@ -337,22 +351,21 @@ pub const Link = struct {
 
                     var outbox = &self.outbox[ch_idx];
                     outbox.finishPackage();
-
                     if (!outbox.hasPackage()) continue; // nothing to send on this channel;
 
                     const need = outbox.peekPackageSize().?;
+                    _ = need;
 
-                    if (!self.out_scheduler.can_send(ch_idx, need)) continue;
-                    if (!self.out_pacer.is_allowed(now_us, need, 1)) continue;
-
-                    std.debug.print("XB\n", .{});
+                    //if (!self.out_scheduler.can_send(ch_idx, need)) continue;
+                    //if (!self.out_pacer.is_allowed(now_us, need, 1)) continue;
 
                     if (outbox.pop()) |ident| {
                         const timed = TimedIdentifier{ .until_us = now_us + io_delay_us, .ident = ident };
                         self.outwait.pushBack(timed) catch unreachable;
+                        std.debug.print("ready: {} - - - {}\n", .{ outbox.unfinished.sequence, self.outwait.len });
 
-                        self.out_scheduler.on_sent(ch_idx, need); // account for scheduler
-                        self.out_pacer.consume(need, 1); // account for pacer
+                        //self.out_scheduler.on_sent(ch_idx, need); // account for scheduler
+                        //self.out_pacer.consume(need, 1); // account for pacer
                         progress = true;
                     }
                 }
@@ -381,17 +394,17 @@ pub const Link = struct {
 
                         const package = self.in_buffer.getPtr(ident).?;
                         const need = package.wireSize();
+                        _ = need;
 
-                        if (!self.in_scheduler.can_take(ch_idx, need)) break;
-                        if (!self.in_pacer.allow(need)) break;
+                        //if (!self.in_scheduler.can_take(ch_idx, need)) break;
+                        //if (!self.in_pacer.allow(need)) break;
 
                         _ = inbox.pop() orelse unreachable;
-
                         const timed = TimedIdentifier{ .until_us = now_us + io_delay_us, .ident = ident };
                         self.inwait.pushBack(timed) catch unreachable;
 
-                        self.in_scheduler.on_taken(ch_idx, need);
-                        self.in_pacer.consume(need);
+                        //self.in_scheduler.on_taken(ch_idx, need);
+                        //self.in_pacer.consume(need);
                         progress = true;
                     }
                 }
@@ -407,52 +420,82 @@ pub const Link = struct {
     }
 
     pub fn withdraw(self: *Link) ?Message {
-        if (self.unfinished) |ident| {
-            var package = self.in_buffer.getPtr(ident);
-            const message = package.?.pop(self.gpa) catch unreachable;
-            if (0 == package.?.msg_count) {
-                _ = self.in_buffer.remove(ident);
-                const now_us = std.time.microTimestamp();
-                if (self.inwait.peekFront().?.until_us >= now_us) {
+        const now_us = std.time.microTimestamp();
+
+        while (true) {
+            // Prüfen, ob etwas in der inwait-Queue fällig ist
+            if (self.inwait.peekFront()) |front| {
+                if (front.until_us <= now_us) {
                     self.unfinished = self.inwait.popFront().?.ident;
                 } else {
                     self.unfinished = null;
                 }
+            } else {
+                self.unfinished = null;
             }
+
+            // Wenn kein ident verfügbar ist → nix zu tun
+            const ident = self.unfinished orelse return null;
+
+            var package = self.in_buffer.getPtr(ident) orelse {
+                // sollte eigentlich nicht vorkommen: ident ohne package
+                self.unfinished = null;
+                continue;
+            };
+
+            // Versuchen, Message aus Package zu ziehen
+            const message = package.pop(self.gpa) catch |err| {
+                switch (err) {
+                    error.Empty => {
+                        // Package ist leer, also rauswerfen und beim nächsten weitersehen
+                        _ = self.in_buffer.remove(ident);
+                        self.unfinished = null;
+                        continue; // direkt nächste Runde probieren
+                    },
+                    else => unreachable,
+                }
+            };
+
             return message;
-        } else {
-            return null;
         }
     }
 
-    fn send(self: *Link, ident: Identifier) !void {
-        var package = self.out_buffer.getPtr(ident).?;
+    pub fn send(self: *Link, socket: *net.Socket, endpoint: net.EndPoint) !bool {
+        const now_us = std.time.microTimestamp();
 
-        const idx = @intFromEnum(ident.channel);
-        const ack = Ack{ .bits = self.inbox[idx].ack_bits, .head = self.inbox[idx].ack_head };
-        try package.sendTo(ident, ack, &self.socket, self.endpoint.?);
+        if (self.outwait.peekFront()) |peek| {
+            if (peek.until_us <= now_us) {
+                const ident = self.outwait.popFront().?.ident;
+                var package = self.out_buffer.getPtr(ident).?;
 
-        // package is kept in case resend is necessary
+                const idx = @intFromEnum(ident.channel);
+                const ack = Ack{ .bits = self.inbox[idx].ack_bits, .head = self.inbox[idx].ack_head };
+                package.sendTo(ident, ack, socket, endpoint) catch unreachable;
+
+                self.debug.tx_pkts += 1;
+                self.debug.tx_bytes += package.wireSize();
+
+                // package is kept in case resend is necessary
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    fn receive(self: *Link) !bool {
-        var endpoint: net.EndPoint = undefined;
-        const package = Package.receiveFrom(&self.socket, &endpoint) catch |err| {
-            switch (err) {
-                error.WouldBlock => return false,
-                else => unreachable,
-            }
+    pub fn receive(self: *Link, package: Package) void {
+        const header = package.deserializeHeader() catch {
+            self.debug.recv_invalid += 1;
+            return;
         };
 
-        self.endpoint = endpoint;
-
-        const header = try package.deserializeHeader();
+        self.debug.rx_pkts += 1;
+        self.debug.rx_bytes += package.wireSize();
 
         const ident = Identifier{ .channel = header.channel, .sequence = header.sequence };
 
-        std.debug.print("receive\n", .{});
-
-        try self.in_buffer.put(ident, package);
+        self.in_buffer.put(ident, package) catch unreachable;
 
         const idx = @intFromEnum(ident.channel);
         self.inbox[idx].append(ident);
@@ -463,8 +506,6 @@ pub const Link = struct {
         //    const timed = TimedIdentifier{ .until_us = now_us + io_delay_us, .ident = ident };
         //    self.inwait.pushBack(timed);
         //}
-
-        return true;
     }
 };
 // ---- Out (egress) Pacer --------------------------------------------c

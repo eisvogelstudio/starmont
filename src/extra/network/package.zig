@@ -131,6 +131,9 @@ pub const Header = struct {
         off += serial.wireSizeU16();
 
         try self.ack.serialize(buffer[off..]);
+        off += Ack.wireSize();
+
+        std.debug.assert(wireSize() == off);
     }
 
     pub fn deserialize(buffer: []const u8) serial.DeserializeError!Header {
@@ -150,6 +153,9 @@ pub const Header = struct {
         off += serial.wireSizeU16();
 
         header.ack = Ack.deserialize(buffer[off..]);
+        off += Ack.wireSize();
+
+        std.debug.assert(wireSize() == off);
 
         return header;
     }
@@ -182,7 +188,9 @@ pub const TimedPackage = struct {
 pub const Package = struct {
     msg_count: u8 = 0,
     buffer: [max_byte]u8 = undefined,
-    offset: usize = Header.wireSize() + serial.wireSizeU8(),
+    offset: usize = reserved,
+
+    const reserved = Header.wireSize() + serial.wireSizeU8();
 
     pub const max_byte = 1200;
 
@@ -197,7 +205,6 @@ pub const Package = struct {
     pub fn append(self: *Package, msg: Message) PackageError!void {
         const size = msg.wireSize();
         if (max_byte - self.offset < size) return PackageError.OutOfSpace;
-
         msg.serialize(self.buffer[self.offset .. self.offset + size]) catch unreachable;
         self.offset += size;
 
@@ -209,7 +216,9 @@ pub const Package = struct {
 
         self.msg_count -= 1;
 
-        const msg = try Message.deserialize(&self.buffer, gpa);
+        const slice = self.buffer[self.offset..];
+
+        const msg = try Message.deserialize(slice, gpa);
         self.offset += msg.wireSize();
 
         std.debug.assert(self.offset <= max_byte);
@@ -226,15 +235,18 @@ pub const Package = struct {
             .ack = ack,
         };
 
-        std.debug.print("send {*}\n", .{self});
-
         header.serialize(self.buffer[0..Header.wireSize()]) catch unreachable;
-
         serial.serializeU8(self.msg_count, self.buffer[Header.wireSize() .. Header.wireSize() + serial.wireSizeU8()]) catch unreachable;
+
         _ = socket.sendTo(endpoint, self.buffer[0..self.offset]) catch return NetError.SendFailed;
     }
 
-    pub fn receiveFrom(socket: *net.Socket, endpoint: *net.EndPoint) Error!Package {
+    const Result = struct {
+        sender: net.EndPoint,
+        package: Package,
+    };
+
+    pub fn receiveFrom(socket: *net.Socket) Error!Result {
         var package = Package{};
 
         const result = socket.receiveFrom(&package.buffer) catch |err| {
@@ -243,21 +255,20 @@ pub const Package = struct {
                 else => unreachable,
             }
         };
-        endpoint.* = result.sender;
 
-        package.offset += Header.wireSize();
+        if (result.numberOfBytes < reserved) return Error.GarbargeReceived;
 
-        package.msg_count = try serial.deserializeU8(package.buffer[package.offset .. package.offset + serial.wireSizeU8()]);
-        package.offset += serial.wireSizeU8();
+        package.msg_count = try serial.deserializeU8(package.buffer[Header.wireSize() .. Header.wireSize() + serial.wireSizeU8()]);
 
-        return package;
+        return Result{ .sender = result.sender, .package = package };
     }
 
     pub fn deserializeHeader(self: Package) Error!Header {
+        std.debug.assert(self.buffer.len > reserved);
+
         const header = try Header.deserialize(self.buffer[0..Header.wireSize()]);
 
         if (header.magic != Header.MAGIC) {
-            std.debug.print("rec {} - exp {}\n", .{ header.magic, Header.MAGIC });
             return PackageError.GarbargeReceived;
         }
 
