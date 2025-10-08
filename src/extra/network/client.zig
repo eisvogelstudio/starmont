@@ -112,7 +112,11 @@ pub const Client = struct {
         tcp_socket.setReadTimeout(100) catch unreachable; // 100ns
         tcp_socket.setWriteTimeout(100) catch unreachable; // 100ns
 
-        self.udp_link = Link.init(self.gpa);
+        {
+            //self.udp_link = Link.init(self.gpa);
+        }
+
+        self.udp_link.submit(.reliabel, message.EndpointMessage.init(self.tcp.getLocalEndPoint() catch unreachable));
 
         self.tcp = tcp_socket;
         self.is_connected = true;
@@ -144,8 +148,4 @@ pub const Client = struct {
     //
     //    return batches;
     //}
-
-    pub fn submit(self: *Client, msg: message.Message) void {
-        self.batch.append(msg) catch unreachable;
-    }
 };

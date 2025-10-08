@@ -23,138 +23,155 @@ const core = @import("shared").core;
 // ------------------------------
 
 // ---------- local ----------
-const primitive = @import("primitive.zig");
-const util = @import("util.zig");
+const serial = @import("serial.zig");
 const SerializeError = @import("error.zig").SerializeError;
 const DeserializeError = @import("error.zig").DeserializeError;
 const Error = @import("error.zig").Error;
 // ---------------------------
 
-pub fn wireSizeId() usize {
-    return util.wireSizeUUID4();
-}
+pub const Id = struct {
+    pub fn wireSize() usize {
+        return serial.UUID4.wireSize();
+    }
 
-pub fn serializeId(value: core.Id, buffer: []u8) Error!void {
-    try util.serializeUUID4(value.uuid, buffer[0..wireSizeId()]);
-}
+    pub fn serializeId(value: core.Id, buffer: []u8) Error!void {
+        try serial.UUID4.serialize(value.uuid, buffer[0..wireSize()]);
+    }
 
-pub fn deserializeId(buffer: []const u8) Error!core.Id {
-    const uuid = try util.deserializeUUID4(buffer[0..util.wireSizeUUID4()]);
-    return core.Id{ .uuid = uuid };
-}
+    pub fn deserializeId(buffer: []const u8) Error!core.Id {
+        const uuid = try serial.UUID4.deserialize(buffer[0..wireSize()]);
+        return core.Id{ .uuid = uuid };
+    }
+};
 
-pub fn wireSizePosition() usize {
-    return 2 * primitive.wireSizeF32();
-}
+pub const Position = struct {
+    pub fn wireSize() usize {
+        return 2 * serial.F32.wireSize();
+    }
 
-pub fn serializePosition(value: core.Position, buffer: []u8) Error!void {
-    if (buffer.len < wireSizePosition()) return Error.BufferTooSmall;
-    try primitive.serializeF32(value.x, buffer[0..4]);
-    try primitive.serializeF32(value.y, buffer[4..8]);
-}
+    pub fn serialize(value: core.Position, buffer: []u8) Error!void {
+        if (buffer.len < wireSizePosition()) return Error.BufferTooSmall;
+        try serial.F32.serialize(value.x, buffer[0..4]);
+        try serial.F32.serialize(value.y, buffer[4..8]);
+    }
 
-pub fn deserializePosition(buffer: []const u8) Error!core.Position {
-    if (buffer.len < wireSizePosition()) return Error.Truncated;
-    const x = try primitive.deserializeF32(buffer[0..4]);
-    const y = try primitive.deserializeF32(buffer[4..8]);
-    return core.Position{ .x = x, .y = y };
-}
+    pub fn deserialize(buffer: []const u8) Error!core.Position {
+        if (buffer.len < wireSizePosition()) return Error.Truncated;
+        const x = try primitive.deserializeF32(buffer[0..4]);
+        const y = try primitive.deserializeF32(buffer[4..8]);
+        return core.Position{ .x = x, .y = y };
+    }
+};
 
-pub fn wireSizeVelocity() usize {
-    return 2 * primitive.wireSizeF32();
-}
+pub const Velocity = struct {
+    pub fn wireSizeVelocity() usize {
+        return 2 * primitive.wireSizeF32();
+    }
 
-pub fn serializeVelocity(value: core.Velocity, buffer: []u8) Error!void {
-    if (buffer.len < wireSizeVelocity()) return Error.BufferTooSmall;
-    try primitive.serializeF32(value.x, buffer[0..4]);
-    try primitive.serializeF32(value.y, buffer[4..8]);
-}
+    pub fn serializeVelocity(value: core.Velocity, buffer: []u8) Error!void {
+        if (buffer.len < wireSizeVelocity()) return Error.BufferTooSmall;
+        try primitive.serializeF32(value.x, buffer[0..4]);
+        try primitive.serializeF32(value.y, buffer[4..8]);
+    }
 
-pub fn deserializeVelocity(buffer: []const u8) Error!core.Velocity {
-    if (buffer.len < wireSizeVelocity()) return Error.Truncated;
-    const x = try primitive.deserializeF32(buffer[0..4]);
-    const y = try primitive.deserializeF32(buffer[4..8]);
-    return core.Velocity{ .x = x, .y = y };
-}
+    pub fn deserializeVelocity(buffer: []const u8) Error!core.Velocity {
+        if (buffer.len < wireSizeVelocity()) return Error.Truncated;
+        const x = try primitive.deserializeF32(buffer[0..4]);
+        const y = try primitive.deserializeF32(buffer[4..8]);
+        return core.Velocity{ .x = x, .y = y };
+    }
+};
 
-pub fn wireSizeAcceleration() usize {
-    return 2 * primitive.wireSizeF32();
-}
+pub const Acceleration = struct {
+    pub fn wireSizeAcceleration() usize {
+        return 2 * primitive.wireSizeF32();
+    }
 
-pub fn serializeAcceleration(value: core.Acceleration, buffer: []u8) Error!void {
-    if (buffer.len < wireSizeAcceleration()) return Error.BufferTooSmall;
-    try primitive.serializeF32(value.x, buffer[0..4]);
-    try primitive.serializeF32(value.y, buffer[4..8]);
-}
+    pub fn serializeAcceleration(value: core.Acceleration, buffer: []u8) Error!void {
+        if (buffer.len < wireSizeAcceleration()) return Error.BufferTooSmall;
+        try primitive.serializeF32(value.x, buffer[0..4]);
+        try primitive.serializeF32(value.y, buffer[4..8]);
+    }
 
-pub fn deserializeAcceleration(buffer: []const u8) Error!core.Acceleration {
-    if (buffer.len < wireSizeAcceleration()) return Error.Truncated;
-    const x = try primitive.deserializeF32(buffer[0..4]);
-    const y = try primitive.deserializeF32(buffer[4..8]);
-    return core.Acceleration{ .x = x, .y = y };
-}
+    pub fn deserializeAcceleration(buffer: []const u8) Error!core.Acceleration {
+        if (buffer.len < wireSizeAcceleration()) return Error.Truncated;
+        const x = try primitive.deserializeF32(buffer[0..4]);
+        const y = try primitive.deserializeF32(buffer[4..8]);
+        return core.Acceleration{ .x = x, .y = y };
+    }
+};
 
-pub fn wireSizeJerk() usize {
-    return 2 * primitive.wireSizeF32();
-}
+pub const Jerk = struct {
+    pub fn wireSizeJerk() usize {
+        return 2 * primitive.wireSizeF32();
+    }
 
-pub fn serializeJerk(value: core.Jerk, buffer: []u8) Error!void {
-    if (buffer.len < wireSizeJerk()) return Error.BufferTooSmall;
-    try primitive.serializeF32(value.x, buffer[0..4]);
-    try primitive.serializeF32(value.y, buffer[4..8]);
-}
+    pub fn serializeJerk(value: core.Jerk, buffer: []u8) Error!void {
+        if (buffer.len < wireSizeJerk()) return Error.BufferTooSmall;
+        try primitive.serializeF32(value.x, buffer[0..4]);
+        try primitive.serializeF32(value.y, buffer[4..8]);
+    }
 
-pub fn deserializeJerk(buffer: []const u8) Error!core.Jerk {
-    if (buffer.len < wireSizeJerk()) return Error.Truncated;
-    const x = try primitive.deserializeF32(buffer[0..4]);
-    const y = try primitive.deserializeF32(buffer[4..8]);
-    return core.Jerk{ .x = x, .y = y };
-}
+    pub fn deserializeJerk(buffer: []const u8) Error!core.Jerk {
+        if (buffer.len < wireSizeJerk()) return Error.Truncated;
+        const x = try primitive.deserializeF32(buffer[0..4]);
+        const y = try primitive.deserializeF32(buffer[4..8]);
+        return core.Jerk{ .x = x, .y = y };
+    }
+};
 
-pub fn wireSizeRotation() usize {
-    return util.wireSizeAngle();
-}
+pub const Rotation = struct {
+    pub fn wireSize() usize {
+        return util.wireSizeAngle();
+    }
 
-pub fn serializeRotation(value: core.Rotation, buffer: []u8) Error!void {
-    try util.serializeAngle(value.value, buffer[0..wireSizeRotation()]);
-}
+    pub fn serialize(value: core.Rotation, buffer: []u8) Error!void {
+        try util.serializeAngle(value.value, buffer[0..wireSize()]);
+    }
 
-pub fn deserializeRotation(buffer: []const u8) Error!core.Rotation {
-    return core.Rotation{ .value = try util.deserializeAngle(buffer[0..wireSizeRotation()]) };
-}
+    pub fn deserialize(buffer: []const u8) Error!core.Rotation {
+        return core.Rotation{ .value = try util.deserializeAngle(buffer[0..wireSize()]) };
+    }
+};
 
-pub fn wireSizeAngularVelocity() usize {
-    return util.wireSizeAngle();
-}
+pub const AngularVelocity = struct {
+    pub fn wireSize() usize {
+        return util.wireSizeAngle();
+    }
 
-pub fn serializeAngularVelocity(value: core.AngularVelocity, buffer: []u8) Error!void {
-    try util.serializeAngle(value.value, buffer[0..wireSizeAngularVelocity()]);
-}
+    pub fn serialize(value: core.AngularVelocity, buffer: []u8) Error!void {
+        try util.serializeAngle(value.value, buffer[0..wireSize()]);
+    }
 
-pub fn deserializeAngularVelocity(buffer: []const u8) Error!core.AngularVelocity {
-    return core.AngularVelocity{ .value = try util.deserializeAngle(buffer[0..wireSizeAngularVelocity()]) };
-}
+    pub fn deserialize(buffer: []const u8) Error!core.AngularVelocity {
+        return core.AngularVelocity{ .value = try util.deserializeAngle(buffer[0..wireSize()]) };
+    }
+};
 
-pub fn wireSizeAngularAcceleration() usize {
-    return util.wireSizeAngle();
-}
+pub const AngularAcceleration = struct {
+    pub fn wireSize() usize {
+        return util.wireSizeAngle();
+    }
 
-pub fn serializeAngularAcceleration(value: core.AngularAcceleration, buffer: []u8) Error!void {
-    try util.serializeAngle(value.value, buffer[0..wireSizeAngularAcceleration()]);
-}
+    pub fn serialize(value: core.AngularAcceleration, buffer: []u8) Error!void {
+        try util.serializeAngle(value.value, buffer[0..wireSize()]);
+    }
 
-pub fn deserializeAngularAcceleration(buffer: []const u8) Error!core.AngularAcceleration {
-    return core.AngularAcceleration{ .value = try util.deserializeAngle(buffer[0..wireSizeAngularAcceleration()]) };
-}
+    pub fn deserialize(buffer: []const u8) Error!core.AngularAcceleration {
+        return core.AngularAcceleration{ .value = try util.deserializeAngle(buffer[0..wireSize()]) };
+    }
+};
 
-pub fn wireSizeShipSize() usize {
-    return primitive.wireSizeEnum(core.ShipSize);
-}
+pub const ShipSize = struct {
+    pub fn wireSize() usize {
+        return primitive.wireSizeEnum(core.ShipSize);
+    }
 
-pub fn serializeShipSize(value: core.ShipSize, buffer: []u8) Error!void {
-    try primitive.serializeEnum(core.ShipSize, value, buffer[0..wireSizeShipSize()]);
-}
+    pub fn serialize(value: core.ShipSize, buffer: []u8) Error!void {
+        try primitive.serializeEnum(core.ShipSize, value, buffer[0..wireSize()]);
+    }
 
-pub fn deserializeShipSize(buffer: []const u8) Error!core.ShipSize {
-    return try primitive.deserializeEnum(core.ShipSize, buffer[0..wireSizeShipSize()]);
-}
+    pub fn deserialize(buffer: []const u8) Error!core.ShipSize {
+        return try primitive.deserializeEnum(core.ShipSize, buffer[0..wireSize()]);
+    }
+};

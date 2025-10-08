@@ -14,6 +14,10 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
+// ---------- external ----------
+const net = @import("network");
+// ------------------------------
+
 // ---------- zig ----------
 const std = @import("std");
 // -------------------------
@@ -604,6 +608,52 @@ pub const CommandMessage = struct {
 
     pub fn write(self: CommandMessage, writer: anytype) void {
         writer.print("Command: {s}", .{self.command}) catch unreachable;
+    }
+};
+
+pub const EndpointMessage = struct {
+    address: net.Address,
+    port: u16,
+
+    pub fn init(endpoint: net.EndPoint) Message {
+        const end = EndpointMessage{
+            .address = endpoint.address,
+            .port = endpoint.port,
+        };
+
+        return Message{ .Endpoint = end };
+    }
+
+    fn deinit(_: EndpointMessage) void {}
+
+    fn wireSize(self: EndpointMessage) usize {
+        return serial.wireSizeU16() + serial.wireSizeAddress(self.address);
+    }
+
+    fn serialize(self: EndpointMessage, buffer: []u8) !void {
+        var offset: usize = 0;
+
+        try serial.serializeU16(self.port, buffer[offset..]);
+        offset += serial.wireSizeU16();
+
+        try serial.serializeAddress(self.address, buffer[offset..]);
+        offset += serial.wireSizeAddress(self.address);
+    }
+
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EndpointMessage {
+        var offset: usize = 0;
+
+        const port = try serial.deserializeU16(buffer[offset..]);
+        offset += serial.wireSizeU16();
+
+        const address = try serial.deserializeAddress(buffer[offset..]);
+        offset += serial.wireSizeAddress(address);
+
+        return EndpointMessage{ .port = port, .address = address };
+    }
+
+    pub fn write(self: EndpointMessage, writer: anytype) void {
+        writer.print("EndpointMessage: port={d}", .{self.port}) catch unreachable;
     }
 };
 
@@ -1987,6 +2037,7 @@ pub const MessageType = enum(u8) {
     Command,
 
     // ##### meta #####
+    Endpoint,
     Notice,
     Forward, //durch server und master
     Alpha,
@@ -2032,6 +2083,7 @@ pub const Message = union(MessageType) {
     ClientInfo: ClientInfoMessage,
     EditorInfo: EditorInfoMessage,
     Command: CommandMessage,
+    Endpoint: EndpointMessage,
     Notice: NoticeMessage,
     Forward: ForwardMessage,
     Alpha: AlphaMessage,

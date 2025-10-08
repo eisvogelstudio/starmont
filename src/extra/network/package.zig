@@ -226,7 +226,7 @@ pub const Package = struct {
         return msg;
     }
 
-    pub fn sendTo(self: *Package, identifier: Identifier, ack: Ack, socket: *net.Socket, endpoint: net.EndPoint) NetError!void {
+    fn prepare(self: *Package, identifier: Identifier, ack: Ack) void {
         const header = Header{
             .magic = Header.MAGIC,
             .version = Header.VERSION,
@@ -237,14 +237,41 @@ pub const Package = struct {
 
         header.serialize(self.buffer[0..Header.wireSize()]) catch unreachable;
         serial.serializeU8(self.msg_count, self.buffer[Header.wireSize() .. Header.wireSize() + serial.wireSizeU8()]) catch unreachable;
+    }
+
+    pub fn sendTo(self: *Package, identifier: Identifier, ack: Ack, socket: *net.Socket, endpoint: net.EndPoint) NetError!void {
+        self.prepare(identifier, ack);
 
         _ = socket.sendTo(endpoint, self.buffer[0..self.offset]) catch return NetError.SendFailed;
+    }
+
+    pub fn send(self: *Package, identifier: Identifier, ack: Ack, socket: *net.Socket) NetError!void {
+        self.prepare(identifier, ack);
+
+        _ = socket.send(self.buffer[0..self.offset]) catch return NetError.SendFailed;
     }
 
     const Result = struct {
         sender: net.EndPoint,
         package: Package,
     };
+
+    pub fn receive(socket: *net.Socket) Error!Result {
+        var package = Package{};
+
+        const result = socket.receiveFrom(&package.buffer) catch |err| {
+            switch (err) {
+                error.WouldBlock => return NetError.WouldBlock,
+                else => unreachable,
+            }
+        };
+
+        if (result.numberOfBytes < reserved) return Error.GarbargeReceived;
+
+        package.msg_count = try serial.deserializeU8(package.buffer[Header.wireSize() .. Header.wireSize() + serial.wireSizeU8()]);
+
+        return Result{ .sender = result.sender, .package = package };
+    }
 
     pub fn receiveFrom(socket: *net.Socket) Error!Result {
         var package = Package{};

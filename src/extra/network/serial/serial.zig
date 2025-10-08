@@ -14,9 +14,42 @@
 //  See LICENSE for details.
 // ─────────────────────────────────────────────────────────────────────
 
-// ---------- local ----------
+//TODO[IMPROVEMENT] make buffer the first arg in all the serialize/deserialize functions
+
+// ╔══════════════════════════════ pack ══════════════════════════════╗
 pub usingnamespace @import("core.zig");
-pub usingnamespace @import("error.zig");
-pub usingnamespace @import("primitive.zig");
-pub usingnamespace @import("util.zig");
-// -------------------------
+
+const err = @import("error.zig");
+pub const DeserializeError = err.DeserializeError;
+pub const Error = err.Error;
+pub const SerialisationError = err.SerializeError;
+
+const Float = @import("float.zig").Float;
+pub const F16 = Float(f16);
+pub const F32 = Float(f32);
+pub const F64 = Float(f64);
+pub const F128 = Float(f128);
+
+const Integer = @import("integer.zig").Integer;
+pub const I8 = Integer(i8);
+pub const I16 = Integer(i16);
+pub const I32 = Integer(i32);
+pub const I64 = Integer(i64);
+pub const I128 = Integer(i128);
+pub const U8 = Integer(u8);
+pub const U16 = Integer(u16);
+pub const U32 = Integer(u32);
+pub const U64 = Integer(u64);
+pub const U128 = Integer(u128);
+
+const primitive = @import("primitive.zig");
+const Bool = primitive.Bool;
+const Enum = primitive.Enum;
+const Text = primitive.Text;
+
+const util = @import("util.zig");
+const Address = util.Address;
+const Angle = util.Angle;
+const UUID4 = util.UUID4;
+const Vec2 = util.Vec2;
+// ╚══════════════════════════════════════════════════════════════════╝

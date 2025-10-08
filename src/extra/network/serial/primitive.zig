@@ -22,303 +22,120 @@ const std = @import("std");
 const SerializeError = @import("error.zig").SerializeError;
 const DeserializeError = @import("error.zig").DeserializeError;
 const Error = @import("error.zig").Error;
+const endian = @import("endian.zig").value;
 // ---------------------------
 
-//TODO[IMPROVEMENT] make buffer the first arg in all the serialize/deserialize functions
-
-const endian = std.builtin.Endian.big;
-
 // ╔══════════════════════════════ text ══════════════════════════════╗
-const max_text_size = 1024;
+pub const Text = struct {
+    const max_text_size = 1024;
 
-pub fn wireSizeText(text: []const u8) usize {
-    std.debug.assert(text.len <= max_text_size);
+    pub fn wireSize(text: []const u8) usize {
+        std.debug.assert(text.len <= max_text_size);
 
-    return @sizeOf(u64) + text.len;
-}
+        return @sizeOf(u64) + text.len;
+    }
 
-pub fn serializeText(text: []const u8, buffer: []u8) SerializeError!void {
-    std.debug.assert(text.len <= max_text_size);
+    pub fn serialize(text: []const u8, buffer: []u8) SerializeError!void {
+        std.debug.assert(text.len <= max_text_size);
 
-    const need = wireSizeText(text);
-    if (buffer.len < need) return SerializeError.BufferTooSmall;
+        const need = wireSize(text);
+        if (buffer.len < need) return SerializeError.BufferTooSmall;
 
-    var i: usize = 0;
-    std.mem.writeInt(u64, buffer[i..][0..8], @intCast(text.len), endian);
-    i += 8;
+        var i: usize = 0;
+        std.mem.writeInt(u64, buffer[i..][0..8], @intCast(text.len), endian);
+        i += 8;
 
-    @memcpy(buffer[i .. i + text.len], text);
-}
+        @memcpy(buffer[i .. i + text.len], text);
+    }
 
-pub fn deserializeText(buffer: []const u8, gpa: std.mem.Allocator) Error![]u8 {
-    if (buffer.len < 8) return DeserializeError.Truncated;
+    pub fn deserialize(buffer: []const u8, gpa: std.mem.Allocator) Error![]u8 {
+        if (buffer.len < 8) return DeserializeError.Truncated;
 
-    var i: usize = 0;
-    const len = std.mem.readInt(u64, buffer[i..][0..8], endian);
-    i += 8;
+        var i: usize = 0;
+        const len = std.mem.readInt(u64, buffer[i..][0..8], endian);
+        i += 8;
 
-    if (len > max_text_size) return DeserializeError.TextTooLarge;
-    if (i + len > buffer.len) return DeserializeError.Truncated;
+        if (len > max_text_size) return DeserializeError.TextTooLarge;
+        if (i + len > buffer.len) return DeserializeError.Truncated;
 
-    const text = try gpa.alloc(u8, @intCast(len));
-    @memcpy(text, buffer[i .. i + len]);
+        const text = try gpa.alloc(u8, @intCast(len));
+        @memcpy(text, buffer[i .. i + len]);
 
-    return text;
-}
+        return text;
+    }
+};
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ enum ══════════════════════════════╗
-//pub fn wireSizeEnum(comptime T: type) usize {
-//    const tag_type = @typeInfo(T).@"enum".tag_type;
-//    switch (tag_type) {
-//        u8 => {
-//            return 1;
-//        },
-//        u16 => {
-//            return 2;
-//        },
-//        u32 => {
-//            return 4;
-//        },
-//        u64 => {
-//            return 8;
-//        },
-//        else => @compileError(std.fmt.comptimePrint("Unsupported enum backing type: '{s}'", .{@typeName(tag_type)})),
-//    }
-//}
-fn storageType(comptime T: type) type {
-    const tag_type = @typeInfo(T).@"enum".tag_type;
-    const bits = 7 + @typeInfo(tag_type).int.bits / 8;
-    return std.meta.Int(.unsigned, std.math.ceilPowerOfTwo(usize, bits) catch @panic("failed"));
-}
-
-pub fn wireSizeEnum(comptime T: type) usize {
-    const info = @typeInfo(T);
-    if (info != .@"enum") {
-        @compileError("wireSizeEnum requires an enum type, got " ++ @typeName(T));
-    }
-    const bits = @typeInfo(info.@"enum".tag_type).int.bits;
-    return (bits + 7) / 8; // immer auf volles Byte runden
-}
-
-pub fn serializeEnum(comptime T: type, value: T, buffer: []u8) SerializeError!void {
-    const info = @typeInfo(T);
-    if (info != .@"enum") {
-        @compileError("serializeEnum requires an enum type, got " ++ @typeName(T));
+pub const Enum = struct {
+    fn storageType(comptime T: type) type {
+        const tag_type = @typeInfo(T).@"enum".tag_type;
+        const bits = 7 + @typeInfo(tag_type).int.bits / 8;
+        return std.meta.Int(.unsigned, std.math.ceilPowerOfTwo(usize, bits) catch @panic("failed"));
     }
 
-    const Store = storageType(T);
-    const size = @sizeOf(Store);
-
-    if (buffer.len < size)
-        return SerializeError.BufferTooSmall;
-
-    const int_val: Store = @intCast(@intFromEnum(value));
-    std.mem.writeInt(Store, buffer[0..size], int_val, .little);
-}
-
-pub fn deserializeEnum(comptime T: type, buffer: []const u8) DeserializeError!T {
-    const info = @typeInfo(T);
-    if (info != .@"enum") {
-        @compileError("deserializeEnum requires an enum type, got " ++ @typeName(T));
+    pub fn wireSize(comptime T: type) usize {
+        const info = @typeInfo(T);
+        if (info != .@"enum") {
+            @compileError("wireSizeEnum requires an enum type, got " ++ @typeName(T));
+        }
+        const bits = @typeInfo(info.@"enum".tag_type).int.bits;
+        return (bits + 7) / 8; // immer auf volles Byte runden
     }
 
-    const tag_type = info.@"enum".tag_type;
-    const Store = storageType(T);
-    const size = @sizeOf(Store);
+    pub fn serialize(comptime T: type, value: T, buffer: []u8) SerializeError!void {
+        const info = @typeInfo(T);
+        if (info != .@"enum") {
+            @compileError("serializeEnum requires an enum type, got " ++ @typeName(T));
+        }
 
-    if (buffer.len < size)
-        return DeserializeError.Truncated;
+        const Store = storageType(T);
+        const size = @sizeOf(Store);
 
-    const raw: Store = std.mem.readInt(Store, buffer[0..size], .little);
+        if (buffer.len < size)
+            return SerializeError.BufferTooSmall;
 
-    if (raw >= info.@"enum".fields.len)
-        return DeserializeError.InvalidEnumValue;
+        const int_val: Store = @intCast(@intFromEnum(value));
+        std.mem.writeInt(Store, buffer[0..size], int_val, .little);
+    }
 
-    return @enumFromInt(@as(tag_type, @intCast(raw)));
-}
+    pub fn deserialize(comptime T: type, buffer: []const u8) DeserializeError!T {
+        const info = @typeInfo(T);
+        if (info != .@"enum") {
+            @compileError("deserializeEnum requires an enum type, got " ++ @typeName(T));
+        }
 
+        const tag_type = info.@"enum".tag_type;
+        const Store = storageType(T);
+        const size = @sizeOf(Store);
+
+        if (buffer.len < size)
+            return DeserializeError.Truncated;
+
+        const raw: Store = std.mem.readInt(Store, buffer[0..size], .little);
+
+        if (raw >= info.@"enum".fields.len)
+            return DeserializeError.InvalidEnumValue;
+
+        return @enumFromInt(@as(tag_type, @intCast(raw)));
+    }
+};
 // ╚══════════════════════════════════════════════════════════════════╝
 
 // ╔══════════════════════════════ bool ══════════════════════════════╗
-pub fn wireSizeBool() usize {
-    return 1;
-}
+pub const Bool = struct {
+    pub fn wireSize() usize {
+        return 1;
+    }
 
-pub fn serializeBool(value: bool, buffer: []u8) SerializeError!void {
-    if (buffer.len < 1) return SerializeError.BufferTooSmall;
-    buffer[0] = if (value) 1 else 0;
-}
+    pub fn serialize(value: bool, buffer: []u8) SerializeError!void {
+        if (buffer.len < 1) return SerializeError.BufferTooSmall;
+        buffer[0] = if (value) 1 else 0;
+    }
 
-pub fn deserializeBool(buffer: []const u8) DeserializeError!bool {
-    if (buffer.len < 1) return DeserializeError.Truncated;
-    return buffer[0] != 0;
-}
-
+    pub fn deserialize(buffer: []const u8) DeserializeError!bool {
+        if (buffer.len < 1) return DeserializeError.Truncated;
+        return buffer[0] != 0;
+    }
+};
 // ╚══════════════════════════════════════════════════════════════════╝
-
-// ╔══════════════════════════════ uint ══════════════════════════════╗
-pub fn wireSizeU8() usize {
-    return 1;
-}
-
-pub fn serializeU8(value: u8, buffer: []u8) SerializeError!void {
-    if (buffer.len < 1) return SerializeError.BufferTooSmall;
-    buffer[0] = value;
-}
-
-pub fn deserializeU8(buffer: []const u8) DeserializeError!u8 {
-    if (buffer.len < 1) return DeserializeError.Truncated;
-    return buffer[0];
-}
-
-pub fn wireSizeU16() usize {
-    return 2;
-}
-
-pub fn serializeU16(value: u16, buffer: []u8) SerializeError!void {
-    if (buffer.len < 2) return SerializeError.BufferTooSmall;
-    std.mem.writeInt(u16, buffer[0..2], value, endian);
-}
-
-pub fn deserializeU16(buffer: []const u8) DeserializeError!u16 {
-    if (buffer.len < 2) return DeserializeError.Truncated;
-    return std.mem.readInt(u16, buffer[0..2], endian);
-}
-
-pub fn wireSizeU32() usize {
-    return 4;
-}
-
-pub fn serializeU32(value: u32, buffer: []u8) SerializeError!void {
-    if (buffer.len < 4) return SerializeError.BufferTooSmall;
-    std.mem.writeInt(u32, buffer[0..4], value, endian);
-}
-
-pub fn deserializeU32(buffer: []const u8) DeserializeError!u32 {
-    if (buffer.len < 4) return DeserializeError.Truncated;
-    return std.mem.readInt(u32, buffer[0..4], endian);
-}
-
-pub fn wireSizeU64() usize {
-    return 8;
-}
-
-pub fn serializeU64(value: u64, buffer: []u8) SerializeError!void {
-    if (buffer.len < 8) return SerializeError.BufferTooSmall;
-    std.mem.writeInt(u64, buffer[0..8], value, endian);
-}
-
-pub fn deserializeU64(buffer: []const u8) DeserializeError!u64 {
-    if (buffer.len < 8) return DeserializeError.Truncated;
-    return std.mem.readInt(u64, buffer[0..8], endian);
-}
-// ╚══════════════════════════════════════════════════════════════════╝
-
-// ╔══════════════════════════════ int ══════════════════════════════╗
-pub fn wireSizeI8() usize {
-    return 1;
-}
-
-pub fn serializeI8(value: i8, buffer: []u8) SerializeError!void {
-    if (buffer.len < 1) return SerializeError.BufferTooSmall;
-    buffer[0] = @bitCast(value);
-}
-
-pub fn deserializeI8(buffer: []const u8) DeserializeError!i8 {
-    if (buffer.len < 1) return DeserializeError.Truncated;
-    return @bitCast(buffer[0]);
-}
-
-pub fn wireSizeI16() usize {
-    return 2;
-}
-
-pub fn serializeI16(value: i16, buffer: []u8) SerializeError!void {
-    if (buffer.len < 2) return SerializeError.BufferTooSmall;
-    std.mem.writeInt(i16, buffer[0..2], value, endian);
-}
-
-pub fn deserializeI16(buffer: []const u8) DeserializeError!i16 {
-    if (buffer.len < 2) return DeserializeError.Truncated;
-    return std.mem.readInt(i16, buffer[0..2], endian);
-}
-
-pub fn wireSizeI32() usize {
-    return 4;
-}
-
-pub fn serializeI32(value: i32, buffer: []u8) SerializeError!void {
-    if (buffer.len < 4) return SerializeError.BufferTooSmall;
-    std.mem.writeInt(i32, buffer[0..4], value, endian);
-}
-
-pub fn deserializeI32(buffer: []const u8) DeserializeError!i32 {
-    if (buffer.len < 4) return DeserializeError.Truncated;
-    return std.mem.readInt(i32, buffer[0..4], endian);
-}
-
-pub fn wireSizeI64() usize {
-    return 8;
-}
-
-pub fn serializeI64(value: i64, buffer: []u8) SerializeError!void {
-    if (buffer.len < 8) return SerializeError.BufferTooSmall;
-    std.mem.writeInt(i64, buffer[0..8], value, endian);
-}
-
-pub fn deserializeI64(buffer: []const u8) DeserializeError!i64 {
-    if (buffer.len < 8) return DeserializeError.Truncated;
-    return std.mem.readInt(i64, buffer[0..8], endian);
-}
-// ╚═════════════════════════════════════════════════════════════════╝
-
-// ╔══════════════════════════════ float ══════════════════════════════╗
-pub fn wireSizeF16() usize {
-    return 2;
-}
-
-pub fn serializeF16(value: f16, buffer: []u8) SerializeError!void {
-    if (buffer.len < 2) return SerializeError.BufferTooSmall;
-    const raw: [2]u8 = @bitCast(value);
-    @memcpy(buffer[0..2], raw[0..2]);
-}
-
-pub fn deserializeF16(buffer: []const u8) DeserializeError!f16 {
-    if (buffer.len < 2) return DeserializeError.Truncated;
-    const raw: [2]u8 = buffer[0..2].*;
-    return @bitCast(raw);
-}
-
-pub fn wireSizeF32() usize {
-    return 4;
-}
-
-pub fn serializeF32(value: f32, buffer: []u8) SerializeError!void {
-    if (buffer.len < 4) return SerializeError.BufferTooSmall;
-    const raw: [4]u8 = @bitCast(value);
-    @memcpy(buffer[0..4], raw[0..4]);
-}
-
-pub fn deserializeF32(buffer: []const u8) DeserializeError!f32 {
-    if (buffer.len < 4) return DeserializeError.Truncated;
-    const raw: [4]u8 = buffer[0..4].*;
-    return @bitCast(raw);
-}
-
-pub fn wireSizeF64() usize {
-    return 8;
-}
-
-pub fn serializeF64(value: f64, buffer: []u8) SerializeError!void {
-    if (buffer.len < 8) return SerializeError.BufferTooSmall;
-    const raw: [8]u8 = @bitCast(value);
-    @memcpy(buffer[0..8], raw[0..8]);
-}
-
-pub fn deserializeF64(buffer: []const u8) DeserializeError!f64 {
-    if (buffer.len < 8) return DeserializeError.Truncated;
-    const raw: [8]u8 = buffer[0..8].*;
-    return @bitCast(raw);
-}
-// ╚═══════════════════════════════════════════════════════════════════╝
