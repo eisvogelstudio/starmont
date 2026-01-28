@@ -14,7 +14,20 @@ Follow the Zig official naming style:
 
 Use full, descriptive names at the top level (e.g. messages instead of msg). Abbreviations are acceptable in nested or inner scopes, as long as they follow naturally (e.g. message → msg → m).
 
-## TODO Tagging Convention
+## Comment Tagging Conventions
+
+Use structured code comments to make the codebase more understandable and searchable.
+
+### 1. NOTE
+
+```zig
+// NOTE: Short to detailed explanation
+```
+
+To document important design decisions, rationale, warnings, gotchas, trade-offs, performance considerations, or non-obvious relationships.
+NOTE comments are allowed (and often should) be multi-line.
+
+### 2. TODO
 
 All `TODO` comments **must** use a structured format:
 

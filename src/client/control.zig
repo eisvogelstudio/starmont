@@ -85,7 +85,7 @@ pub const Control = struct {
         self.model.update();
         //self.view.update(&self.model);
 
-        if (!self.client.is_connected) {
+        if (!self.client.tcp_connected) {
             self.client.connect("127.0.0.1", 11111) catch |err| {
                 switch (err) {
                     error.Cooldown => {

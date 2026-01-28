@@ -25,7 +25,7 @@ const endian = @import("endian.zig").value;
 // ---------------------------
 
 pub fn Float(comptime T: type) type {
-    if (@typeInfo(T) != .Float) @compileError(@typeName(T) ++ " is not a float type");
+    if (@typeInfo(T) != .float) @compileError(@typeName(T) ++ " is not a float type");
 
     const I = switch (@bitSizeOf(T)) {
         16 => u16,

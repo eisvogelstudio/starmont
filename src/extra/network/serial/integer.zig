@@ -26,7 +26,7 @@ const endian = @import("endian.zig").value;
 // ---------------------------
 
 pub fn Integer(comptime T: type) type {
-    if (!@typeInfo(T).Int) @compileError(@typeName(T) ++ " is not an integer type");
+    if (@typeInfo(T) != .int) @compileError(@typeName(T) ++ " is not an integer type");
 
     return struct {
         pub fn wireSize() usize {

@@ -42,14 +42,14 @@ pub const U32 = Integer(u32);
 pub const U64 = Integer(u64);
 pub const U128 = Integer(u128);
 
-const primitive = @import("primitive.zig");
-const Bool = primitive.Bool;
-const Enum = primitive.Enum;
-const Text = primitive.Text;
+pub const primitive = @import("primitive.zig");
+pub const Bool = primitive.Bool;
+pub const Enum = primitive.Enum;
+pub const Text = primitive.Text;
 
-const util = @import("util.zig");
-const Address = util.Address;
-const Angle = util.Angle;
-const UUID4 = util.UUID4;
-const Vec2 = util.Vec2;
+pub const util = @import("util.zig");
+pub const Address = util.Address;
+pub const Angle = util.Angle;
+pub const UUID4 = util.UUID4;
+pub const Vec2 = util.Vec2;
 // ╚══════════════════════════════════════════════════════════════════╝

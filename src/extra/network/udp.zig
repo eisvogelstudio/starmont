@@ -507,6 +507,11 @@ pub const Link = struct {
         //    self.inwait.pushBack(timed);
         //}
     }
+
+    pub fn isConnected(self: *Link) bool {
+        _ = self;
+        return true;
+    }
 };
 // ---- Out (egress) Pacer --------------------------------------------c
 pub const OutPacer = struct {

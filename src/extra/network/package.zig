@@ -76,18 +76,18 @@ pub const Ack = struct {
     }
 
     pub fn wireSize() usize {
-        return serial.wireSizeU16() + serial.wireSizeU32();
+        return serial.U16.wireSize() + serial.U32.wireSize();
     }
 
     pub fn serialize(self: Ack, buffer: []u8) !void {
-        try serial.serializeU16(self.head, buffer);
-        try serial.serializeU32(self.bits, buffer);
+        try serial.U16.serialize(self.head, buffer);
+        try serial.U32.serialize(self.bits, buffer);
     }
 
     pub fn deserialize(buffer: []const u8) Ack {
         return Ack{
-            .head = serial.deserializeU16(buffer) catch unreachable,
-            .bits = serial.deserializeU32(buffer) catch unreachable,
+            .head = serial.U16.deserialize(buffer) catch unreachable,
+            .bits = serial.U32.deserialize(buffer) catch unreachable,
         };
     }
 
@@ -112,23 +112,23 @@ pub const Header = struct {
     pub const VERSION = 1;
 
     pub fn wireSize() usize {
-        return serial.wireSizeU32() + serial.wireSizeU8() + serial.wireSizeEnum(Channel) + serial.wireSizeU16() + Ack.wireSize();
+        return serial.U32.wireSize() + serial.U8.wireSize() + serial.Enum.wireSize(Channel) + serial.U16.wireSize() + Ack.wireSize();
     }
 
-    pub fn serialize(self: *const Header, buffer: []u8) serial.SerializeError!void {
+    pub fn serialize(self: *const Header, buffer: []u8) !void {
         var off: usize = 0;
 
-        try serial.serializeU32(self.magic, buffer[off..]);
-        off += serial.wireSizeU32();
+        try serial.U32.serialize(self.magic, buffer[off..]);
+        off += serial.U32.wireSize();
 
-        try serial.serializeU8(self.version, buffer[off..]);
-        off += serial.wireSizeU8();
+        try serial.U8.serialize(self.version, buffer[off..]);
+        off += serial.U8.wireSize();
 
-        try serial.serializeEnum(Channel, self.channel, buffer[off..]);
-        off += serial.wireSizeEnum(Channel);
+        try serial.Enum.serialize(Channel, self.channel, buffer[off..]);
+        off += serial.Enum.wireSize(Channel);
 
-        try serial.serializeU16(self.sequence, buffer[off..]);
-        off += serial.wireSizeU16();
+        try serial.U16.serialize(self.sequence, buffer[off..]);
+        off += serial.U16.wireSize();
 
         try self.ack.serialize(buffer[off..]);
         off += Ack.wireSize();
@@ -140,17 +140,17 @@ pub const Header = struct {
         var header: Header = undefined;
         var off: usize = 0;
 
-        header.magic = try serial.deserializeU32(buffer[off..]);
-        off += serial.wireSizeU32();
+        header.magic = try serial.U32.deserialize(buffer[off..]);
+        off += serial.U32.wireSize();
 
-        header.version = try serial.deserializeU8(buffer[off..]);
-        off += serial.wireSizeU8();
+        header.version = try serial.U8.deserialize(buffer[off..]);
+        off += serial.U8.wireSize();
 
-        header.channel = try serial.deserializeEnum(Channel, buffer[off..]);
-        off += serial.wireSizeEnum(Channel);
+        header.channel = try serial.Enum.deserialize(Channel, buffer[off..]);
+        off += serial.Enum.wireSize(Channel);
 
-        header.sequence = try serial.deserializeU16(buffer[off..]);
-        off += serial.wireSizeU16();
+        header.sequence = try serial.U16.deserialize(buffer[off..]);
+        off += serial.U16.wireSize();
 
         header.ack = Ack.deserialize(buffer[off..]);
         off += Ack.wireSize();
@@ -190,7 +190,7 @@ pub const Package = struct {
     buffer: [max_byte]u8 = undefined,
     offset: usize = reserved,
 
-    const reserved = Header.wireSize() + serial.wireSizeU8();
+    const reserved = Header.wireSize() + serial.U8.wireSize();
 
     pub const max_byte = 1200;
 
@@ -236,7 +236,7 @@ pub const Package = struct {
         };
 
         header.serialize(self.buffer[0..Header.wireSize()]) catch unreachable;
-        serial.serializeU8(self.msg_count, self.buffer[Header.wireSize() .. Header.wireSize() + serial.wireSizeU8()]) catch unreachable;
+        serial.U8.serialize(self.msg_count, self.buffer[Header.wireSize() .. Header.wireSize() + serial.U8.wireSize()]) catch unreachable;
     }
 
     pub fn sendTo(self: *Package, identifier: Identifier, ack: Ack, socket: *net.Socket, endpoint: net.EndPoint) NetError!void {

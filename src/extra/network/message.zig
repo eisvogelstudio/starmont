@@ -611,52 +611,6 @@ pub const CommandMessage = struct {
     }
 };
 
-pub const EndpointMessage = struct {
-    address: net.Address,
-    port: u16,
-
-    pub fn init(endpoint: net.EndPoint) Message {
-        const end = EndpointMessage{
-            .address = endpoint.address,
-            .port = endpoint.port,
-        };
-
-        return Message{ .Endpoint = end };
-    }
-
-    fn deinit(_: EndpointMessage) void {}
-
-    fn wireSize(self: EndpointMessage) usize {
-        return serial.wireSizeU16() + serial.wireSizeAddress(self.address);
-    }
-
-    fn serialize(self: EndpointMessage, buffer: []u8) !void {
-        var offset: usize = 0;
-
-        try serial.serializeU16(self.port, buffer[offset..]);
-        offset += serial.wireSizeU16();
-
-        try serial.serializeAddress(self.address, buffer[offset..]);
-        offset += serial.wireSizeAddress(self.address);
-    }
-
-    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EndpointMessage {
-        var offset: usize = 0;
-
-        const port = try serial.deserializeU16(buffer[offset..]);
-        offset += serial.wireSizeU16();
-
-        const address = try serial.deserializeAddress(buffer[offset..]);
-        offset += serial.wireSizeAddress(address);
-
-        return EndpointMessage{ .port = port, .address = address };
-    }
-
-    pub fn write(self: EndpointMessage, writer: anytype) void {
-        writer.print("EndpointMessage: port={d}", .{self.port}) catch unreachable;
-    }
-};
-
 pub const NoticeMessage = struct {
     gpa: *std.mem.Allocator,
     duration: i64,
@@ -1223,6 +1177,60 @@ pub const AuthResponseMessage = struct {
     }
 };
 
+pub const EndpointMessage = struct {
+    endpoint: net.EndPoint,
+
+    pub fn init(port: u16, address: net.Address) Message {
+        const end = EndpointMessage{
+            .endpoint = net.EndPoint{ .address = address, .port = port },
+        };
+
+        return Message{ .Endpoint = end };
+    }
+
+    pub fn fromEndpoint(endpoint: net.EndPoint) Message {
+        const end = EndpointMessage{
+            .endpoint = endpoint,
+        };
+
+        return Message{ .Endpoint = end };
+    }
+
+    fn deinit(self: EndpointMessage) void {
+        _ = self;
+    }
+
+    fn wireSize(self: EndpointMessage) usize {
+        return serial.U16.wireSize() + serial.Address.wireSize(self.endpoint.address);
+    }
+
+    fn serialize(self: EndpointMessage, buffer: []u8) serial.SerializeError!void {
+        if (buffer.len < self.wireSize()) return serial.SerializeError.BufferTooSmall;
+        var offset: usize = 0;
+
+        try serial.U16.serialize(self.endpoint.port, buffer[offset..]);
+        offset += serial.U16.wireSize();
+
+        try serial.Address.serialize(self.time, buffer[offset..]);
+    }
+
+    fn deserialize(buffer: []const u8, _: *std.mem.Allocator) serial.DeserializeError!EndpointMessage {
+        var offset: usize = 0;
+
+        const port_size = serial.U16.wireSize();
+        if (buffer.len < offset + port_size) return serial.DeserializeError.Truncated;
+        const port = try serial.U16.deserialize(buffer[offset .. offset + port_size]);
+        offset += port_size;
+
+        const address = try serial.Address.deserialize(buffer[offset..]);
+
+        return EndpointMessage{ .endpoint = net.EndPoint{ .address = address, .port = port } };
+    }
+    pub fn write(self: EndpointMessage, writer: anytype) void {
+        writer.print("Endpoint: {s}:{d}", .{ self.tick, self.time }) catch unreachable;
+    }
+};
+
 pub const TickMessage = struct {
     tick: u64,
     time: i64,
@@ -1546,33 +1554,33 @@ pub const ActionMessage = struct {
     }
 
     fn wireSize(_: ActionMessage) usize {
-        return serial.wireSizeId() + serial.wireSizeEnum(core.Action);
+        return serial.Id.wireSize() + serial.Enum.wireSize(core.Action);
     }
 
     fn serialize(self: ActionMessage, buffer: []u8) !void {
-        if (buffer.len < self.wireSize()) return serial.SerializeError.BufferTooSmall;
+        if (buffer.len < self.wireSize()) return serial.Error.BufferTooSmall;
 
         var offset: usize = 0;
 
-        const id_size = serial.wireSizeId();
-        try serial.serializeId(self.id, buffer[offset .. offset + id_size]);
+        const id_size = serial.Id.wireSize();
+        try serial.Id.serializeId(self.id, buffer[offset .. offset + id_size]);
         offset += id_size;
 
-        const action_size = serial.wireSizeEnum(core.Action);
-        try serial.serializeEnum(core.Action, self.action, buffer[offset .. offset + action_size]);
+        const action_size = serial.Enum.wireSize(core.Action);
+        try serial.Enum.serialize(core.Action, self.action, buffer[offset .. offset + action_size]);
     }
 
     fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !ActionMessage {
         var offset: usize = 0;
 
-        const id_size = serial.wireSizeId();
+        const id_size = serial.Id.wireSize();
         if (buffer.len < offset + id_size) return serial.DeserializeError.Truncated;
-        const id = try serial.deserializeId(buffer[offset .. offset + id_size]);
+        const id = try serial.Id.deserializeId(buffer[offset .. offset + id_size]);
         offset += id_size;
 
-        const action_size = serial.wireSizeEnum(core.Action);
+        const action_size = serial.Enum.wireSize(core.Action);
         if (buffer.len < offset + action_size) return serial.DeserializeError.Truncated;
-        const action = try serial.deserializeEnum(core.Action, buffer[offset .. offset + action_size]);
+        const action = try serial.Enum.deserialize(core.Action, buffer[offset .. offset + action_size]);
 
         return ActionMessage{ .id = id, .action = action };
     }
@@ -1600,17 +1608,17 @@ pub const EntityMessage = struct {
     }
 
     fn wireSize(_: EntityMessage) usize {
-        return serial.wireSizeId();
+        return serial.Id.wireSize();
     }
 
     fn serialize(self: EntityMessage, buffer: []u8) !void {
         if (buffer.len < self.wireSize()) return serial.SerializeError.BufferTooSmall;
-        try serial.serializeId(self.id, buffer[0..self.wireSize()]);
+        try serial.Id.serializeId(self.id, buffer[0..self.wireSize()]);
     }
 
     fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EntityMessage {
-        if (buffer.len < serial.wireSizeId()) return serial.DeserializeError.Truncated;
-        const id = try serial.deserializeId(buffer[0..serial.wireSizeId()]);
+        if (buffer.len < serial.Id.wireSize()) return serial.DeserializeError.Truncated;
+        const id = try serial.Id.deserializeId(buffer[0..serial.Id.wireSize()]);
         return EntityMessage{ .id = id };
     }
 
@@ -1635,17 +1643,17 @@ pub const EntityRemoveMessage = struct {
     }
 
     fn wireSize(_: EntityRemoveMessage) usize {
-        return serial.wireSizeId();
+        return serial.Id.wireSize();
     }
 
     fn serialize(self: EntityRemoveMessage, buffer: []u8) !void {
         if (buffer.len < self.wireSize()) return serial.SerializeError.BufferTooSmall;
-        try serial.serializeId(self.id, buffer[0..self.wireSize()]);
+        try serial.Id.serializeId(self.id, buffer[0..self.wireSize()]);
     }
 
     fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !EntityRemoveMessage {
         if (buffer.len < serial.wireSizeId()) return serial.DeserializeError.Truncated;
-        const id = try serial.deserializeId(buffer[0..serial.wireSizeId()]);
+        const id = try serial.Id.deserializeId(buffer[0..serial.Id.wireSize()]);
         return EntityRemoveMessage{ .id = id };
     }
 
@@ -1727,18 +1735,11 @@ pub const ComponentMessage = struct {
     }
 
     fn wireSize(self: ComponentMessage) usize {
-        const id_size = serial.wireSizeId();
-        const comp_type_size = serial.wireSizeEnum(core.ComponentType);
+        const id_size = serial.Id.wireSize();
+        const comp_type_size = serial.Enum.wireSize(core.ComponentType);
 
-        const payload_size = switch (self.component) {
-            .Position => serial.wireSizePosition(),
-            .Velocity => serial.wireSizeVelocity(),
-            .Acceleration => serial.wireSizeAcceleration(),
-            .Jerk => serial.wireSizeJerk(),
-            .Rotation => serial.wireSizeRotation(),
-            .AngularVelocity => serial.wireSizeAngularVelocity(),
-            .AngularAcceleration => serial.wireSizeAngularAcceleration(),
-            .ShipSize => serial.wireSizeShipSize(),
+        const payload_size = switch (self) {
+            inline else => |comp| comp.wireSize(),
         };
 
         return id_size + comp_type_size + payload_size;
@@ -1910,28 +1911,28 @@ pub const ComponentRemoveMessage = struct {
     }
 
     fn wireSize(_: ComponentRemoveMessage) usize {
-        return serial.wireSizeId() + serial.wireSizeEnum(core.ComponentType);
+        return serial.Id.wireSize() + serial.Enum.wireSize(core.ComponentType);
     }
 
     fn serialize(self: ComponentRemoveMessage, buffer: []u8) !void {
         if (buffer.len < self.wireSize()) return serial.SerializeError.BufferTooSmall;
         var offset: usize = 0;
-        const id_sz = serial.wireSizeId();
-        try serial.serializeId(self.id, buffer[offset .. offset + id_sz]);
+        const id_sz = serial.Id.wireSize();
+        try serial.Id.serializeId(self.id, buffer[offset .. offset + id_sz]);
         offset += id_sz;
-        const comp_sz = serial.wireSizeEnum(core.ComponentType);
-        try serial.serializeEnum(core.ComponentType, self.component, buffer[offset .. offset + comp_sz]);
+        const comp_sz = serial.Enum.wireSize(core.ComponentType);
+        try serial.Enum.serialize(core.ComponentType, self.component, buffer[offset .. offset + comp_sz]);
     }
 
     fn deserialize(buffer: []const u8, _: *std.mem.Allocator) !ComponentRemoveMessage {
         var offset: usize = 0;
-        const id_sz = serial.wireSizeId();
+        const id_sz = serial.Id.wireSize();
         if (buffer.len < offset + id_sz) return serial.DeserializeError.Truncated;
-        const id = try serial.deserializeId(buffer[offset .. offset + id_sz]);
+        const id = try serial.Id.deserializeId(buffer[offset .. offset + id_sz]);
         offset += id_sz;
-        const comp_sz = serial.wireSizeEnum(core.ComponentType);
+        const comp_sz = serial.Enum.wireSize(core.ComponentType);
         if (buffer.len < offset + comp_sz) return serial.DeserializeError.Truncated;
-        const ctype = try serial.deserializeEnum(core.ComponentType, buffer[offset .. offset + comp_sz]);
+        const ctype = try serial.Enum.deserialize(core.ComponentType, buffer[offset .. offset + comp_sz]);
         return ComponentRemoveMessage{ .id = id, .component = ctype };
     }
 
@@ -2037,7 +2038,6 @@ pub const MessageType = enum(u8) {
     Command,
 
     // ##### meta #####
-    Endpoint,
     Notice,
     Forward, //durch server und master
     Alpha,
@@ -2050,6 +2050,7 @@ pub const MessageType = enum(u8) {
     AuthChallenge,
     AuthResult,
     AuthResponse,
+    Endpoint,
 
     // ##### core #####
     Tick,
@@ -2083,7 +2084,6 @@ pub const Message = union(MessageType) {
     ClientInfo: ClientInfoMessage,
     EditorInfo: EditorInfoMessage,
     Command: CommandMessage,
-    Endpoint: EndpointMessage,
     Notice: NoticeMessage,
     Forward: ForwardMessage,
     Alpha: AlphaMessage,
@@ -2096,6 +2096,7 @@ pub const Message = union(MessageType) {
     AuthChallenge: AuthChallengeMessage,
     AuthResult: AuthResultMessage,
     AuthResponse: AuthResponseMessage,
+    Endpoint: EndpointMessage,
     Tick: TickMessage,
     Static: StaticMessage,
     Linear: LinearMessage,
@@ -2117,7 +2118,7 @@ pub const Message = union(MessageType) {
     }
 
     pub fn wireSize(self: Message) usize {
-        var size: usize = serial.wireSizeEnum(MessageType);
+        var size: usize = serial.Enum.wireSize(MessageType);
 
         size += switch (self) {
             inline else => |msg| msg.wireSize(),
@@ -2129,8 +2130,8 @@ pub const Message = union(MessageType) {
     pub fn serialize(self: Message, buffer: []u8) !void {
         var offset: usize = 0;
 
-        try serial.serializeEnum(MessageType, self, buffer[offset..]);
-        offset += serial.wireSizeEnum(MessageType);
+        try serial.Enum.serialize(MessageType, self, buffer[offset..]);
+        offset += serial.Enum.wireSize(MessageType);
 
         switch (self) {
             inline else => |msg| {
@@ -2145,8 +2146,8 @@ pub const Message = union(MessageType) {
         var offset: usize = 0;
 
         const T = MessageType;
-        const tag = try serial.deserializeEnum(T, buffer[offset..]);
-        offset += serial.wireSizeEnum(T);
+        const tag = try serial.Enum.deserialize(T, buffer[offset..]);
+        offset += serial.Enum.wireSize(T);
 
         inline for (@typeInfo(Message).@"union".fields) |field| {
             if (@field(T, field.name) == tag) {

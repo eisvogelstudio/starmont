@@ -41,7 +41,7 @@ pub const Client = struct {
     gpa: *std.mem.Allocator,
     tcp: net.Socket = undefined,
     udp_link: *Link = undefined,
-    is_connected: bool = false,
+    tcp_connected: bool = false,
     stamp: i64 = 0,
     last: i64 = 0,
 
@@ -65,9 +65,15 @@ pub const Client = struct {
     }
 
     pub fn update(self: *Client) void {
-        if (!self.is_connected) return;
+        //if (!self.tcp_connected) return;
 
         const server_endpoint = net.EndPoint.parse("127.0.0.1:24711") catch unreachable;
+
+        if (!self.udp_link.isConnected()) {
+            self.udp_link.submit(.reliabel, message.EndpointMessage.fromEndpoint(server_endpoint));
+            return;
+        }
+
         while (true) {
             const progress = self.udp_link.send(&self.udp, server_endpoint) catch unreachable;
             if (!progress) {
@@ -96,7 +102,7 @@ pub const Client = struct {
     }
 
     pub fn connect(self: *Client, host: []const u8, port: u16) !void {
-        if (self.is_connected) {
+        if (self.tcp_connected) {
             return;
         }
 
@@ -112,21 +118,17 @@ pub const Client = struct {
         tcp_socket.setReadTimeout(100) catch unreachable; // 100ns
         tcp_socket.setWriteTimeout(100) catch unreachable; // 100ns
 
-        {
-            //self.udp_link = Link.init(self.gpa);
-        }
-
-        self.udp_link.submit(.reliabel, message.EndpointMessage.init(self.tcp.getLocalEndPoint() catch unreachable));
+        self.udp_link = Link.init(self.gpa);
 
         self.tcp = tcp_socket;
-        self.is_connected = true;
+        self.tcp_connected = true;
         self.stamp = now;
 
         log.info("connected to {s}:{d}", .{ host, port });
     }
 
     pub fn disconnect(self: *Client) void {
-        if (!self.is_connected) {
+        if (!self.tcp_connected) {
             return;
         }
 
@@ -134,7 +136,7 @@ pub const Client = struct {
 
         log.info("disconnected\n", .{});
 
-        self.is_connected = false;
+        self.tcp_connected = false;
     }
 
     //pub fn receive(self: *Client) ![]Batch {
@@ -148,4 +150,8 @@ pub const Client = struct {
     //
     //    return batches;
     //}
+
+    pub fn submit(self: *Client, msg: message.Message) void {
+        self.batch.append(msg) catch unreachable;
+    }
 };
